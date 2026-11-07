@@ -48,6 +48,7 @@ UI E02～E08、E06m、F03、F05：新增藥單的三條路徑（拍照辨識、�
 | GET | `/drugs/search?q=` | 登入 | 藥名搜尋 |
 | POST | `/elders/{elder_id}/prescriptions/qr-preview` | 寫 | body 為 App 的 `qr_code_scan` 回覆 |
 | POST | `/elders/{elder_id}/prescriptions/photo-preview` | 寫 | body 為 `PhotoIn`（規格書 §8.3） |
+| POST | `/elders/{elder_id}/prescriptions/ocr-preview` | 寫 | body 為 `{ name: 'ocr_scan', data: { lines } }`（前端在手機上用 tesseract.js 辨識出的每一行）；`ocr_text.py` 整理成 `PhotoIn` 後同 photo-preview |
 | POST | `/elders/{elder_id}/prescriptions/preview` | 寫 | body 為藥單草稿（手動、修改後再看一次） |
 | POST | `/elders/{elder_id}/prescriptions` | 寫 | 加入；回藥單、警示、`schedule`、「請用筆在這個藥袋上寫一個大大的「A」…」 |
 | GET | `/elders/{elder_id}/prescriptions?status=active\|finished` | 讀 | 吃藥中（依字母）、已吃完（新的在前） |

@@ -322,6 +322,82 @@ async def test_photo_preview_scores_fields(api: httpx.AsyncClient, ctx: dict) ->
     assert (draft["items"][1]["dose_qty"], draft["items"][1]["meal_timing"]) == (1, "after")
 
 
+# ---------- 路徑 3-1：拍藥袋（手機端 OCR 出文字，後端整理成拍照辨識的欄位） ----------
+
+OCR_SAMPLES = {s["rx"]: s["lines"] for s in json.loads((SEED / "ocr_samples.json").read_text(encoding="utf-8"))}
+RX_BY_FILE = {s["file"]: s["payload"] for s in json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))}
+
+
+def ocr_reply(lines: list[str] | None) -> dict:
+    """App 對 ocr_scan 的回覆：data.lines 是手機端 OCR 辨識出的每一行文字；取消時 data 為 null。"""
+    return {"name": "ocr_scan", "data": None if lines is None else {"lines": lines}}
+
+
+async def preview_ocr(api: httpx.AsyncClient, ctx: dict, lines: list[str] | None, who: str = "elder") -> httpx.Response:
+    return await api.post(f"{ctx['base']}/prescriptions/ocr-preview", json=ocr_reply(lines), headers=ctx[who])
+
+
+@pytest.mark.parametrize("rx", list(OCR_SAMPLES))
+async def test_ocr_preview_matches_qr(api: httpx.AsyncClient, ctx: dict, rx: str) -> None:
+    """同一張藥單，拍藥袋（OCR 文字）和掃 QR 得到相同的藥、劑量、時段與總顆數。"""
+    qr = (await preview(api, ctx, RX_BY_FILE[rx])).json()["draft"]
+    resp = await preview_ocr(api, ctx, OCR_SAMPLES[rx])
+    assert resp.status_code == 200, resp.text
+    draft = resp.json()["draft"]
+
+    assert draft["source"] == "photo"  # 和拍照辨識同一條路徑
+    assert (draft["department"], draft["doctor"], draft["visit_date"], draft["days"]) == (
+        qr["department"], qr["doctor"], qr["visit_date"], qr["days"]
+    )  # fmt: skip
+    # 藥袋印商品名，比對健保資料後要對到和 QR 相同的健保碼（QR 的劑量寫在藥名裡，所以不比 strength）
+    keys = ("license_no", "dose_qty", "quantity", "slots", "meal_timing")
+    assert [{k: i[k] for k in keys} for i in draft["items"]] == [{k: i[k] for k in keys} for i in qr["items"]]
+
+
+async def test_ocr_preview_generic_name(api: httpx.AsyncClient, ctx: dict) -> None:
+    """藥袋只印學名時，靠健保資料的主成分比對（例如 Amlodipine → 壓可平錠 A047632100），劑量一致才不紅框。"""
+    body = (await preview_ocr(api, ctx, ["Amlodipine 10 毫克", "每次1顆 早上 飯後"])).json()
+    assert body["draft"]["items"][0]["license_no"] == "A047632100"
+    assert body["draft"]["items"][0]["strength"] == "10 毫克"
+    assert not {"items.0.name", "items.0.strength"} & {u["field"] for u in body["uncertain"]}
+
+
+async def test_ocr_preview_flags_guesses(api: httpx.AsyncClient, ctx: dict) -> None:
+    """有標籤的欄位不紅框；只靠寫法猜的（單獨的「半顆」、沒標籤的科別與日期）列入「電腦不確定這一項」。"""
+    sure = (await preview_ocr(api, ctx, OCR_SAMPLES["rx_a_cardiology"])).json()
+    assert sure["uncertain"] == []
+
+    guessed = (await preview_ocr(api, ctx, OCR_SAMPLES["rx_c_same_ingredient"])).json()
+    assert {u["field"] for u in guessed["uncertain"]} == {
+        "department", "visit_date", "items.0.dose_qty", "items.0.purpose"
+    }  # fmt: skip
+
+
+async def test_ocr_preview_same_ingredient(api: httpx.AsyncClient, ctx: dict) -> None:
+    assert (await add(api, ctx, RX_A)).status_code == 201
+    warnings = (await preview_ocr(api, ctx, OCR_SAMPLES["rx_c_same_ingredient"])).json()["warnings"]
+    assert [w["with_code"] for w in warnings] == ["A1"]
+
+
+@pytest.mark.parametrize(
+    ("lines", "code"),
+    [
+        (None, "OCR_EMPTY"),  # 使用者取消
+        (["", "  "], "OCR_EMPTY"),
+        (["Hello world", "12345"], "OCR_UNREADABLE"),  # 不是藥袋
+    ],
+)
+async def test_ocr_preview_rejects(api: httpx.AsyncClient, ctx: dict, lines: list[str] | None, code: str) -> None:
+    resp = await preview_ocr(api, ctx, lines)
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == code
+
+
+async def test_ocr_preview_requires_write_access(api: httpx.AsyncClient, ctx: dict) -> None:
+    resp = await preview_ocr(api, ctx, OCR_SAMPLES["rx_a_cardiology"], who="stranger")
+    assert resp.status_code == 403
+
+
 # ---------- 我的藥單、今天四個時段 ----------
 
 

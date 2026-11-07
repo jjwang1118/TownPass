@@ -17,7 +17,7 @@ lib/util/web_message_handler/：
 
 import re
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -46,6 +46,7 @@ class CustomMessageName(StrEnum):
     """本服務自行擴充的 Handler name。依指引不可與內建名稱重複。"""
 
     PUSH_TOKEN = "push_token"
+    OCR_SCAN = "ocr_scan"  # 拍藥袋：手機上 OCR 辨識出的文字（目前由前端 tesseract.js 產生，App 不需 handler）
 
 
 _overlap = {m.value for m in BuiltinMessageName} & {m.value for m in CustomMessageName}
@@ -157,6 +158,23 @@ class QRCodeScanReply(BaseModel):
 
     name: Literal[BuiltinMessageName.QR_CODE_SCAN]
     data: str | None
+
+
+class OcrScanData(BaseModel):
+    """手機端 OCR 的結果：由上到下、每一行一個字串。只傳文字，不傳照片。"""
+
+    lines: list[Annotated[str, Field(max_length=200)]] = Field(max_length=200)
+
+
+class OcrScanReply(BaseModel):
+    """拍藥袋的辨識結果 { name: 'ocr_scan', data: { lines } }。
+
+    目前由前端在手機上用 tesseract.js 辨識後組成（App 不需要 handler）；之後若改由 App 原生 OCR 回覆，
+    沿用同一格式即可。data 為 null 表示沒有拍到。
+    """
+
+    name: Literal[CustomMessageName.OCR_SCAN]
+    data: OcrScanData | None
 
 
 class PushPlatform(StrEnum):

@@ -93,6 +93,7 @@
 | `userinfo` | App → 後端 | `POST /auth/townpass` | `lib/bean/account.dart` 的 `Account`（駝峰式，如 `realName`、`phoneNo`、`birthday: "YYYY/MM/DD"`）；沒有帳號時為 `[]`，後端回 400 |
 | `qr_code_scan` | App → 後端 | `POST …/prescriptions/qr-preview`、`POST /responder/cards/lookup`、`POST /family/bindings` | 掃到的字串；使用者取消時為 `null` |
 | 拍照辨識（自訂，名稱由 App 決定） | App → 後端 | `POST …/prescriptions/photo-preview` | 裝置端模型整理出的藥單欄位，格式見 [§8.3](#83-拍照辨識的輸入) |
+| `ocr_scan`（格式名稱） | 前端 → 後端 | `POST …/prescriptions/ocr-preview` | 拍藥袋：前端在手機上用 tesseract.js 辨識後組成 `{ "name": "ocr_scan", "data": { "lines": ["…", "…"] } }`，由上到下每一行（最多 200 行、每行 200 字），不傳照片。目前不需要 App handler；之後若改由 App 原生 OCR 回覆，沿用同一格式即可。見 [§8.3](#83-拍照辨識的輸入) |
 | `location` | App → 後端 | `POST /responder/cards/lookup` | geolocator `Position.toJson()`（`latitude`、`longitude`、`timestamp`…）；失敗時為 `[]`，後端視為沒有定位 |
 | `push_token`（自訂） | App → 後端 | `POST /devices` | `{ "token": "…", "platform": "ios" \| "android" }` |
 | `phone_call` | 後端 → App | 緊急聯絡人的 `call` 欄位 | 電話號碼字串，只含數字與開頭的 `+`（App 會組成 `tel://{data}`） |
@@ -584,6 +585,7 @@ microservice/backend/
 | GET | `/drugs/search?q=` | 藥名搜尋（手動新增）：2 個字以上，中英文、不分大小寫、比對字首；同藥名只出現一次，附可選劑量清單（每個劑量帶健保藥品代號）；北市聯醫常用藥（模擬）排前面，最多 8 筆 |
 | POST | `/elders/{elder_id}/prescriptions/qr-preview` | 掃 QR：body 為 App 的 `qr_code_scan` 回覆 |
 | POST | `/elders/{elder_id}/prescriptions/photo-preview` | 拍照辨識：body 為裝置端模型整理出的欄位（[§8.3](#83-拍照辨識的輸入)）；比對健保資料、回每個欄位的信心分數與 `uncertain`（紅框） |
+| POST | `/elders/{elder_id}/prescriptions/ocr-preview` | 拍照辨識（OCR 文字）：body 為前端組成的 `ocr_scan` 格式（手機上 tesseract.js 辨識出的每一行）；後端用規則整理成 photo-preview 的欄位，之後完全相同（[§8.3](#83-拍照辨識的輸入)）；`400 OCR_EMPTY`（取消或沒有字）、`400 OCR_UNREADABLE`（認不出任何欄位） |
 | POST | `/elders/{elder_id}/prescriptions/preview` | 手動新增、或修改後「再看一次」：body 為藥單草稿 |
 | POST | `/elders/{elder_id}/prescriptions` | 「確認無誤，加入藥單」：body 為核對後的草稿；配字母、記錄核對者；回藥單、同成分警示、四個時段各吃哪幾號、「請用筆在這個藥袋上寫一個大大的「A」」 |
 | GET | `/elders/{elder_id}/prescriptions?status=active\|finished` | 我的藥單：吃藥中（依字母）、已吃完（新的在前）；含每個藥的「念給我聽」朗讀稿 |
@@ -710,6 +712,20 @@ App 用裝置端模型讀藥袋照片後，把整理出的欄位送到 `POST …
 3. 低於 0.8 的欄位列在 `uncertain`（例如 `items.1.name`），該藥的 `uncertain=true`，前端用紅框標示「電腦不確定這一項，請照藥袋核對」。
 4. 天數看不出來時 `draft.days` 為 null，加入前必須填（否則 `400 DAYS_REQUIRED`）。
 
+**另一種輸入：裝置端 OCR 只出文字**（`POST …/prescriptions/ocr-preview`，目前拍藥袋頁使用這條）。前端用 **tesseract.js**（Apache-2.0）在手機的 WebView 裡辨識藥袋照片（不需修改 App，見 [frontend.md](frontend.md)「拍藥袋 OCR」），拿到一行一行的文字後送 `{ "name": "ocr_scan", "data": { "lines": [...] } }`。依競賽規則不可用閉源或大陸廠牌模型（Google ML Kit 閉源、PaddleOCR 屬百度，都不使用）。OCR 在手機上做；後端只用固定規則把文字整理成上面的欄位（`app/modules/medication/ocr_text.py`，純函式，不跑模型），再走和 photo-preview 完全相同的比對與打分：
+
+| 項目 | 規則（摘要） |
+|---|---|
+| 分段 | 每個藥從「藥名那一行」開始到下一個藥名之前：有「藥名：」，或有劑型（錠、膠囊、Tablets…）、劑量（毫克、mg、mcg…）而且不是用法說明的行；找不到藥名時整段當一個藥 |
+| `name`、`strength` | 藥名那一行去掉「藥名：」、劑量與單獨的劑型字；劑量統一寫成健保資料的格式（`5 毫克`、`50/1000 毫克`、`500 微克`）。藥袋多印商品名（脈優錠、Lipitor），健保資料的原廠藥常沒有主成分名，只印學名時可能對不到 |
+| `slots`、`frequency` | 寫明時段（早上、中午、晚上、睡前、早晚、三餐）優先，其次頻率代碼（QD、QAM、QN、Q12H…，和 QR 相同）與「一天 N 次」 |
+| `meal_timing` | 飯前／餐前／空腹／`AC`、飯後／餐後／`PC`；只寫「睡前」時是時段，不填 |
+| `dose_qty`、`quantity` | 每次／一次 N 顆（「半」「1/2」為 0.5）；「總量、共 N 顆」為總顆數 |
+| 藥單欄位 | 院區（聯醫統一為「臺北市立聯合醫院○○院區」）、「科別：」、「醫師：」或「○醫師」、看診日（西元或民國年，「有效期限」不算）、給藥天數 |
+
+- **信心分數**：從有標籤的字取出的欄位不填（視為 1）；只靠對照表或寫法猜的給 0.6（沒標籤的科別、用途，沒有「每次」的「半顆」），沒有「調劑日、就診日」等字樣的日期給 0.7。都低於 0.8，畫面上紅框請長輩核對。
+- 範例：`seed/data/ocr_samples.json`，和 `rx_samples.json` 的三張藥單一一對應，測試確認和掃 QR 得到相同的健保碼、劑量、時段與總顆數。
+
 ---
 
 ## 9. 技術選型
@@ -790,7 +806,8 @@ Python 3.12。
 | FCM 推播 | App | 加入 `firebase_messaging`；新增 Handler 回傳 FCM token；處理通知點擊的 deeplink |
 | 全螢幕提醒 | App | 聲音、震動、閃光、全螢幕顯示 |
 | 國台語朗讀 | 前端、App | 國語用 `microservice/frontend/tts/`（`speak(speech_text)`：App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App 已加 `tts_speak`、`tts_stop` handler（`lib/util/web_message_handler/tts_message_handler.dart`，`flutter_tts`，只用離線語音）；Android WebView 不支援 speechSynthesis，只能靠 App handler；英文稿 `speech_text_en` 要用 `speak(text, { lang: 'en-US' })` 朗讀，**前端模組與 App handler 目前只挑中文語音，需要補上英文（en-US）離線語音的選擇**；台語之後再定 |
-| 拍照辨識 | App | 拍照走台北通原生 handler（WebView 直接開相機可能失敗）；用裝置端模型（例如 Gemma 4 E2B）把照片整理成 [§8.3](#83-拍照辨識的輸入) 的欄位，再由前端送到 `photo-preview`；README 要揭露模型名稱、版本、量化格式、推論框架與來源 |
+| 拍藥袋（OCR 文字，已完成） | 前端 | 拍藥袋頁用 `<input type="file">` 取得照片，tesseract.js 在手機上辨識後送 `ocr-preview`；引擎與字庫隨前端部署、不連外網；模型揭露見 frontend.md「拍藥袋 OCR」 |
+| 拍照辨識（模型出欄位，未實作） | App | 拍照走台北通原生 handler（WebView 直接開相機可能失敗）；用裝置端模型（例如 Gemma 4 E2B）把照片整理成 [§8.3](#83-拍照辨識的輸入) 的欄位，再由前端送到 `photo-preview`；README 要揭露模型名稱、版本、量化格式、推論框架與來源 |
 | 救護人員查詢 | 前端 | ✅ UI R02 的「身分證字號」已改為救命卡卡號輸入，App 內可掃卡片 QR |
 | 串接後端 | 前端 | ✅ 前端改為呼叫後端 API（`frontend/src/api/`），說明見 [frontend.md](frontend.md)「串接後端」 |
 | 卡號 QR 與桌布 | 前端 | 依卡號產生 QR、敬老卡貼紙、手機桌布 |

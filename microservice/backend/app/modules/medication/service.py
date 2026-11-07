@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.core.errors import Conflict, NotFound, ValidationFailed
+from app.integrations.townpass.messages import OcrScanData
 from app.modules.family.service import Access, FamilyService
-from app.modules.medication import rules
+from app.modules.medication import ocr_text, rules
 from app.modules.medication.models import (
     DrugLicense,
     MealTiming,
@@ -87,6 +88,16 @@ class MedicationService:
         await self.family.ensure_access(user_id, elder_id, Access.WRITE)
         draft, uncertain = await self._recognize(body)
         return await self._preview(elder_id, draft, uncertain)
+
+    async def preview_ocr(self, user_id: UUID, elder_id: UUID, data: OcrScanData | None) -> PreviewOut:
+        """拍藥袋（OCR 文字）：手機端 OCR 的每一行文字用規則整理成 PhotoIn，之後和拍照辨識相同。"""
+        await self.family.ensure_access(user_id, elder_id, Access.WRITE)
+        if data is None or not any(line.strip() for line in data.lines):
+            raise ValidationFailed("沒有拍到藥袋上的字", code="OCR_EMPTY")
+        photo = ocr_text.parse(data.lines)
+        if photo is None:
+            raise ValidationFailed("看不出藥袋上的字，請再拍一次", code="OCR_UNREADABLE")
+        return await self.preview_photo(user_id, elder_id, photo)
 
     async def preview(self, user_id: UUID, elder_id: UUID, draft: PrescriptionDraft) -> PreviewOut:
         """手動新增，或在確認畫面修改後，再看一次全部資料（E06a）。"""
