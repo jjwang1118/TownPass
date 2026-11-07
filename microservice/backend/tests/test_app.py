@@ -16,8 +16,8 @@ async def client():
         yield c
 
 
-async def test_healthz(client: httpx.AsyncClient) -> None:
-    assert (await client.get("/healthz")).json() == {"status": "ok"}
+async def test_health(client: httpx.AsyncClient) -> None:
+    assert (await client.get("/health")).json() == {"status": "ok"}
 
 
 async def test_requires_login(client: httpx.AsyncClient) -> None:

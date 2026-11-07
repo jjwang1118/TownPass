@@ -181,3 +181,27 @@
 - 新增測試確認 tzdata 已安裝；tests/README、backend README 補充跨平台注意事項與模擬指令
 [Modified Time]: 1107191450
 [Modified Position]: microservice/backend/pyproject.toml:19, microservice/backend/uv.lock, microservice/backend/tests/conftest.py:38, microservice/backend/tests/test_townpass_messages.py:34-58, microservice/backend/tests/test_app.py, microservice/backend/tests/README.md, microservice/backend/README.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 部署準備：新增 docs/deploy.md（Neon 資料庫、產生金鑰、建表與種子資料、Cloud Run 部署、Cloud Scheduler 排程、FCM 推播、Demo 檢查清單；Windows 與 Mac 指令分列）
+- config：DATABASE_URL 可直接貼上 Neon／Supabase 連線字串（自動轉 asyncpg 格式）；新增 EXTRA_CORS_ORIGINS；在 Cloud Run 上若金鑰為開發預設值或網址指向 localhost 則拒絕啟動
+- FCM：FIREBASE_CREDENTIALS=adc 使用 Cloud Run 服務帳號；發送改在背景執行緒，不卡住請求
+- 健康檢查 /healthz 改為 /health（Cloud Run 保留部分結尾為 z 的路徑）；資料庫連線池限制 5+5
+- 新增 scripts/gen_secrets.py、env.cloudrun.example.yaml、.gcloudignore；.dockerignore 與 .gitignore 排除 env.cloudrun.yaml，驗證金鑰不會上傳或進入映像檔
+- 本機以 Docker 模擬 Cloud Run 驗證：開發設定拒絕啟動、正式設定可登入、排程、CORS 正常
+- 新增 tests/test_config.py，共 106 個測試通過（含模擬 Windows 條件）
+- 更新規格書 §10、backend／core／fcm／tests／scripts README
+[Modified Time]: 1107192231
+[Modified Position]: microservice/docs/deploy.md, microservice/backend/app/core/config.py, microservice/backend/app/core/db.py, microservice/backend/app/main.py, microservice/backend/app/integrations/fcm/client.py, microservice/backend/scripts/, microservice/backend/env.cloudrun.example.yaml, microservice/backend/.gcloudignore, microservice/backend/.dockerignore, .gitignore, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 依比賽規定（不可使用付費服務，含需綁帳單的免費額度）改用不綁信用卡的永久免費方案：Render（後端）、Neon（資料庫）、cron-job.org（排程）、Firebase Spark（推播），移除 Google Cloud Run／Cloud Scheduler 設定
+- 雲端啟動檢查改為偵測 Render（RENDER 環境變數）；FIREBASE_CREDENTIALS 可直接貼 JSON 內容或檔案路徑
+- scripts/gen_secrets 改為產生 .env.cloud（金鑰不印在畫面、已存在不覆蓋），可直接貼到 Render「Add from .env」，並用 uv run --env-file 建表與匯入資料；.gitignore、.dockerignore 排除 .env.cloud
+- 已在本機產生 .env.cloud（含新金鑰），待填 DATABASE_URL、FRONTEND_BASE_URL
+- 改寫 docs/deploy.md 為 Render 版；更新規格書 §2、§5.1、§6.1、§10 與相關 README、註解
+- 106 個測試通過
+[Modified Time]: 1107194622
+[Modified Position]: microservice/docs/deploy.md, microservice/docs/backend-spec.md, microservice/backend/app/core/config.py, microservice/backend/app/main.py, microservice/backend/app/integrations/fcm/client.py, microservice/backend/scripts/gen_secrets.py, microservice/backend/.dockerignore, .gitignore

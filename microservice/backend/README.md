@@ -18,13 +18,15 @@ backend/
 │   └── versions/         每一次變更一個檔案
 ├── seed/                 Demo 用種子資料與範例藥袋 QR
 ├── tests/                自動測試
+├── scripts/              開發與部署小工具（產生金鑰）
 ├── pyproject.toml        套件與工具設定（uv 管理）
 ├── uv.lock               鎖定的套件版本，要 commit
 ├── alembic.ini           Alembic 設定
 ├── compose.yaml          本機 PostgreSQL
-├── Dockerfile            Cloud Run 部署用
-├── .env.example          環境變數範本（複製成 .env，.env 不 commit）
-└── .dockerignore
+├── Dockerfile            部署用（Render）
+├── .env.example          本機環境變數範本（複製成 .env，.env 不 commit）
+├── .env.cloud            部署用環境變數（scripts.gen_secrets 產生，不 commit）
+└── .dockerignore         不打包進映像檔的檔案（含金鑰檔）
 ```
 
 ## 本機開發
@@ -77,10 +79,6 @@ curl -X POST http://localhost:8000/api/v1/auth/townpass \
 - **後端 → App**：回應中的 `call`、`map` 等欄位是完整的 `{ name, data }`，前端直接
   `window.flutterObject.postMessage(JSON.stringify(...))`。
 
-## 部署（Cloud Run）
+## 部署（全部免費方案）
 
-```bash
-gcloud run deploy chiah-ioh-lo-api --source . --region asia-east1
-```
-
-環境變數見規格書 §10。
+Render（後端）＋ Neon（資料庫）＋ cron-job.org（排程）＋ Firebase Spark（推播），不用綁信用卡。完整步驟見 [../docs/deploy.md](../docs/deploy.md)。

@@ -102,3 +102,6 @@ microservice/**/dist/
 microservice/**/target/
 microservice/**/.env
 microservice/**/.firebase/
+
+# 部署用環境變數（含金鑰）
+microservice/**/.env.cloud

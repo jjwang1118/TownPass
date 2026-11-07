@@ -1,6 +1,6 @@
 # internal — 排程入口
 
-Cloud Run 沒有請求時會關機，程式內的排程器不可靠，所以由 Cloud Scheduler 每分鐘呼叫一次 `/internal/tick`。規格書 §6.1。
+免費主機沒有請求時會休眠，程式內的排程器不可靠，所以由 cron-job.org 每分鐘呼叫一次 `/internal/tick`（同時讓 Render 不休眠）。規格書 §6.1、`docs/deploy.md` 步驟 5。
 
 **狀態**：✅ 完成（吃藥提醒、回診提醒、預約提醒）
 
@@ -25,7 +25,7 @@ curl -X POST http://localhost:8000/api/v1/internal/tick -H "X-Internal-Secret: d
 
 ## 待加入
 
-- 正式版改為驗證 Cloud Scheduler 的 OIDC token
+- 正式版可改為簽章驗證，或限制呼叫來源 IP
 
 ## 依賴
 

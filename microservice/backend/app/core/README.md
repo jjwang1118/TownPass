@@ -4,7 +4,7 @@
 
 | 檔案 | 內容 | 常用的東西 |
 |---|---|---|
-| `config.py` | 讀取環境變數（`.env`） | `get_settings()` |
+| `config.py` | 讀取環境變數（`.env`）；連線字串自動轉成 asyncpg 格式；在雲端（Render）啟動前檢查金鑰 | `get_settings()`、`cors_origins`、`production_problems()` |
 | `db.py` | 資料庫連線、ORM 基底 | `Base`、`UUIDPrimaryKey`、`CreatedAt`、`Timestamps`、`enum_column()`、`get_session()` |
 | `deps.py` | 共用的 FastAPI `Depends` | `SessionDep`、`CurrentUserId`（長輩、家人）、`ResponderClaims`（救護人員） |
 | `errors.py` | 業務錯誤與錯誤回應格式 | 見下表 |

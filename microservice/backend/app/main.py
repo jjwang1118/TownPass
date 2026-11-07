@@ -20,12 +20,16 @@ API_PREFIX = "/api/v1"
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if settings.on_cloud and (problems := settings.production_problems()):
+        # 在雲端用到開發設定時直接啟動失敗；Render 會保留舊版本繼續服務
+        raise RuntimeError("部署設定有誤：" + "；".join(problems))
+
     app = FastAPI(title="呷藥囉 API", version="0.1.0")
 
-    # 微服務網頁（Firebase Hosting）在 WebView 中呼叫 Cloud Run，需要 CORS
+    # 微服務網頁（Firebase Hosting）在 WebView 中呼叫後端（Render），需要 CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_base_url],
+        allow_origins=settings.cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -48,8 +52,9 @@ def create_app() -> FastAPI:
         api.include_router(demo_router)
     app.include_router(api)
 
-    @app.get("/healthz", include_in_schema=False)
-    async def healthz() -> dict[str, str]:
+    # 健康檢查（部分平台保留結尾為 z 的路徑，如 /healthz，所以用 /health）
+    @app.get("/health", include_in_schema=False)
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app

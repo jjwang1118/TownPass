@@ -53,7 +53,8 @@ def enum_column(enum_cls: type[StrEnum]) -> Enum:
     )
 
 
-engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+# 免費方案的資料庫連線數有限，最多用 10 條
+engine = create_async_engine(get_settings().database_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 

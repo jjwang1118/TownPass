@@ -1,5 +1,7 @@
+# 不打包進映像檔（金鑰不可進映像檔）
 .venv
 .env
+.env.cloud
 __pycache__
 .pytest_cache
 tests
