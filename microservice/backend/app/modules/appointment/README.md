@@ -8,7 +8,7 @@
 
 | 步驟 | API | 說明 |
 |---|---|---|
-| 1 選院區 | `GET /hospitals` | 9 個聯醫院區，附地址與「帶我去醫院」的 `launch_map` 訊息 |
+| 1 選院區 | `GET /hospitals` | 聯醫 7 院區共 9 筆：和平婦幼、林森中醫昆明各有 2 個院址，分開列出（如「和平婦幼院區（婦幼）」），「帶我去醫院」的 `launch_map` 才會導到正確地址 |
 | 2 選科別 | `GET /hospitals/{id}/departments?elder_id=` | 帶 `elder_id` 時，藥區「上次看的科別」排第一並標記 `last_visited` |
 | 3 選醫師 | `GET /departments/{id}/doctors?elder_id=` | 上次看診的醫師排第一並標記，前端預設選取 |
 | 4 選日期 | `GET /doctors/{id}/sessions` | 只列這位醫師明天起 2 週有門診的日子，`label` 如「11/12（星期三）」 |

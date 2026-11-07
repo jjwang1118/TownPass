@@ -421,7 +421,7 @@ microservice/backend/
 
 | 資料表 | 主要欄位 | 說明 |
 |---|---|---|
-| `hospitals` | id、name、address | 聯醫院區：中興、仁愛、和平、婦幼、忠孝、陽明、松德、林森、昆明 |
+| `hospitals` | id、name、address | 聯醫 7 院區：中興、仁愛、和平婦幼（和平、婦幼 2 個院址）、忠孝、陽明、松德、林森中醫昆明（林森、昆明 2 個院址），共 9 筆，名稱與地址依聯醫官網 |
 | `departments` | id、hospital_id、name | 科別 |
 | `doctors` | id、department_id、name | 醫師 |
 | `clinic_sessions` | id、doctor_id、date、period（`morning` / `afternoon` / `evening`）、capacity、booked_count（有效預約數）、issued_count（已發出的看診號碼）、status（`open` / `suspended`） | 門診；額滿或停診時前端顯示灰色 |

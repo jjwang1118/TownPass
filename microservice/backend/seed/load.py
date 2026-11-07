@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +21,7 @@ from app.core.db import SessionLocal, engine
 from app.core.security import hash_password
 from app.integrations.fda.importer import import_licenses
 from app.modules.appointment import rules as appointment_rules
-from app.modules.appointment.models import ClinicSession, Department, Doctor, Hospital, Period, SessionStatus
+from app.modules.appointment.models import Appointment, ClinicSession, Department, Doctor, Hospital, Period, SessionStatus
 from app.modules.responder.models import Responder
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -56,7 +57,7 @@ async def load_responders(session: AsyncSession) -> int:
 
 
 async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> int:
-    """聯醫院區、科別、醫師，以及明天起 2 週的門診（模擬）。回傳新增的門診數。
+    """聯醫 7 院區（9 個院址）、各院址的科別與醫師，以及明天起 2 週的門診（模擬）。回傳新增的門診數。
 
     Demo 用：仁愛院區家醫科林醫師的第 1 個門診額滿、第 2 個門診停診。
     """
@@ -67,11 +68,11 @@ async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> i
     hospitals, departments, doctors, sessions = [], [], [], []
     for hospital in data["hospitals"]:
         hospital_id = seed_id(hospital["name"])
-        hospitals.append({"id": hospital_id, **hospital})
-        for department_name, doctor_names in data["doctors_by_department"].items():
+        hospitals.append({"id": hospital_id, "name": hospital["name"], "address": hospital["address"]})
+        for department_name in hospital["departments"]:
             department_id = seed_id(hospital["name"], department_name)
             departments.append({"id": department_id, "hospital_id": hospital_id, "name": department_name})
-            for index, doctor_name in enumerate(doctor_names):
+            for index, doctor_name in enumerate(data["doctors_by_department"][department_name]):
                 doctor_id = seed_id(hospital["name"], department_name, doctor_name)
                 doctors.append({"id": doctor_id, "department_id": department_id, "name": doctor_name})
                 schedule = data["weekly_schedules"][index % len(data["weekly_schedules"])]
@@ -90,6 +91,7 @@ async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> i
     await _upsert(session, Hospital, hospitals, update=["name", "address"])
     await _upsert(session, Department, departments, update=["name"])
     await _upsert(session, Doctor, doctors, update=["name"])
+    await _prune_retired(session, [h["id"] for h in hospitals], [d["id"] for d in departments], [d["id"] for d in doctors])
     result = await session.execute(
         insert(ClinicSession)
         .values(sessions)
@@ -121,6 +123,25 @@ def _sessions_for(
                 )
         day += dt.timedelta(days=1)
     return rows
+
+
+async def _prune_retired(
+    session: AsyncSession, hospital_ids: list[uuid.UUID], department_ids: list[uuid.UUID], doctor_ids: list[uuid.UUID]
+) -> None:
+    """移除 seed 已經不再提供的院區、科別、醫師及其門診（例如院區改名後的舊資料）。
+    已經有預約用到的門診不刪，以免破壞預約紀錄；它們的醫師、科別、院區也會因此保留。"""
+    used = select(Appointment.session_id)
+    await session.execute(
+        delete(ClinicSession).where(ClinicSession.doctor_id.not_in(doctor_ids), ClinicSession.id.not_in(used))
+    )
+    has_session = select(ClinicSession.doctor_id)
+    await session.execute(delete(Doctor).where(Doctor.id.not_in(doctor_ids), Doctor.id.not_in(has_session)))
+    has_doctor = select(Doctor.department_id)
+    await session.execute(
+        delete(Department).where(Department.id.not_in(department_ids), Department.id.not_in(has_doctor))
+    )
+    has_department = select(Department.hospital_id)
+    await session.execute(delete(Hospital).where(Hospital.id.not_in(hospital_ids), Hospital.id.not_in(has_department)))
 
 
 async def _upsert(session: AsyncSession, model: type, rows: list[dict], update: list[str]) -> None:

@@ -218,3 +218,13 @@
 - 改寫 docs/deploy.md 為本地部署版；更新規格書 §2、§5.1、§6.1、§10 與相關 README；共 107 個測試通過（含模擬 Windows 條件）
 [Modified Time]: 1107201329
 [Modified Position]: microservice/backend/app/modules/internal/scheduler.py, microservice/backend/app/main.py, microservice/backend/app/core/config.py, microservice/backend/compose.yaml, microservice/backend/.env.example, microservice/backend/scripts/init_env.py, microservice/backend/.dockerignore, .gitignore, android/app/src/debug/, microservice/docs/deploy.md, microservice/docs/backend-spec.md, microservice/backend/tests/
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 回診院區改為聯醫官方 7 院區：和平婦幼（和平、婦幼）、林森中醫昆明（林森、昆明）兩個院區各有 2 個院址，分開列出共 9 筆，名稱與地址依聯醫官網查證
+- 各院址科別依特性調整（模擬）：一般院址維持 4 科；婦幼為婦產科、小兒科；松德為一般精神科、心身醫學科、一般內科、神經內科；林森加中醫內科；昆明為一般內科、胃腸肝膽科、精神科
+- seed.load 重新匯入時自動移除已不提供的院區、科別、醫師與門診，已有預約的門診保留
+- 本機開發資料庫已重新匯入；新增 2 個測試，共 109 個測試通過
+- 更新 appointment、seed README 與規格書 §5.2
+[Modified Time]: 1107203627
+[Modified Position]: microservice/backend/seed/data/tpech_clinics.json, microservice/backend/seed/load.py, microservice/backend/tests/test_appointment.py, microservice/backend/app/modules/appointment/README.md, microservice/backend/seed/README.md, microservice/docs/backend-spec.md:424

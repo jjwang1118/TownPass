@@ -97,6 +97,48 @@ async def test_hospitals(api: httpx.AsyncClient, ctx: dict) -> None:
     assert renai["map"]["data"].startswith("https://")
 
 
+async def test_seven_campuses_and_departments_by_site(api: httpx.AsyncClient, ctx: dict) -> None:
+    """北市聯醫 7 院區；和平婦幼、林森中醫昆明各有 2 個院址，分開列出（地址不同）。"""
+    hospitals = (await api.get(f"{API}/hospitals", headers=ctx["elder"])).json()
+    names = [h["name"].removeprefix("臺北市立聯合醫院") for h in hospitals]
+    campuses = {n.split("（")[0] for n in names}
+    assert len(campuses) == 7
+    assert {"和平婦幼院區（和平）", "和平婦幼院區（婦幼）", "林森中醫昆明院區（林森）", "林森中醫昆明院區（昆明）"} <= set(names)
+
+    async def departments(site: str) -> list[str]:
+        hospital_id = next(h["id"] for h in hospitals if h["name"].endswith(site))
+        return [d["name"] for d in (await api.get(f"{API}/hospitals/{hospital_id}/departments", headers=ctx["elder"])).json()]
+
+    assert "一般精神科" in await departments("松德院區")
+    assert "家醫科" not in await departments("松德院區")
+    assert set(await departments("（婦幼）")) == {"婦產科", "小兒科"}
+    assert "中醫內科" in await departments("（林森）")
+
+
+async def test_reseed_prunes_retired_hospitals_but_keeps_booked_sessions(
+    api: httpx.AsyncClient, ctx: dict, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    """院區改名後重新匯入：舊院區被移除；已被預約的門診保留，預約不受影響。"""
+    async with sessionmaker() as session:
+        for sql in (
+            "INSERT INTO hospitals (id, name, address) VALUES ('00000000-0000-0000-0000-000000000001', '舊院區', 'x')",
+            "INSERT INTO departments (id, hospital_id, name)"
+            " VALUES ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', '家醫科')",
+            "INSERT INTO doctors (id, department_id, name)"
+            " VALUES ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '舊醫師')",
+        ):
+            await session.execute(text(sql))
+        await session.commit()
+    done = (await book(api, ctx, await session_id(api, ctx, "2026-11-10", "evening"))).json()
+
+    async with sessionmaker() as session:
+        await load_clinics(session, TODAY)
+        await session.commit()
+    names = [h["name"] for h in (await api.get(f"{API}/hospitals", headers=ctx["elder"])).json()]
+    assert "舊院區" not in names and len(names) == 9
+    assert (await api.get(f"{ctx['base']}/appointments", headers=ctx["elder"])).json()[0]["id"] == done["id"]
+
+
 async def test_last_visited_department_and_doctor_first(api: httpx.AsyncClient, ctx: dict) -> None:
     hospitals = (await api.get(f"{API}/hospitals", headers=ctx["elder"])).json()
     renai = next(h["id"] for h in hospitals if h["name"].endswith("仁愛院區"))
