@@ -28,3 +28,14 @@
 [Modified Time]: 1108003915
 
 [Modified Position]: microservice/docs/backend-spec.md:27
+
+[Modified Description]:
+- 從 feature/backend-family 開新分支 feature/integrate-frontend，合併 origin/frontend（含 worktree-frontend-impl 的全部內容，另有規格文件與 QR 掃描改進）
+- 解決衝突：logs/1107_communication 兩邊紀錄都保留（後端在前、前端在後）
+- 驗證：前端 npm ci、npm run build（含 vue-tsc 型別檢查）成功；後端 125 個測試通過
+- 本機 ~/.npm 快取有權限問題，改用暫存快取目錄安裝，未修改 ~/.npm
+- 前端目前以 localStorage 模擬後端（src/store/index.ts），尚未呼叫後端 API
+
+[Modified Time]: 1108010011
+
+[Modified Position]: logs/1107_communication
