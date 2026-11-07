@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, Numeric, SmallInteger, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, SmallInteger, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, CreatedAt, UUIDPrimaryKey, enum_column
@@ -60,16 +60,32 @@ class ClinicSession(UUIDPrimaryKey, Base):
     date: Mapped[dt.date]
     period: Mapped[Period] = mapped_column(enum_column(Period))
     capacity: Mapped[int] = mapped_column(SmallInteger)
-    booked_count: Mapped[int] = mapped_column(SmallInteger, default=0)
+    booked_count: Mapped[int] = mapped_column(SmallInteger, default=0)  # 目前有效預約數，取消會減少
+    issued_count: Mapped[int] = mapped_column(SmallInteger, default=0)  # 已發出的看診號碼，只增不減
     status: Mapped[SessionStatus] = mapped_column(enum_column(SessionStatus), default=SessionStatus.OPEN)
 
 
 class Appointment(UUIDPrimaryKey, CreatedAt, Base):
     __tablename__ = "appointments"
+    __table_args__ = (
+        # 同一位長輩不能重複預約同一個門診
+        Index(
+            "uq_appointments_booked_session",
+            "elder_id",
+            "session_id",
+            unique=True,
+            postgresql_where=text("status = 'booked'"),
+        ),
+    )
 
     elder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinic_sessions.id"))
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinic_sessions.id"), index=True)
     visit_no: Mapped[int] = mapped_column(SmallInteger)  # 看診號碼
     status: Mapped[AppointmentStatus] = mapped_column(
         enum_column(AppointmentStatus), default=AppointmentStatus.BOOKED
     )
+    cancelled_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # 完成頁「加入提醒」：前一天 18:00、當天 08:00 推播長輩與家人
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    reminded_day_before_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    reminded_same_day_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))

@@ -12,6 +12,7 @@
 | `test_medication.py` | 掃藥袋 QR、編號、同成分警示、藥卡、停用、時段、下一次吃藥、家人權限 | 是 |
 | `test_emergency_card.py` | 救命卡、同意、卡號、救護人員登入與查詢、通知家人、完整 Demo 流程 | 是 |
 | `test_reminder.py` | 時段提醒、再提醒 3 次、通知家人、回應、提醒家人、回診提醒、Demo 觸發 | 是 |
+| `test_appointment.py` | 6 步驟預約、上次科別醫師排第一、額滿停診、看診號碼、搶最後名額、我的預約、取消、預約提醒 | 是 |
 
 ## 資料庫
 
@@ -19,6 +20,19 @@
 - 每次執行會重建資料表，每個測試結束後清空資料。
 - PostgreSQL 沒啟動時這些測試會**略過**（顯示 `s`），先執行 `docker compose up -d`。
 - 要用別的資料庫：設定環境變數 `TEST_DATABASE_URL`。
+
+## 跨平台
+
+組內有人用 Windows，寫程式時注意：
+
+- **讀寫檔案一律指定 `encoding="utf-8"`**。Windows 繁體中文環境預設是 Big5（cp950），讀到含中文的檔案會出錯。
+- **時區用 `app.core.clock.TAIPEI`**。Windows 沒有內建時區資料，靠 `tzdata` 套件提供，不要從依賴中移除。
+
+在 Mac 或 Linux 上模擬 Windows 的這兩個條件來跑測試：
+
+```bash
+PYTHONTZPATH= LC_ALL=zh_TW.Big5 PYTHONUTF8=0 uv run pytest
+```
 
 ## 寫新測試
 

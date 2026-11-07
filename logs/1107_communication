@@ -161,3 +161,23 @@
 - 更新 reminder、internal、demo、modules、tests 等 README 與規格書 §5.2、§6.1、§6.2、§7.2、§11.2
 [Modified Time]: 1107184756
 [Modified Position]: microservice/backend/app/modules/reminder/, microservice/backend/app/modules/internal/, microservice/backend/app/modules/demo/router.py, microservice/backend/alembic/versions/20261107_70c6a238747c_reminder_scheduled_date_refill_notices.py, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 實作 appointment 模組（功能規格 3-2、3-3，交付規格第 8 點）：6 步驟預約（院區→科別→醫師→日期→時段→確認）、上次看的科別與醫師排第一、只列醫師未來 2 週門診日、額滿停診不可選、看診號碼不重複、搶最後名額只有一人成功、我的預約、取消、完成頁「加入提醒」與帶我去醫院
+- 預約提醒：加入提醒的預約前一天 18:00、當天 08:00 推播長輩與家人，加入 /internal/tick；TickResult 移到 internal 模組並新增 appointment 欄位
+- 新增 migration：clinic_sessions.issued_count、appointments 取消時間／加入提醒／提醒紀錄／防重複預約索引
+- seed 新增聯醫 9 院區（名稱與地址依公開資訊）、4 科別、每科 2 位醫師與明天起 2 週門診（模擬），含 1 個額滿、1 個停診
+- 新增 tests/test_appointment.py（12 個），共 98 個測試通過
+- 更新 appointment、internal、tpech、seed、tests、modules、backend README 與規格書 §5.2、§6.1、§6.2、§7.2、§11.1
+[Modified Time]: 1107191115
+[Modified Position]: microservice/backend/app/modules/appointment/, microservice/backend/app/modules/internal/, microservice/backend/app/modules/reminder/, microservice/backend/seed/, microservice/backend/alembic/versions/20261107_d4b4f0542791_appointment_booking.py, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 修正 Windows 無法執行：dependencies 加入 tzdata（Apache-2.0）並更新 uv.lock，解決 ZoneInfoNotFoundError（Asia/Taipei）
+- 修正 Windows 讀檔編碼：tests/conftest.py、tests/test_townpass_messages.py 讀 account.json 與 Dart 原始碼時指定 encoding="utf-8"，避免 Big5（cp950）解碼錯誤
+- 在 Mac 以 PYTHONTZPATH= LC_ALL=zh_TW.Big5 PYTHONUTF8=0 模擬 Windows，確認修正前兩個問題都會發生、修正後 99 個測試全部通過
+- 新增測試確認 tzdata 已安裝；tests/README、backend README 補充跨平台注意事項與模擬指令
+[Modified Time]: 1107191450
+[Modified Position]: microservice/backend/pyproject.toml:19, microservice/backend/uv.lock, microservice/backend/tests/conftest.py:38, microservice/backend/tests/test_townpass_messages.py:34-58, microservice/backend/tests/test_app.py, microservice/backend/tests/README.md, microservice/backend/README.md

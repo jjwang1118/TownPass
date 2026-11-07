@@ -83,7 +83,7 @@ async def test_remind_at_slot_time(
     assert sent_to(pushes, "daughter-phone") == []  # 家人不會每個時段都收到
 
     # 同一分鐘再跑一次不會重複
-    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0}
+    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0}
 
     # 提醒畫面：大字顯示「1 號 → 1 顆」，並朗讀
     screen = (await api.get(f"{API}/reminders/{message.data['event_id']}", headers=ctx["elder"])).json()
@@ -156,7 +156,7 @@ async def test_no_response_flow(
     ]
     for hhmm, expected in timeline:
         freeze(monkeypatch, f"2026-11-05 {hhmm}")
-        assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, **expected}, hhmm
+        assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0, **expected}, hhmm
 
     assert len(sent_to(pushes, "elder-phone")) == 3
     [message] = sent_to(pushes, "daughter-phone")
@@ -189,7 +189,7 @@ async def test_ack(api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkey
     await api.post(url, headers=ctx["elder"])
     assert len(sent_to(pushes, "daughter-phone")) == 1
     freeze(monkeypatch, "2026-11-05 08:30")
-    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0}
+    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0}
 
 
 async def test_ack_notification_can_be_turned_off(

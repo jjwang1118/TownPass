@@ -25,9 +25,9 @@
 | [reminder/](reminder/) | 吃藥提醒、回應、通知家人、回診提醒 | 4 | ✅ 完成 |
 | [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 7 | ✅ 完成 |
 | [responder/](responder/) | 救護人員登入、查詢救命卡 | 2 | ✅ 完成 |
-| [appointment/](appointment/) | 院區、門診、預約 | 7 | 待實作 |
+| [appointment/](appointment/) | 院區、門診、預約、預約提醒 | 8 | ✅ 完成 |
 | [notification/](notification/) | 推播 token、發送推播 | 2 | ✅ 完成 |
-| [internal/](internal/) | 排程入口 `/internal/tick` | 1 | ✅ 完成（預約提醒待加入） |
+| [internal/](internal/) | 排程入口 `/internal/tick` | 1 | ✅ 完成 |
 | [demo/](demo/) | 展示用觸發（只在 `DEMO_MODE`） | 3 | ✅ 完成 |
 
 ## 模組之間
@@ -40,7 +40,7 @@ medication ─────────▶ family（權限）
 reminder ───────────▶ medication、family、emergency_card、auth、notification
 emergency_card ─────▶ medication、family、notification
 responder ──────────▶ emergency_card
-appointment ────────▶ medication（上次的科別、醫師）、family
+appointment ────────▶ medication（上次的科別、醫師）、family、notification
 internal ───────────▶ reminder、appointment
 ```
 

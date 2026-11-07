@@ -6,8 +6,7 @@ from fastapi import APIRouter, Depends, Header
 from app.core.config import get_settings
 from app.core.deps import SessionDep
 from app.core.errors import Unauthorized
-from app.modules.internal.service import TickService
-from app.modules.reminder.schemas import TickResult
+from app.modules.internal.service import TickResult, TickService
 
 router = APIRouter(prefix="/internal", tags=["internal"], include_in_schema=False)
 

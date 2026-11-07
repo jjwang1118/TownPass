@@ -30,9 +30,3 @@ class ReminderOut(BaseModel):
     acked_at: dt.datetime | None
     escalated_at: dt.datetime | None
 
-
-class TickResult(BaseModel):
-    created: int  # 新建立並推播的提醒
-    repushed: int  # 重新提醒
-    escalated: int  # 通知家人沒有回應
-    refill: int  # 回診提醒

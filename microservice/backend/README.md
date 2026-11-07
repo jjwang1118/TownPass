@@ -37,13 +37,15 @@ cp .env.example .env          # 填入 JWT_SECRET、FIELD_ENCRYPTION_KEY（產�
 uv sync                       # 安裝套件（Python 3.12）
 docker compose up -d          # 啟動本機 PostgreSQL
 uv run alembic upgrade head   # 建立或更新資料表
-uv run python -m seed.load    # 匯入範例資料（見 seed/README.md）
+uv run python -m seed.load    # 匯入範例資料（見 seed/README.md；Demo 前一天要再跑一次，產生之後 2 週的門診）
 
 uv run uvicorn app.main:app --reload
 ```
 
 - API 文件：<http://localhost:8000/docs>
 - 測試：`uv run pytest`
+
+**Windows**：以上指令在 PowerShell 都可以直接執行（`cp` 是 `Copy-Item` 的別名）。台北時區資料由 `tzdata` 套件提供，不需要另外安裝。下方 curl 範例用到 bash 語法，請在 Git Bash 執行，或改用 Swagger。
 
 修改 `models.py` 後，產生新的 migration 並檢查內容再 commit，見 [alembic/README.md](alembic/README.md)。
 

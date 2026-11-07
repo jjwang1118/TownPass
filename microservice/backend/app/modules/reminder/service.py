@@ -21,7 +21,7 @@ from app.modules.notification.service import NotificationService
 from app.modules.reminder import rules
 from app.modules.reminder.models import ReminderEvent
 from app.modules.reminder.repository import ReminderRepository
-from app.modules.reminder.schemas import ReminderOut, ReminderStatus, TickResult
+from app.modules.reminder.schemas import ReminderOut, ReminderStatus
 
 logger = logging.getLogger(__name__)
 
@@ -86,14 +86,6 @@ class ReminderService:
         )
 
     # ---------- 排程（/internal/tick 每分鐘呼叫，規格書 §6.1） ----------
-
-    async def tick(self, now: dt.datetime) -> TickResult:
-        return TickResult(
-            created=await self.create_due_events(now),
-            repushed=await self.repush_unacked(now),
-            escalated=await self.escalate_no_response(now),
-            refill=await self.send_refill_reminders(now),
-        )
 
     async def create_due_events(self, now: dt.datetime) -> int:
         """時段到了：建立提醒並推播長輩（第 1 次）。排程延誤超過 30 分鐘就不補發。"""

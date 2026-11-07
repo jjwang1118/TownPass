@@ -425,10 +425,10 @@ microservice/backend/
 | `hospitals` | id、name、address | 聯醫院區：中興、仁愛、和平、婦幼、忠孝、陽明、松德、林森、昆明 |
 | `departments` | id、hospital_id、name | 科別 |
 | `doctors` | id、department_id、name | 醫師 |
-| `clinic_sessions` | id、doctor_id、date、period（`morning` / `afternoon` / `evening`）、capacity、booked_count、status（`open` / `suspended`） | 門診；額滿或停診時前端顯示灰色 |
-| `appointments` | id、elder_id、session_id、visit_no（看診號碼）、status（`booked` / `cancelled`）、created_at | |
+| `clinic_sessions` | id、doctor_id、date、period（`morning` / `afternoon` / `evening`）、capacity、booked_count（有效預約數）、issued_count（已發出的看診號碼）、status（`open` / `suspended`） | 門診；額滿或停診時前端顯示灰色 |
+| `appointments` | id、elder_id、session_id、visit_no（看診號碼）、status（`booked` / `cancelled`）、cancelled_at、reminder_enabled（「加入提醒」）、reminded_day_before_at、reminded_same_day_at、created_at | 同一位長輩同一個門診只能有一筆有效預約 |
 
-預約時以 `UPDATE clinic_sessions SET booked_count = booked_count + 1 WHERE id = ? AND booked_count < capacity AND status = 'open'` 確保不超額，`visit_no` 取更新後的 `booked_count`。
+預約時以 `UPDATE clinic_sessions SET booked_count = booked_count + 1, issued_count = issued_count + 1 WHERE id = ? AND booked_count < capacity AND status = 'open' AND date BETWEEN 明天 AND 14 天後 RETURNING issued_count` 確保不超額，`visit_no` 取 `issued_count`。取消時只減 `booked_count`，所以名額釋出、看診號碼不會重複發給別人。
 
 #### 推播
 
@@ -489,7 +489,7 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 | 重新提醒 | 未回應，距上次推播滿 10 分鐘，`attempts < 3` | 推播長輩，`attempts + 1` |
 | 通知家人沒有回應 | 未回應，第 3 次推播後滿 10 分鐘，尚未通知 | 推播所有綁定家人，`data.call` 為撥給長輩的 `phone_call` 訊息；寫入 `escalated_at` |
 | 回診提醒 | 每天 09:00 起；有藥品的吃完日 = 今天 + 7，且尚未發過（`refill_notices`） | 推播長輩與家人：「1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋」 |
-| 預約提醒（待 appointment 模組） | 預約前一天 18:00、當天 08:00 | 推播長輩與家人 |
+| 預約提醒 | 有「加入提醒」的預約：前一天 18:00 起、當天 08:00 起，各一次 | 推播長輩與家人，`data.map` 為「帶我去醫院」的 `launch_map` 訊息 |
 
 重新提醒的間隔（10 分鐘）先用預設值，Demo 時可用環境變數縮短。
 
@@ -515,7 +515,7 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 | `medication_nudge` | 長輩 | 陳小美提醒你吃藥喔（家人的台北通姓名） |
 | `card_accessed` | 家人 | 臺北市消防局中山分隊王大明於 15:20 查看了媽媽的救命卡（「媽媽」是各家人自己設定的稱呼；`data.call` 為撥給該分隊的 `phone_call` 訊息） |
 | `refill_reminder` | 長輩、家人 | 1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋 |
-| `appointment_reminder` | 長輩、家人 | 明天上午 仁愛院區 家醫科 林醫師 |
+| `appointment_reminder` | 長輩、家人 | 明天上午 仁愛院區 家醫科 林醫師 回診，看診號碼 12 號 |
 
 全螢幕提醒、聲音、震動、閃光、國台語朗讀由 App 與前端處理，後端只提供 `items` 與稱呼。
 
@@ -615,13 +615,14 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/hospitals` | 院區清單 |
-| GET | `/hospitals/{id}/departments?elder_id=` | 科別；上次看的科別排第一 |
-| GET | `/departments/{id}/doctors?elder_id=` | 醫師；標記上次看診的醫師 |
-| GET | `/doctors/{id}/sessions` | 未來 2 週門診（日期、時段、是否可約） |
-| POST | `/elders/{elder_id}/appointments` | 預約 |
-| GET | `/elders/{elder_id}/appointments` | 我的預約 |
-| POST | `/elders/{elder_id}/appointments/{id}/cancel` | 取消 |
+| GET | `/hospitals` | 步驟 1：院區清單，附 `launch_map` 訊息（帶我去醫院） |
+| GET | `/hospitals/{id}/departments?elder_id=` | 步驟 2：科別；帶 `elder_id` 時，上次看的科別排第一 |
+| GET | `/departments/{id}/doctors?elder_id=` | 步驟 3：醫師；帶 `elder_id` 時，上次看診的醫師排第一並標記（前端預設選取） |
+| GET | `/doctors/{id}/sessions` | 步驟 4、5：明天起 2 週有門診的日子（「11/12（星期三）」），每天的上午／下午／晚上時段與是否可約 |
+| POST | `/elders/{elder_id}/appointments` | 步驟 6：body `{"session_id"}`；回完成頁內容（含看診號碼、帶我去醫院） |
+| GET | `/elders/{elder_id}/appointments` | 我的預約：今天以後、未取消，依日期排序 |
+| POST | `/elders/{elder_id}/appointments/{id}/cancel` | 取消；看診日已過不能取消 |
+| PUT | `/elders/{elder_id}/appointments/{id}/reminder` | 完成頁「加入提醒」：body `{"enabled": true}` |
 
 **notification、internal**
 
@@ -723,7 +724,7 @@ Dockerfile 啟動時讀取 Cloud Run 提供的 `PORT`。
 
 - 長輩、家人各一個模擬台北通帳號（修改 `account.json` 的 `birthday`、`citizen` 呈現長輩情境）。
 - 消防局名冊 3 筆：`EMT-001`、`EMT-002` 在職且有救護權限；`EMT-003` 已離職，示範被擋。
-- 聯醫院區、科別、醫師、未來 2 週門診（含一個額滿、一個停診）。
+- 聯醫院區、科別、醫師、未來 2 週門診（含一個額滿、一個停診）。✅ 院區名稱與地址依北市聯醫公開資訊，科別、醫師、門診為模擬資料；門診從執行匯入的隔天起產生 2 週，Demo 前一天要再執行一次。
 - 範例藥袋 QR 3 張，其中 2 張成分相同，示範同成分警示。✅ `seed/qr/`
 - 食藥署許可證資料：只匯入範例藥品需要的幾筆，許可證字號用 `DEMO-` 開頭，明確標示為模擬資料。✅
 
