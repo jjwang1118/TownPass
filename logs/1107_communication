@@ -244,3 +244,33 @@
 [Modified Time]: 1107212551
 
 [Modified Position]: microservice/frontend/tts/tts.js, microservice/frontend/tts/tts.d.ts, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md, microservice/docs/backend-spec.md:754
+
+[Modified Description]:
+- 實測 Android WebView 不支援 speechSynthesis，依比賽規則改用 App handler：新增 TtsSpeakMessageHandler（tts_speak）、TtsStopMessageHandler（tts_stop），以 flutter_tts（MIT）呼叫手機內建 TTS
+- 只用離線語音（略過 network_required 的語音，找不到回覆 no_offline_voice），Android 優先 Google 語音引擎，iOS 設定靜音模式可播放；WebView 建立時先初始化引擎；語速依 flutter_tts 換算（0.5 為正常）
+- 註冊兩個 handler；AndroidManifest 加 TTS_SERVICE queries；pubspec 加 flutter_tts ^4.2.5
+- 前端模組：等待 App 回覆改為 5 秒、逾時送 tts_stop；不使用粵語（zh-HK、yue）語音；更新 README 與規格書 §12
+- 驗證：flutter analyze 無問題；Node 模擬測試通過；尚未在模擬器建置與實測
+
+[Modified Time]: 1107220726
+
+[Modified Position]: lib/util/web_message_handler/tts_message_handler.dart, lib/util/web_message_handler/tp_web_message_listener.dart:4, lib/util/web_message_handler/tp_web_message_listener.dart:19, android/app/src/main/AndroidManifest.xml:72, pubspec.yaml:59, pubspec.lock, microservice/frontend/tts/tts.js, microservice/frontend/tts/README.md, microservice/docs/backend-spec.md:754
+
+[Modified Description]:
+- 修正「第二次按就失敗」：前端第一次沒收到 App 回覆後會記住並跳過 App；改為每次都重試 App，失敗原因改為 app_no_reply（與不在 App 內 not_in_app 分開），等待時間改為 12 秒
+- App handler 每一步加時間限制（初始化 3 秒、其他 1.5 秒），保證一定回覆；新增 engine_init_timeout、voice_list_timeout、speak_timeout；選好的語音快取起來；每一步以 [tts] 印在 logcat 方便除錯
+- 測試頁補上各失敗原因的中文說明；更新 README
+- 驗證：flutter analyze 無問題；Node 模擬測試通過；模擬器實測待使用者重新建置
+
+[Modified Time]: 1107224349
+
+[Modified Position]: lib/util/web_message_handler/tts_message_handler.dart, microservice/frontend/tts/tts.js, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md
+
+[Modified Description]:
+- 操作手冊（deploy.md）新增 §6 朗讀：每台模擬器要選 Google Play 映像並下載中文（台灣）離線語音資料；拉下新程式後 App 必須完整重新安裝（hot reload 無效）與兩種安裝方式；以 lastUpdateTime 確認新版（注意模擬器為 UTC）；測試頁步驟、飛航模式測試、Logcat 查 [tts]
+- 疑難排解新增朗讀相關 4 項；Demo 前檢查清單新增重新安裝、語音資料兩項；需要安裝表註明 Google Play 映像也提供語音引擎
+- 原因：模擬器上的 App 一直是舊版（21:45 安裝），已由 Claude 建置新版 debug APK 並以 adb install -r 安裝到 emulator-5554
+
+[Modified Time]: 1107230539
+
+[Modified Position]: microservice/docs/deploy.md:30, microservice/docs/deploy.md:95, microservice/docs/deploy.md:疑難排解, microservice/docs/deploy.md:Demo 前檢查清單
