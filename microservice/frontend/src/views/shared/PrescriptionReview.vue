@@ -8,6 +8,7 @@ import MedicineCheckCard from '@/components/cards/MedicineCheckCard.vue'
 import CheckRow from '@/components/inputs/CheckRow.vue'
 import WarningNotice from '@/components/alerts/WarningNotice.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
+import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { state } from '@/store'
 import { useTts } from '@/composables/useTts'
 import { medicineSpeech } from '@/utils/speech'
@@ -62,6 +63,9 @@ onMounted(() => {
       </div>
 
       <p class="hint font-h3-regular">讀錯了？點藥品就能修改</p>
+      <SecondaryButton v-if="mode === 'review' && draft.manual" @click="router.push('/elder/add/manual')">
+        再新增一個藥
+      </SecondaryButton>
       <PrimaryButton :disabled="!allChecked" @click="emit('submit')">{{ buttonText }}</PrimaryButton>
     </template>
   </PageLayout>

@@ -115,3 +115,12 @@
 [Modified Time]: 1107225000
 
 [Modified Position]: microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/inputs/DrugSearch.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/components/cards/PrescriptionHeader.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/views/shared/SlotDetail.vue、microservice/frontend/src/types.ts
+
+[Modified Description]:
+- 手動新增藥品改為可連續新增多個：「已輸入」彈窗新增「再加一個藥」按鈕（清空表單繼續輸入），彈窗列出目前已輸入的所有藥品
+- 手動新增頁顯示「已輸入 N 個藥，請繼續輸入下一個」
+- 確認藥單頁（手動藥單）新增「再新增一個藥」按鈕，新增的藥接在原本的手動藥單後面
+
+[Modified Time]: 1107225600
+
+[Modified Position]: microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/store/index.ts
