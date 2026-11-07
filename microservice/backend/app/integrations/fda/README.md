@@ -4,9 +4,9 @@
 
 | 檔案 | 內容 |
 |---|---|
-| `importer.py` | `import_licenses()`：把許可證資料匯入 `drug_licenses` 表 |
+| `importer.py` | `import_licenses()`：新增或更新 `drug_licenses`，可重複執行 |
 
-- **比賽時**：只匯入範例藥品需要的幾筆。
+- **比賽時**：只匯入 `seed/data/drug_licenses.json` 的範例（字號 `DEMO-` 開頭），由 `uv run python -m seed.load` 執行。
 - 資料來源要列在繳交的「資料來源清單」。
 
-狀態：只有介面。
+狀態：✅ 完成。

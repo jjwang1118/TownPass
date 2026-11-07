@@ -36,3 +36,52 @@ def test_card_code_roundtrip() -> None:
     url = card_rules.qr_url("https://example.web.app/", code)
     assert card_rules.code_from_qr(url) == code
     assert card_rules.code_from_qr("https://example.web.app/other") is None
+
+
+def test_days_left_before_start() -> None:
+    assert med_rules.days_left(dt.date(2026, 11, 10), 28, dt.date(2026, 11, 1)) == 28
+
+
+def test_speak_time() -> None:
+    cases = {
+        dt.time(7, 30): "早上 7 點半",
+        dt.time(8, 0): "早上 8 點",
+        dt.time(11, 30): "上午 11 點半",
+        dt.time(12, 0): "中午 12 點",
+        dt.time(13, 0): "下午 1 點",
+        dt.time(17, 30): "下午 5 點半",
+        dt.time(18, 0): "晚上 6 點",
+        dt.time(21, 15): "晚上 9 點 15 分",
+    }
+    for t, text in cases.items():
+        assert med_rules.speak_time(t) == text
+
+
+def test_qty_text() -> None:
+    from decimal import Decimal
+
+    assert med_rules.qty_text(Decimal("1.0")) == "1 顆"
+    assert med_rules.qty_text(Decimal("0.5")) == "半顆"
+    assert med_rules.qty_text(Decimal("1.5")) == "1 顆半"
+
+
+def test_speech_text_has_no_latin_letters() -> None:
+    from decimal import Decimal
+
+    text = med_rules.speech_text(
+        number=3,
+        department="ENT 耳鼻喉科",
+        purpose="Allergy 過敏",
+        dose_qty=Decimal("2"),
+        meal_timing=MealTiming.BEFORE,
+        times=[dt.time(17, 30), dt.time(7, 30)],
+        days_left=0,
+    )
+    assert text == "3 號藥，耳鼻喉科開的，過敏。一次 2 顆，飯前吃，早上 7 點半、下午 5 點半。已經吃完了。"
+
+
+def test_same_ingredient() -> None:
+    assert med_rules.same_ingredient("A", [], "A", [])
+    assert med_rules.same_ingredient("A", ["Amlodipine "], "B", ["amlodipine"])
+    assert not med_rules.same_ingredient("A", ["metformin"], "B", ["amlodipine"])
+    assert not med_rules.same_ingredient(None, [], None, [])

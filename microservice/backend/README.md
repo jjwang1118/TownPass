@@ -16,7 +16,7 @@ backend/
 │   └── modules/          功能模組：auth、family、medication、reminder…
 ├── alembic/              資料表變更（migration）
 │   └── versions/         每一次變更一個檔案
-├── seed/                 Demo 用種子資料
+├── seed/                 Demo 用種子資料與範例藥袋 QR
 ├── tests/                自動測試
 ├── pyproject.toml        套件與工具設定（uv 管理）
 ├── uv.lock               鎖定的套件版本，要 commit
@@ -37,6 +37,7 @@ cp .env.example .env          # 填入 JWT_SECRET、FIELD_ENCRYPTION_KEY（產�
 uv sync                       # 安裝套件（Python 3.12）
 docker compose up -d          # 啟動本機 PostgreSQL
 uv run alembic upgrade head   # 建立或更新資料表
+uv run python -m seed.load    # 匯入範例資料（見 seed/README.md）
 
 uv run uvicorn app.main:app --reload
 ```

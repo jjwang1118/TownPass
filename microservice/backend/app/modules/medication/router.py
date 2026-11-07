@@ -1,13 +1,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.core.deps import CurrentUserId, SessionDep
 from app.modules.medication.schemas import (
     MedicationCreate,
     MedicationCreated,
     MedicationOut,
+    MedicationStop,
     MedicationUpdate,
     NextDoseOut,
     QrPreviewIn,
@@ -28,13 +29,19 @@ Service = Annotated[MedicationService, Depends(get_service)]
 
 
 @router.get("/medications", response_model=list[MedicationOut])
-async def list_medications(elder_id: UUID, user_id: CurrentUserId, service: Service) -> list[MedicationOut]:
-    return await service.list_medications(user_id, elder_id)
+async def list_medications(
+    elder_id: UUID,
+    user_id: CurrentUserId,
+    service: Service,
+    include_stopped: Annotated[bool, Query()] = False,
+) -> list[MedicationOut]:
+    """藥品清單，依編號排序。預設只列進行中的藥。"""
+    return await service.list_medications(user_id, elder_id, include_stopped=include_stopped)
 
 
 @router.post("/medications/qr-preview", response_model=QrPreviewOut)
 async def preview_qr(elder_id: UUID, body: QrPreviewIn, user_id: CurrentUserId, service: Service) -> QrPreviewOut:
-    """body 為 App 對 { name: 'qr_code_scan' } 的回覆；只解析，不寫入。"""
+    """body 為 App 對 { name: 'qr_code_scan' } 的回覆；回傳確認畫面的內容，不寫入。"""
     return await service.preview_qr(user_id, elder_id, body.data)
 
 
@@ -42,6 +49,7 @@ async def preview_qr(elder_id: UUID, body: QrPreviewIn, user_id: CurrentUserId, 
 async def create_medication(
     elder_id: UUID, body: MedicationCreate, user_id: CurrentUserId, service: Service
 ) -> MedicationCreated:
+    """body 為 qr-preview 回傳的 draft，長輩核對後原樣送回。"""
     return await service.create(user_id, elder_id, body)
 
 
@@ -61,9 +69,9 @@ async def update_medication(
 
 @router.post("/medications/{medication_id}/stop", response_model=MedicationOut)
 async def stop_medication(
-    elder_id: UUID, medication_id: UUID, user_id: CurrentUserId, service: Service
+    elder_id: UUID, medication_id: UUID, body: MedicationStop, user_id: CurrentUserId, service: Service
 ) -> MedicationOut:
-    return await service.stop(user_id, elder_id, medication_id)
+    return await service.stop(user_id, elder_id, medication_id, body.reason)
 
 
 @router.get("/time-slots", response_model=list[TimeSlotItem])
@@ -75,6 +83,7 @@ async def list_time_slots(elder_id: UUID, user_id: CurrentUserId, service: Servi
 async def update_time_slots(
     elder_id: UUID, body: TimeSlotsUpdate, user_id: CurrentUserId, service: Service
 ) -> list[TimeSlotItem]:
+    """只需送要修改的時段。"""
     return await service.update_time_slots(user_id, elder_id, body)
 
 

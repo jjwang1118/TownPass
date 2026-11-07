@@ -37,7 +37,7 @@
 
 ### 1.3 比賽規則對後端的限制
 
-- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料。
+- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料與國語朗讀稿文字（不含英文字母，交付規格「語音不唸英文字母」）。
 - **開源免費**：所有套件需為 MIT、BSD、Apache-2.0 等可納入 AGPL 的授權，見 [§9](#9-技術選型)。
 - **可移轉、可維運**：附 Dockerfile，依 README 即可建置。
 
@@ -292,6 +292,7 @@ microservice/backend/
 | source | enum `qr` / `tpech` / `manual` | 本期只有 `qr` |
 | status | enum `active` / `stopped` | |
 | stopped_at | timestamptz NULL | |
+| stop_reason | enum `finished` / `doctor_advised` NULL | 停用原因：吃完了、醫生說不用吃了 |
 | created_by | uuid FK users | 長輩或做初始設定的家人 |
 | created_at / updated_at | timestamptz | |
 
@@ -562,14 +563,14 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/elders/{elder_id}/medications` | 藥品清單（含時段、剩餘天數） |
-| POST | `/elders/{elder_id}/medications/qr-preview` | body 為 App 的 `qr_code_scan` 回覆；回解析結果與同成分警示（不寫入） |
-| POST | `/elders/{elder_id}/medications` | 確認後加入，回編號與「請在藥袋上寫上大大的 N」 |
+| GET | `/elders/{elder_id}/medications?include_stopped=` | 藥品清單，依編號排序：大編號、藥名、一次幾顆、時段與時間、還剩幾天、「念給我聽」朗讀稿 `speech_text` |
+| POST | `/elders/{elder_id}/medications/qr-preview` | body 為 App 的 `qr_code_scan` 回覆；回確認畫面內容 `draft`、會提醒的時段、同成分警示（不寫入） |
+| POST | `/elders/{elder_id}/medications` | body 為長輩核對後的 `draft`；回編號、同成分警示與「請在藥袋上寫上大大的 N」 |
 | GET | `/elders/{elder_id}/medications/{id}` | 詳細頁 |
 | PATCH | `/elders/{elder_id}/medications/{id}` | 編輯 |
-| POST | `/elders/{elder_id}/medications/{id}/stop` | 停用 |
+| POST | `/elders/{elder_id}/medications/{id}/stop` | body `{"reason": "finished" \| "doctor_advised"}`；停用後不再提醒，編號釋放 |
 | GET | `/elders/{elder_id}/time-slots` | 時段設定 |
-| PUT | `/elders/{elder_id}/time-slots` | 修改時段 |
+| PUT | `/elders/{elder_id}/time-slots` | 修改時段，只需送要改的時段 |
 | GET | `/elders/{elder_id}/next-dose` | 首頁狀態列：「下一次吃藥：今天 12:00」 |
 
 **reminder**
@@ -648,7 +649,8 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 }
 ```
 
-- `v`：格式版本，不支援的版本回 `400`。
+- `v`：格式版本，不支援的版本回 `400 QR_INVALID`；不是藥袋 QR 或缺欄位也回 `400 QR_INVALID`。
+- `qty`：一次幾顆，可以是 `0.5`。API 回應中的顆數一律是 JSON 數字。
 - QR 本身含完整資料，掃描不需查詢醫院系統。前端可離線顯示確認畫面，加入清單時才呼叫後端。
 - 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`，和長輩其他 `active` 藥品比對。有重疊時回 `warnings: [{"type":"same_ingredient","with_number":2}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
 
@@ -675,6 +677,7 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 | 欄位加密 | cryptography | Apache-2.0 / BSD |
 | 推播 | firebase-admin | Apache-2.0 |
 | 測試 | pytest、pytest-asyncio、httpx | MIT、Apache-2.0、BSD-3 |
+| 產生範例 QR（開發用） | segno | BSD-3 |
 
 Python 3.12。
 
@@ -713,8 +716,8 @@ Dockerfile 啟動時讀取 Cloud Run 提供的 `PORT`。
 - 長輩、家人各一個模擬台北通帳號（修改 `account.json` 的 `birthday`、`citizen` 呈現長輩情境）。
 - 消防局名冊 3 筆：`EMT-001`、`EMT-002` 在職且有救護權限；`EMT-003` 已離職，示範被擋。
 - 聯醫院區、科別、醫師、未來 2 週門診（含一個額滿、一個停診）。
-- 範例藥袋 QR 3 張，其中 2 張成分相同，示範同成分警示。
-- 食藥署許可證資料：只匯入範例藥品需要的幾筆。
+- 範例藥袋 QR 3 張，其中 2 張成分相同，示範同成分警示。✅ `seed/qr/`
+- 食藥署許可證資料：只匯入範例藥品需要的幾筆，許可證字號用 `DEMO-` 開頭，明確標示為模擬資料。✅
 
 ### 11.2 展示用 API（僅 `DEMO_MODE`，正式版移除）
 

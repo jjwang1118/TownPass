@@ -124,3 +124,15 @@
 - 更新 family、modules、auth、tests 的 README 與規格書 §2.3、§7.2
 [Modified Time]: 1107173841
 [Modified Position]: microservice/backend/app/modules/family/, microservice/backend/app/modules/auth/repository.py, microservice/backend/app/modules/auth/service.py, microservice/backend/tests/, microservice/docs/backend-spec.md:94,554-555
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 實作 medication 模組（功能規格 1-1～1-4）：掃藥袋 QR 預覽與加入、自動編號（最小空號）、同成分警示、藥品清單／詳細／編輯／停用（記錄原因）、7 個時段設定、首頁「下一次吃藥」
+- 「念給我聽」朗讀稿 speech_text：依交付規格不唸英文字母
+- 提供其他模組：list_active_doses、doses_for_slot、slot_times、last_visit
+- 新增 migration：medications.stop_reason；顆數 JSON 輸出統一為數字
+- 實作食藥署許可證匯入；新增 seed（DEMO- 範例許可證 3 筆、範例藥袋 QR 3 張、load/make_qr 指令）；開發依賴新增 segno（BSD-3）
+- 新增 tests/test_medication.py 與規則測試，共 60 個測試通過
+- 更新 medication、seed、fda、tests、modules、backend README 與規格書 §1.3、§5.2、§7.2、§8.1、§9、§11.1
+[Modified Time]: 1107180218
+[Modified Position]: microservice/backend/app/modules/medication/, microservice/backend/app/integrations/fda/importer.py, microservice/backend/seed/, microservice/backend/alembic/versions/20261107_621183e5af7e_medication_stop_reason.py, microservice/backend/tests/, microservice/docs/backend-spec.md

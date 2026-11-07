@@ -34,6 +34,11 @@ class MedicationStatus(StrEnum):
     STOPPED = "stopped"
 
 
+class StopReason(StrEnum):
+    FINISHED = "finished"  # 吃完了
+    DOCTOR_ADVISED = "doctor_advised"  # 醫生說不用吃了
+
+
 class SlotKey(StrEnum):
     BREAKFAST_BEFORE = "breakfast_before"
     BREAKFAST_AFTER = "breakfast_after"
@@ -75,6 +80,7 @@ class Medication(UUIDPrimaryKey, Timestamps, Base):
         enum_column(MedicationStatus), default=MedicationStatus.ACTIVE
     )
     stopped_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    stop_reason: Mapped[StopReason | None] = mapped_column(enum_column(StopReason))
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
 

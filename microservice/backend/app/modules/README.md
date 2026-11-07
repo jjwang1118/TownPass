@@ -21,7 +21,7 @@
 |---|---|---|---|
 | [auth/](auth/) | 台北通登入、選擇身分 | 3 | ✅ 完成 |
 | [family/](family/) | 邀請碼、綁定、**權限檢查** | 6 | ✅ 完成 |
-| [medication/](medication/) | 藥品、掃 QR 新增、時段 | 9 | 待實作（計算規則已完成） |
+| [medication/](medication/) | 藥品、掃 QR 新增、時段 | 9 | ✅ 完成 |
 | [reminder/](reminder/) | 吃藥提醒、回應、通知家人 | 4 | 待實作 |
 | [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 7 | 待實作（卡號規則、常見選項已完成） |
 | [responder/](responder/) | 救護人員登入、查詢救命卡 | 2 | 待實作 |
