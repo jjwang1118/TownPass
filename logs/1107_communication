@@ -388,3 +388,11 @@
 [Modified Time]: 1108005600
 
 [Modified Position]: microservice/frontend/src/services/prescriptionOcr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/.env.example、microservice/docs/qrcode_format.md
+
+[Modified Description]:
+- 依使用者需求，掃描頁先不使用相機（USE_CAMERA=false），改以上傳照片辨識二維碼；不自動開啟 App 相機掃描器
+- 新增 QrUploadArea 上傳區（整塊可點、選後顯示照片縮圖、辨識中提示）
+
+[Modified Time]: 1108010000
+
+[Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/components/cards/QrUploadArea.vue

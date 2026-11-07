@@ -7,10 +7,11 @@
  * - 二維碼內容是網址時：送後端下載藥單圖片做 OCR，整理成藥單後進入確認藥單
  * - 無法掃描時一律顯示「掃描失敗」與錯誤原因（不是藥單、網址打不開、讀不出藥單、照片找不到二維碼、逾時、裝置不支援、App 掃描沒有結果）
  */
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
 import QrScanCamera, { type ScanFailReason } from '@/components/cards/QrScanCamera.vue'
+import QrUploadArea from '@/components/cards/QrUploadArea.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { isInApp, scanQrCode } from '@/composables/flutterBridge'
 import { startDraftFromRecognition } from '@/store'
@@ -20,8 +21,16 @@ import { PrescriptionOcrError, isUrl, recognizePrescriptionFromUrl } from '@/ser
 
 const router = useRouter()
 
+/**
+ * 是否使用相機掃描（網頁相機＋App 內建掃描器）
+ * 目前先不用相機，改以「上傳照片」辨識二維碼；要恢復相機掃描時改成 true
+ */
+const USE_CAMERA = false
+
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+/** 已選擇照片的縮圖網址 */
+const previewUrl = ref('')
 
 /** 掃描失敗提示：原因說明＋（若有）實際讀到的內容 */
 interface ScanFailure {
@@ -101,10 +110,13 @@ async function onFileChange(event: Event) {
   const file = input.files?.[0]
   input.value = '' // 讓同一張照片可以再選一次
   if (!file) return
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = URL.createObjectURL(file)
+  failure.value = null
   uploading.value = true
   try {
     const raw = await decodeQrFromFile(file)
-    if (raw) onDetected(raw)
+    if (raw) await onDetected(raw)
     else fail('這張照片裡找不到二維碼，請換一張清楚、二維碼完整的照片。')
   } catch {
     fail('照片無法讀取，請換一張照片再試一次。')
@@ -113,8 +125,12 @@ async function onFileChange(event: Event) {
   }
 }
 
+onBeforeUnmount(() => {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+})
+
 onMounted(async () => {
-  if (!isInApp()) return
+  if (!USE_CAMERA || !isInApp()) return
   const raw = await scanQrCode()
   if (router.currentRoute.value.path !== '/elder/add/qr') return
   if (raw) onDetected(raw)
@@ -124,7 +140,8 @@ onMounted(async () => {
 
 <template>
   <PageLayout title="掃描 QR Code" fallback="/elder/add">
-    <QrScanCamera @detected="onDetected" @failed="onCameraFailed" />
+    <QrScanCamera v-if="USE_CAMERA" @detected="onDetected" @failed="onCameraFailed" />
+    <QrUploadArea v-else :preview-url="previewUrl" :busy="uploading || reading" @pick="pickPhoto" />
 
     <p v-if="reading" class="reading font-h3-semibold" role="status">正在讀取藥單，請稍候…</p>
 
@@ -143,7 +160,7 @@ onMounted(async () => {
       aria-hidden="true"
       @change="onFileChange"
     />
-    <SecondaryButton @click="pickPhoto">
+    <SecondaryButton v-if="USE_CAMERA" @click="pickPhoto">
       {{ uploading ? '正在辨識照片…' : '上傳 QR Code 照片' }}
     </SecondaryButton>
 
