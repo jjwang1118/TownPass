@@ -218,3 +218,29 @@
 - 改寫 docs/deploy.md 為本地部署版；更新規格書 §2、§5.1、§6.1、§10 與相關 README；共 107 個測試通過（含模擬 Windows 條件）
 [Modified Time]: 1107201329
 [Modified Position]: microservice/backend/app/modules/internal/scheduler.py, microservice/backend/app/main.py, microservice/backend/app/core/config.py, microservice/backend/compose.yaml, microservice/backend/.env.example, microservice/backend/scripts/init_env.py, microservice/backend/.dockerignore, .gitignore, android/app/src/debug/, microservice/docs/deploy.md, microservice/docs/backend-spec.md, microservice/backend/tests/
+
+---
+
+[Agent name]: 後端工程師
+
+[Modified Description]:
+- 新增 speech 模組（app/modules/speech/rules.py）：朗讀稿改用模板產生，預留 Lang（目前只有 zh），之後加英文、台語只要補模板
+- 藥名朗讀規則：有中文名就只念中文（先查食藥署許可證 drug_licenses.name_zh，再看藥袋藥名），只有英文就照原文念；科別、用途、稱呼仍不唸英文字母
+- 藥卡「念給我聽」與吃藥提醒都加上藥名；提醒建立時把要念的藥名存入 items[].speech_name（避免停用後編號重用念錯藥名）
+- 從 medication/rules.py、reminder/rules.py 移除舊朗讀函式；MedicationRepository 新增 zh_names_by_license、MedicationService 新增 speech_names
+- 更新測試（test_rules、test_medication、test_reminder），更新 speech／medication／reminder／modules README 與規格書 §1.3、推播範例
+- 純函式測試 38 個通過；本機 Docker 未啟動，72 個需資料庫的測試被略過、尚未實際跑過
+
+[Modified Time]: 1107203225
+
+[Modified Position]: microservice/backend/app/modules/speech/, microservice/backend/app/modules/medication/rules.py, microservice/backend/app/modules/medication/repository.py:83, microservice/backend/app/modules/medication/service.py, microservice/backend/app/modules/medication/schemas.py:109, microservice/backend/app/modules/reminder/rules.py, microservice/backend/app/modules/reminder/service.py, microservice/backend/app/modules/reminder/schemas.py:27, microservice/backend/tests/, microservice/docs/backend-spec.md:40
+
+[Modified Description]:
+- 新增前端朗讀模組 microservice/frontend/tts/（獨立模組，不依賴框架，不改 App）：speak(text) 依序嘗試 App 的 tts_speak handler → 網頁 speechSynthesis，都不行回傳 ok:false；台灣中文與離線語音優先、找不到中文不硬念、長句分段、語速 0.85、頁面隱藏時自動停止
+- 新增 tts.d.ts 型別宣告（前端為 Vue 3 + TypeScript）、測試頁 index.html（朗讀、停止、環境檢查）、README（使用方式、App handler 約定 tts_speak／tts_stop、模擬器測試步驟）
+- 規格書 §12 更新「國台語朗讀」列
+- 驗證：Node 模擬瀏覽器測試通過（分段、挑語音、無中文語音、WebView 靜默失敗、App 有／無 handler）；桌面 Chrome 開測試頁正常並選到 zh-TW 語音；尚未在 Android 模擬器的城市通 WebView 實測
+
+[Modified Time]: 1107212551
+
+[Modified Position]: microservice/frontend/tts/tts.js, microservice/frontend/tts/tts.d.ts, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md, microservice/docs/backend-spec.md:754
