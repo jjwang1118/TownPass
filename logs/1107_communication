@@ -170,3 +170,13 @@
 [Modified Time]: 1107232200
 
 [Modified Position]: microservice/frontend/src/data/mock.ts:27-28、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，清除其餘測試資料：緊急醫療卡改為空白、查看紀錄與已綁定家屬清空、移除救護人員查看通知範例、邀請碼改為隨機產生
+- 緊急醫療卡第一次為空：完全沒填時顯示「還沒有填寫緊急醫療卡」（長者按鈕文字為「填寫醫療卡」，家屬顯示「長輩還沒有填寫」）
+- 緊急醫療卡只顯示有填寫的欄位（長者／家屬／救護人員三種畫面），目前用藥有藥時才顯示；救護人員版沒有電話的聯絡人不顯示撥號按鈕
+- 存檔資料版本升為 6，舊存檔載入時一併清空上述資料
+
+[Modified Time]: 1107233600
+
+[Modified Position]: microservice/frontend/src/utils/card.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/cards/EmergencyCardBody.vue、microservice/frontend/src/views/shared/EmergencyCardView.vue、microservice/frontend/src/views/elder/MyEmergencyCard.vue、microservice/frontend/src/views/rescue/RescueEmergencyCard.vue、microservice/frontend/src/views/family/RescueViewNotice.vue

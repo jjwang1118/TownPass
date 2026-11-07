@@ -20,6 +20,7 @@ import type { EmergencyCard } from '@/types'
 
 const router = useRouter()
 
+// 第一次填寫時醫療卡為空，所有欄位從空白開始
 const form = reactive<EmergencyCard>(JSON.parse(JSON.stringify(state.card)) as EmergencyCard)
 const contact2 = reactive(form.contact2 ?? { name: '', relation: '', phone: '' })
 const showContact2 = ref(!!form.contact2)

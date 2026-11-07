@@ -10,10 +10,10 @@ import type {
   EmergencyCard,
   FamilyMember,
   Prescription,
-  RescueNotice,
   SelectOption,
   ViewLog,
 } from '@/types'
+import { emptyCard } from '@/utils/card'
 
 export const ELDER: ElderProfile = {
   name: '王美玉',
@@ -27,29 +27,14 @@ export const PRESCRIPTIONS: Prescription[] = []
 /** 預設回診預約：測試資料已清空，回診一律由使用者透過回診預約建立 */
 export const APPOINTMENTS: Appointment[] = []
 
-export const EMERGENCY_CARD: EmergencyCard = {
-  name: '王美玉',
-  birthday: '1948/05/12',
-  gender: '女',
-  bloodType: 'O',
-  contact1: { name: '陳小華', relation: '女兒', phone: '0912-345-678' },
-  contact2: { name: '陳大明', relation: '兒子', phone: '0933-222-111' },
-  chronic: ['高血壓', '糖尿病'],
-  drugAllergy: '盤尼西林',
-  foodAllergy: '無',
-  special: [],
-  hospitalRecord: '仁愛院區｜12345678',
-  language: '台語',
-  consent: true,
-  updatedAt: '2026/11/07',
-}
+/** 預設緊急醫療卡：第一次使用為空，由長者（或家人）自行填寫 */
+export const EMERGENCY_CARD: EmergencyCard = emptyCard()
 
-export const VIEW_LOGS: ViewLog[] = [
-  { time: '2026-11-07T14:32:00', viewer: '救護人員（臺北市消防局）' },
-  { time: '2026-11-07T10:05:00', viewer: '陳小華（女兒）' },
-]
+/** 預設查看紀錄：空（救護人員或家屬查看後才會新增） */
+export const VIEW_LOGS: ViewLog[] = []
 
-export const FAMILY_MEMBERS: FamilyMember[] = [{ id: 'f1', name: '陳小華', relation: '女兒' }]
+/** 預設已綁定家屬：空（家屬輸入邀請碼後才會新增） */
+export const FAMILY_MEMBERS: FamilyMember[] = []
 
 /** 家屬端登入的模擬帳號（台北通 userinfo 拿不到時使用） */
 export const FAMILY_USER = { name: '陳小華', relation: '女兒' }
@@ -153,12 +138,6 @@ export function isTimeFull(date: string, time: string): boolean {
   return n % 5 === 0
 }
 
-/** FM-PG-06 範例通知（尚無實際查看紀錄時顯示） */
-export const RESCUE_NOTICE_EXAMPLE: RescueNotice = {
-  time: '2026-11-07T14:32:00',
-  unit: '臺北市政府消防局',
-  staffId: 'A12345',
-}
 
 /** 救護人員所屬單位 */
 export const RESCUE_UNITS: SelectOption[] = [

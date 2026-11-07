@@ -72,9 +72,9 @@ interface State {
 
 /**
  * 目前存檔資料版本
- * - 5：清空先前存下的藥單與回診測試資料
+ * - 6：清空所有測試資料（藥單、回診、緊急醫療卡、查看紀錄、綁定家屬、救護通知）
  */
-const DATA_VERSION = 5
+const DATA_VERSION = 6
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
@@ -96,7 +96,7 @@ function defaults(): State {
     card: clone(EMERGENCY_CARD),
     viewLogs: clone(VIEW_LOGS),
     families: clone(FAMILY_MEMBERS),
-    invite: { code: '483921', expiresAt: Date.now() + INVITE_VALID_MINUTES * 60_000 },
+    invite: newInviteCode(),
     familyUser: { loggedIn: false, name: FAMILY_USER.name, relation: FAMILY_USER.relation, bound: false },
     rescue: null,
     rescueNotices: [],
@@ -130,7 +130,7 @@ function load(): State {
     const legacy = (parsed as { appointment?: Appointment | null }).appointment
     if (!Array.isArray(parsed.appointments)) saved.appointments = legacy ? [legacy] : []
     delete (saved as { appointment?: unknown }).appointment
-    // 版本較舊的存檔：清空藥單與回診測試資料（含新增藥單草稿、暫存手動藥品、填到一半的預約）
+    // 版本較舊的存檔：清空所有測試資料（藥單、回診、緊急醫療卡、查看紀錄、綁定家屬、救護通知）
     if ((parsed.dataVersion ?? 1) < DATA_VERSION) {
       saved.prescriptions = []
       saved.draft = null
@@ -139,6 +139,13 @@ function load(): State {
       saved.lastBooked = null
       saved.booking = emptyBooking()
       saved.notified = []
+      saved.card = clone(EMERGENCY_CARD)
+      saved.viewLogs = []
+      saved.families = []
+      saved.familyUser = { ...base.familyUser }
+      saved.rescue = null
+      saved.rescueNotices = []
+      saved.invite = newInviteCode()
     }
     saved.dataVersion = DATA_VERSION
     saved.prescriptions.forEach(migrateQuantity)

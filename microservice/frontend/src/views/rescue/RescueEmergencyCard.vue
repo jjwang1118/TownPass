@@ -16,7 +16,7 @@ import { RESCUE_CARD_MINUTES } from '@/data/constants'
 import { activeMedicines, closeRescueCard, state } from '@/store'
 import { useNow } from '@/composables/useNow'
 import { phoneCall } from '@/composables/flutterBridge'
-import { cardSummary, listText } from '@/utils/card'
+import { cardRows, cardSummary, hasContact, isCardEmpty } from '@/utils/card'
 import { formatCountdown } from '@/utils/date'
 
 const router = useRouter()
@@ -29,14 +29,18 @@ const remaining = computed(() =>
   openedAt.value ? (openedAt.value + RESCUE_CARD_MINUTES * 60_000 - now.value.getTime()) / 1000 : 0,
 )
 
-const rows = computed(() => [
-  { label: '慢性病', value: listText(card.value.chronic) },
-  { label: '藥物過敏', value: card.value.drugAllergy || '無' },
-  { label: '食物過敏', value: card.value.foodAllergy || '無' },
-  { label: '特殊狀況', value: listText(card.value.special) },
-  { label: '慣用語言', value: card.value.language || '未填寫' },
-  { label: '最後更新', value: card.value.updatedAt },
-])
+/** 只列出長者有填寫的欄位（聯絡人另以撥號按鈕呈現） */
+const rows = computed(() => {
+  const { top, bottom } = cardRows(card.value)
+  const list = [...top, ...bottom].filter((r) => r.label !== '緊急聯絡人' && r.label !== '第二聯絡人')
+  if (card.value.updatedAt) list.push({ label: '最後更新', value: card.value.updatedAt })
+  return list
+})
+const summary = computed(() => cardSummary(card.value, now.value))
+const empty = computed(() => isCardEmpty(card.value) && medicines.value.length === 0)
+const contact1 = computed(() => (hasContact(card.value.contact1) && card.value.contact1.phone ? card.value.contact1 : null))
+const contact2 = computed(() => (hasContact(card.value.contact2) && card.value.contact2.phone ? card.value.contact2 : null))
+const relationText = (r: string) => (r ? `（${r}）` : '')
 
 // 倒數到 0 自動關閉
 watch(remaining, (sec) => {
@@ -65,28 +69,29 @@ function back() {
       </WarningNotice>
       <InfoNotice>以下資料由長者本人提供，僅供參考，請以現場評估為準。</InfoNotice>
 
-      <section class="basic" aria-label="基本資料">
-        <p class="font-h1-semibold">{{ card.name }}</p>
-        <p class="font-h3-regular">{{ cardSummary(card, now) }}</p>
+      <p v-if="empty" class="empty font-h3-semibold" role="status">長者還沒有填寫緊急醫療卡，請以現場評估為準。</p>
+
+      <section v-if="card.name || summary" class="basic" aria-label="基本資料">
+        <p v-if="card.name" class="font-h1-semibold">{{ card.name }}</p>
+        <p v-if="summary" class="font-h3-regular">{{ summary }}</p>
       </section>
 
-      <EmergencyCallButton @click="phoneCall(card.contact1.phone)">
-        撥打 {{ card.contact1.name }}（{{ card.contact1.relation }}）
+      <EmergencyCallButton v-if="contact1" @click="phoneCall(contact1.phone)">
+        撥打 {{ contact1.name }}{{ relationText(contact1.relation) }}
       </EmergencyCallButton>
-      <SecondaryButton v-if="card.contact2" @click="phoneCall(card.contact2.phone)">
-        撥打 {{ card.contact2.name }}（{{ card.contact2.relation }}）
+      <SecondaryButton v-if="contact2" @click="phoneCall(contact2.phone)">
+        撥打 {{ contact2.name }}{{ relationText(contact2.relation) }}
       </SecondaryButton>
 
-      <InfoList :rows="rows" label="醫療卡內容" />
+      <InfoList v-if="rows.length" :rows="rows" label="醫療卡內容" />
 
-      <section class="meds" aria-labelledby="rescue-meds-title">
+      <section v-if="medicines.length" class="meds" aria-labelledby="rescue-meds-title">
         <h2 id="rescue-meds-title" class="meds-title font-h3-regular">
           <span class="text-second">目前用藥</span>
           <span class="source">（來自長者的藥單）</span>
         </h2>
         <ul class="meds-list">
           <li v-for="m in medicines" :key="m.code" class="font-h3-semibold">{{ m.name }}｜{{ m.effect }}</li>
-          <li v-if="medicines.length === 0" class="font-h3-regular text-second">目前沒有用藥</li>
         </ul>
       </section>
     </template>
@@ -94,6 +99,13 @@ function back() {
 </template>
 
 <style scoped>
+.empty {
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px dashed var(--alarm-red-500);
+  color: var(--text-primary);
+  text-align: center;
+}
 .countdown {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
