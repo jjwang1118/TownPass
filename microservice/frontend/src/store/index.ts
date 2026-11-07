@@ -63,7 +63,15 @@ interface State {
   booking: BookingDraft
   /** 已發送過的提醒（避免重複推播） */
   notified: string[]
+  /** 存檔資料版本；舊版存檔載入時依版本清理資料 */
+  dataVersion: number
 }
+
+/**
+ * 目前存檔資料版本
+ * - 4：清空先前存下的測試藥單
+ */
+const DATA_VERSION = 4
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
@@ -93,6 +101,7 @@ function defaults(): State {
     manualMedicines: [],
     booking: emptyBooking(),
     notified: [],
+    dataVersion: DATA_VERSION,
   }
 }
 
@@ -111,7 +120,16 @@ function load(): State {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return base
-    const saved = { ...base, ...(JSON.parse(raw) as Partial<State>) }
+    const parsed = JSON.parse(raw) as Partial<State>
+    const saved = { ...base, ...parsed }
+    // v4：清空舊存檔裡的測試藥單（含未完成的新增草稿與暫存的手動藥品）
+    if ((parsed.dataVersion ?? 1) < DATA_VERSION) {
+      saved.prescriptions = []
+      saved.draft = null
+      saved.manualMedicines = []
+      saved.notified = saved.notified.filter((k) => !k.startsWith('slot:'))
+    }
+    saved.dataVersion = DATA_VERSION
     saved.prescriptions.forEach(migrateQuantity)
     if (saved.draft) migrateQuantity(saved.draft)
     saved.manualMedicines.forEach((m) => {

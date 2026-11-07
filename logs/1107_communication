@@ -143,3 +143,11 @@
 [Modified Time]: 1107230500
 
 [Modified Position]: microservice/frontend/src/utils/supply.ts、microservice/frontend/src/types.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/shared/MedicineForm.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue
+
+[Modified Description]:
+- 依使用者需求，刪除所有藥單測試資料：預設藥單改為空陣列（首頁顯示「還沒有任何藥單」EL-PG-02）
+- 新增存檔資料版本 dataVersion（目前 4），舊存檔載入時清空已存的藥單、新增草稿與暫存手動藥品；回診預約、醫療卡、家屬等其他資料保留
+
+[Modified Time]: 1107231000
+
+[Modified Position]: microservice/frontend/src/data/mock.ts:24-25、microservice/frontend/src/store/index.ts
