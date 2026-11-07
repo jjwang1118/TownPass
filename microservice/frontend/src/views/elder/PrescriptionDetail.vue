@@ -8,12 +8,11 @@ import { useRoute, useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
 import PrescriptionHeader from '@/components/cards/PrescriptionHeader.vue'
 import MedicineCard from '@/components/cards/MedicineCard.vue'
-import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
 import LanguageSwitch from '@/components/segments/LanguageSwitch.vue'
 import InfoNotice from '@/components/alerts/InfoNotice.vue'
 import { daysLeft, isFinished, state } from '@/store'
 import { useTts } from '@/composables/useTts'
-import { medicineSpeech, slotSpeech } from '@/utils/speech'
+import { medicineSpeech } from '@/utils/speech'
 import { medicineDaysLeft, pillsLeft, prescriptionSupplyDays } from '@/utils/supply'
 import type { Medicine } from '@/types'
 
@@ -36,14 +35,6 @@ function supplyNote(m: Medicine): string {
   return `剩 ${left} 顆，約 ${medicineDaysLeft(m, rx.value.visitDate, now)} 天`
 }
 
-const speechTitle = computed(() => {
-  if (!rx.value) return ''
-  if (state.lang !== 'en') return `藥單 ${rx.value.code}，${statusText.value}`
-  const left = daysLeft(rx.value, now)
-  const status = finished.value ? 'all finished' : left === 1 ? '1 day left' : `${left} days left`
-  return `Prescription ${rx.value.code}, ${status}`
-})
-
 onMounted(() => {
   if (!rx.value) router.replace('/elder/prescriptions')
 })
@@ -62,7 +53,7 @@ onMounted(() => {
       <p class="status font-h3-semibold" :class="{ finished }">{{ statusText }}</p>
 
       <div class="read-row">
-        <ReadAloudButton @click="speak(slotSpeech(speechTitle, rx.medicines, state.lang), state.lang)" />
+        <span class="read-label font-h3-regular">朗讀語言</span>
         <LanguageSwitch v-model="state.lang" />
       </div>
 

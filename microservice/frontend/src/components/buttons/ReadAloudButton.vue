@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * CM-BTN-01 朗讀按鈕
- * 變體：full（整區朗讀：喇叭＋「唸給我聽」）／single（單顆朗讀：僅圖示）
+ * 變體：full（整區朗讀：喇叭＋文字，預設「唸給我聽」）／single（單顆朗讀：僅圖示，label 為朗讀標籤）
  */
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -22,7 +22,7 @@ const emit = defineEmits<{ click: [] }>()
     @click.stop="emit('click')"
   >
     <AppIcon name="speaker" />
-    <span class="font-h3-semibold">唸給我聽</span>
+    <span class="font-h3-semibold">{{ label }}</span>
   </button>
   <button v-else type="button" class="cm-btn-01 single" :aria-label="label" @click.stop="emit('click')">
     <AppIcon name="speaker" />

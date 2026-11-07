@@ -45,7 +45,7 @@ function confirmUnbind() {
     <p class="page-desc">家屬在自己手機的「呷藥囉」輸入後，就會收到您的用藥和回診提醒。</p>
     <InviteCodeCard :code="state.invite.code" :valid-text="validText" />
     <div class="actions">
-      <ReadAloudButton flex @click="readCode" />
+      <ReadAloudButton flex label="唸出邀請碼" @click="readCode" />
       <SecondaryButton size="narrow" @click="regenerateInvite">換一組數字</SecondaryButton>
     </div>
 

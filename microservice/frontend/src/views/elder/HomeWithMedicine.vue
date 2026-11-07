@@ -7,14 +7,13 @@ import MedicineCard from '@/components/cards/MedicineCard.vue'
 import TimeSlotCard from '@/components/cards/TimeSlotCard.vue'
 import NextVisitCard from '@/components/cards/NextVisitCard.vue'
 import FeatureEntry from '@/components/cards/FeatureEntry.vue'
-import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
 import LanguageSwitch from '@/components/segments/LanguageSwitch.vue'
 import GreetingBlock from './GreetingBlock.vue'
 import { SLOTS } from '@/data/constants'
 import { activeMedicines, state, upcomingAppointments } from '@/store'
 import { useTts } from '@/composables/useTts'
 import { medicinesInSlot, nextMedicineSlot, slotStatuses } from '@/utils/schedule'
-import { medicineSpeech, slotNameEn, slotSpeech } from '@/utils/speech'
+import { medicineSpeech } from '@/utils/speech'
 import type { IconName } from '@/components/AppIcon.vue'
 
 const props = defineProps<{ now: Date }>()
@@ -32,16 +31,6 @@ const nextLabel = computed(() => {
   const { slot, tomorrow } = next.value
   return `${tomorrow ? '明天 ' : ''}${slot.time} ${slot.name}`
 })
-
-function speakNext() {
-  if (!next.value) return
-  const { slot, tomorrow } = next.value
-  const title =
-    state.lang === 'en'
-      ? `Next medicine: ${tomorrow ? 'tomorrow ' : ''}${slotNameEn(slot.key)}`
-      : `下一次吃藥，${nextLabel.value}`
-  speak(slotSpeech(title, nextMeds.value, state.lang), state.lang)
-}
 
 const entries: { icon: IconName; title: string; subtitle: string; to: string }[] = [
   { icon: 'add-rx', title: '新增藥單', subtitle: '領藥後拍藥袋', to: '/elder/add' },
@@ -68,10 +57,10 @@ const entries: { icon: IconName; title: string; subtitle: string; to: string }[]
         :department="m.rx.department"
         show-department
         @click="router.push(`/elder/slot/${next.slot.key}`)"
-        @speak="speak(medicineSpeech(m, false, state.lang), state.lang)"
+        @speak="speak(medicineSpeech(m, true, state.lang), state.lang)"
       />
       <div class="read-row">
-        <ReadAloudButton @click="speakNext" />
+        <span class="read-label font-h3-regular">朗讀語言</span>
         <LanguageSwitch v-model="state.lang" />
       </div>
     </section>

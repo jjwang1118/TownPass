@@ -3,7 +3,7 @@
  * CM-CRD-01 藥品卡
  * - showDepartment：EL-PG-01 顯示「科別｜功效｜時機」；EL-PG-03／FM-PG-04 只顯示「功效｜時機」
  * - clickable：長者可點整列；家屬視角不可點
- * - 單顆朗讀不冒泡至整列
+ * - 單顆朗讀不冒泡至整列；speakable=false 時不顯示喇叭（時段詳情改由「全部唸給我聽」一次念完）
  */
 import { computed } from 'vue'
 import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
@@ -21,8 +21,10 @@ const props = withDefaults(
     /** 額外說明列（藥單詳情用：剩 26 顆，約 26 天） */
     note?: string
     clickable?: boolean
+    /** 顯示單顆朗讀的喇叭 */
+    speakable?: boolean
   }>(),
-  { showDepartment: false, showSlots: false, clickable: true },
+  { showDepartment: false, showSlots: false, clickable: true, speakable: true },
 )
 const emit = defineEmits<{ click: []; speak: [] }>()
 
@@ -54,7 +56,12 @@ const meta = computed(() =>
       <span class="meta font-h3-regular">{{ meta }}</span>
       <span v-if="note" class="note font-h3-semibold">{{ note }}</span>
     </component>
-    <ReadAloudButton variant="single" :label="`朗讀 ${medicine.code} ${medicine.name}`" @click="emit('speak')" />
+    <ReadAloudButton
+      v-if="speakable"
+      variant="single"
+      :label="`朗讀 ${medicine.code} ${medicine.name}`"
+      @click="emit('speak')"
+    />
   </article>
 </template>
 

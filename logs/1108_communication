@@ -272,3 +272,14 @@
 [Modified Time]: 1108061804
 
 [Modified Position]: microservice/docs/deploy.md, logs/1107_communication:326, microservice/docs/backend-spec.md:808, microservice/docs/front_specific/components/SEG/CM-SEG-01.md:12, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
+
+[Modified Description]:
+- 朗讀不重複：每頁只留一種朗讀方式（使用者交由我決定）
+- 首頁「下一次吃藥」、藥單詳情：拿掉整區「唸給我聽」，只留藥卡喇叭；首頁藥卡改為連時段一起念；原按鈕位置改顯示「朗讀語言」＋國語／English 切換
+- 時段詳情（吃藥提醒進入，EL-PG-03／FM-PG-04）：只留一個整區按鈕，文字改為「全部唸給我聽」，藥卡不顯示喇叭（MedicineCard 新增 speakable）
+- 邀請家屬：按鈕文字改為「唸出邀請碼」；ReadAloudButton 整區變體改用 label 顯示文字
+- 更新元件規格 CM-BTN-01；驗證：vue-tsc、npm test 13 個、npm run build 通過
+
+[Modified Time]: 1108062843
+
+[Modified Position]: microservice/frontend/src/components/buttons/ReadAloudButton.vue:24, microservice/frontend/src/components/cards/MedicineCard.vue:24, microservice/frontend/src/views/elder/HomeWithMedicine.vue:63, microservice/frontend/src/views/elder/PrescriptionDetail.vue:55, microservice/frontend/src/views/shared/SlotDetail.vue:40, microservice/frontend/src/views/elder/InviteFamily.vue:48, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
