@@ -35,7 +35,7 @@ from app.main import app  # noqa: E402
 from app.models import metadata  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-MOCK_ACCOUNT = json.loads((REPO_ROOT / "assets" / "mock_data" / "account.json").read_text())["data"]
+MOCK_ACCOUNT = json.loads((REPO_ROOT / "assets" / "mock_data" / "account.json").read_text(encoding="utf-8"))["data"]
 
 LoginFn = Callable[..., Awaitable[tuple[dict[str, str], UUID]]]
 

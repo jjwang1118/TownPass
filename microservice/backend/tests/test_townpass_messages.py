@@ -31,14 +31,14 @@ def _reply(name: str, data: object) -> dict:
 def test_builtin_names_match_app_source() -> None:
     import re
 
-    names = set(re.findall(r"String get name => '([^']+)';", HANDLERS.read_text()))
+    names = set(re.findall(r"String get name => '([^']+)';", HANDLERS.read_text(encoding="utf-8")))
     assert names == {m.value for m in BuiltinMessageName}
-    for cls in re.findall(r"(\w+)\(\),", LISTENER.read_text()):
-        assert cls in HANDLERS.read_text()
+    for cls in re.findall(r"(\w+)\(\),", LISTENER.read_text(encoding="utf-8")):
+        assert cls in HANDLERS.read_text(encoding="utf-8")
 
 
 def test_userinfo_reply_parses_app_mock_account() -> None:
-    account = json.loads(MOCK_ACCOUNT.read_text())["data"]
+    account = json.loads(MOCK_ACCOUNT.read_text(encoding="utf-8"))["data"]
     reply = UserinfoReply.model_validate(_reply("userinfo", account))
 
     assert reply.data.id == account["id"]
@@ -55,7 +55,7 @@ def test_userinfo_reply_rejects_empty_account() -> None:
 
 
 def test_userinfo_reply_rejects_other_name() -> None:
-    account = json.loads(MOCK_ACCOUNT.read_text())["data"]
+    account = json.loads(MOCK_ACCOUNT.read_text(encoding="utf-8"))["data"]
     with pytest.raises(ValidationError):
         UserinfoReply.model_validate(_reply("location", account))
 

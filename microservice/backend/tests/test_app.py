@@ -50,3 +50,12 @@ def test_schema_compiles_for_postgresql() -> None:
         for index in table.indexes:
             str(CreateIndex(index).compile(dialect=dialect))
     assert len(metadata.tables) == 20
+
+
+def test_timezone_works_without_system_tz_database() -> None:
+    """Windows 沒有內建時區資料，要靠 tzdata 套件（pyproject.toml 的依賴，不可移除）。"""
+    import importlib.util
+    import zoneinfo
+
+    assert importlib.util.find_spec("tzdata") is not None
+    zoneinfo.ZoneInfo.no_cache("Asia/Taipei")
