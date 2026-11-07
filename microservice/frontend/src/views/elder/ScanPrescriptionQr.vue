@@ -3,12 +3,13 @@
  * EL-PG-06 長者：掃描藥袋 QR Code
  * - App 內：開啟 App 內建 qr_code_scan，掃描成功自動跳轉
  * - 瀏覽器：相機畫面＋BarcodeDetector 自動辨識
- * - 也可以「上傳 QR Code 照片」，從照片辨識（找不到時提示換一張）
+ * - 也可以「上傳 QR Code 照片」，從照片辨識
+ * - 無法掃描時一律顯示「掃描失敗」提示（不是藥單、照片找不到二維碼、逾時、裝置不支援、App 掃描沒有結果）
  */
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
-import QrScanCamera from '@/components/cards/QrScanCamera.vue'
+import QrScanCamera, { type ScanFailReason } from '@/components/cards/QrScanCamera.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { isInApp, scanQrCode } from '@/composables/flutterBridge'
 import { startDraftFromRecognition } from '@/store'
@@ -19,27 +20,38 @@ const router = useRouter()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
-const uploadError = ref('')
 
-/** 掃到的 QR Code 不是藥單時顯示的錯誤（含實際讀到的內容） */
-const scanError = ref('')
-const scannedRaw = ref('')
+/** 掃描失敗提示：原因說明＋（若有）實際讀到的內容 */
+interface ScanFailure {
+  message: string
+  raw?: string
+}
+const failure = ref<ScanFailure | null>(null)
+
+function fail(message: string, raw?: string) {
+  failure.value = { message, raw }
+}
 
 function onDetected(raw: string) {
   const rx = parsePrescriptionQr(raw)
   if (!rx) {
-    scannedRaw.value = raw
-    scanError.value = '這不是藥袋的 QR Code，請重新掃描，或上傳正確的照片。'
-    uploadError.value = ''
+    fail('這不是藥袋的二維碼，請重新掃描，或上傳正確的照片。', raw)
     return
   }
-  scanError.value = ''
+  failure.value = null
   startDraftFromRecognition(rx)
   router.replace('/elder/add/review')
 }
 
+function onCameraFailed(reason: ScanFailReason) {
+  if (reason === 'unsupported') {
+    fail('這個瀏覽器無法用相機掃描二維碼，請改用「上傳 QR Code 照片」。')
+  } else if (!failure.value) {
+    fail('找不到二維碼。請把二維碼放進框框、靠近一點，或改用「上傳 QR Code 照片」。')
+  }
+}
+
 function pickPhoto() {
-  uploadError.value = ''
   fileInput.value?.click()
 }
 
@@ -49,13 +61,12 @@ async function onFileChange(event: Event) {
   input.value = '' // 讓同一張照片可以再選一次
   if (!file) return
   uploading.value = true
-  uploadError.value = ''
   try {
     const raw = await decodeQrFromFile(file)
     if (raw) onDetected(raw)
-    else uploadError.value = '這張照片裡找不到 QR Code，請換一張清楚、QR Code 完整的照片。'
+    else fail('這張照片裡找不到二維碼，請換一張清楚、二維碼完整的照片。')
   } catch {
-    uploadError.value = '照片無法讀取，請換一張照片再試一次。'
+    fail('照片無法讀取，請換一張照片再試一次。')
   } finally {
     uploading.value = false
   }
@@ -64,17 +75,20 @@ async function onFileChange(event: Event) {
 onMounted(async () => {
   if (!isInApp()) return
   const raw = await scanQrCode()
-  if (raw && router.currentRoute.value.path === '/elder/add/qr') onDetected(raw)
+  if (router.currentRoute.value.path !== '/elder/add/qr') return
+  if (raw) onDetected(raw)
+  else fail('沒有掃到二維碼，請再試一次，或改用「上傳 QR Code 照片」。')
 })
 </script>
 
 <template>
   <PageLayout title="掃描 QR Code" fallback="/elder/add">
-    <QrScanCamera @detected="onDetected" />
+    <QrScanCamera @detected="onDetected" @failed="onCameraFailed" />
 
-    <div v-if="scanError" class="scan-error" role="alert">
-      <p class="font-h3-semibold">{{ scanError }}</p>
-      <p class="raw font-h3-regular">QR Code 內容：{{ scannedRaw }}</p>
+    <div v-if="failure" class="scan-failed" role="alert">
+      <p class="title font-h3-semibold">掃描失敗</p>
+      <p class="font-h3-regular">{{ failure.message }}</p>
+      <p v-if="failure.raw" class="raw font-h3-regular">讀到的內容：{{ failure.raw }}</p>
     </div>
 
     <input
@@ -89,26 +103,26 @@ onMounted(async () => {
     <SecondaryButton @click="pickPhoto">
       {{ uploading ? '正在辨識照片…' : '上傳 QR Code 照片' }}
     </SecondaryButton>
-    <p v-if="uploadError" class="error font-h3-regular" role="alert">{{ uploadError }}</p>
 
     <SecondaryButton @click="router.replace('/elder/add/photo')">改用拍照</SecondaryButton>
   </PageLayout>
 </template>
 
 <style scoped>
-.error {
-  color: var(--alarm-red-500);
-}
-.scan-error {
+.scan-failed {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 12px 16px;
   border-radius: 8px;
   border: 2px solid var(--alarm-red-500);
+  background: var(--background-color);
   color: var(--alarm-red-500);
 }
-.scan-error .raw {
+.scan-failed .title {
+  font-size: var(--font-title-size);
+}
+.scan-failed .raw {
   color: var(--text-second);
   overflow-wrap: anywhere;
 }

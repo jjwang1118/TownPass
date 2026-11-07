@@ -361,3 +361,11 @@
 [Modified Time]: 1108003000
 
 [Modified Position]: microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/components/cards/QrScanCamera.vue
+
+[Modified Description]:
+- 依使用者需求，無法掃描時一律顯示「掃描失敗」提示：二維碼不是藥單、照片找不到二維碼或無法讀取、相機 20 秒內沒偵測到（持續掃描，掃到後自動消失）、瀏覽器不支援相機掃描、App 掃描器沒有回傳結果
+- 提示內容包含失敗原因與（若有）實際讀到的內容
+
+[Modified Time]: 1108003500
+
+[Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/components/cards/QrScanCamera.vue
