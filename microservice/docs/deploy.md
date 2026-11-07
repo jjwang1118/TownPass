@@ -138,7 +138,7 @@ adb shell dumpsys package com.example.townpass | findstr lastUpdateTime   # Mac 
 
 1. **另外開一個終端機**，在 `microservice/frontend` 執行 `python -m http.server 5173`，**測試期間不要關**。電腦瀏覽器打開 <http://localhost:5173/tts/> 看得到測試頁才算成功。
 2. **暫時**把 `lib/page/city_service/model/my_service_model.dart` 中「呷藥囉」的 `destinationUrl` 改成 `http://10.0.2.2:5173/tts/`，重新安裝 App（**這個改動不要 commit**）。
-3. 開「服務 → 呷藥囉」，按「念給我聽」，應顯示「完成（使用：App 內建 TTS）」。第一次按可能要等 1–2 秒（引擎初始化）。
+3. 開「服務 → 呷藥囉」，按「念給我聽」，應顯示「中文完成（使用：App 內建 TTS）」；再按「Read in English」確認英文也能念。第一次按可能要等 1–2 秒（引擎初始化）。英文顯示「找不到這個語言的離線語音」時，到語音資料下載**英文（美國）**。
 4. 開**飛航模式**再按一次，確認離線也能念。
 
 看 App 端每一步的紀錄：Android Studio 的 Logcat 搜尋 `[tts]`，或執行 `adb logcat | findstr "[tts]"`（Mac 用 `grep`）。

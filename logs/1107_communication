@@ -286,3 +286,14 @@
 [Modified Time]: 1107232324
 
 [Modified Position]: microservice/docs/deploy.md, microservice/backend/app/modules/speech/rules.py, microservice/backend/app/modules/speech/glossary.py, microservice/backend/app/modules/speech/README.md, microservice/backend/app/modules/medication/repository.py:83, microservice/backend/app/modules/medication/service.py, microservice/backend/app/modules/medication/schemas.py:110, microservice/backend/app/modules/medication/README.md, microservice/backend/app/modules/reminder/service.py, microservice/backend/app/modules/reminder/schemas.py:28, microservice/backend/app/modules/reminder/README.md, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Modified Description]:
+- 模擬器念英文：前端模組 pickVoice 依 lang 挑語音（英文：相同語言優先、其次同語系；中文規則不變），找不到回傳 no_voice_for_language
+- App handler 依 lang 挑離線語音（英文同上），找不到回覆 no_voice_for_language
+- 測試頁加英文文字框與「Read in English」按鈕（en-US），範例同時更新中英文；錯誤說明改為不限中文
+- 更新前端 README、規格書 §12、操作手冊 §6 測試步驟
+- 驗證：Node 測試（含英文）通過、flutter analyze 無問題；已重新建置 debug APK 並安裝到 emulator-5554（15:31 UTC），待使用者按鈕實測
+
+[Modified Time]: 1107233122
+
+[Modified Position]: microservice/frontend/tts/tts.js, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md, lib/util/web_message_handler/tts_message_handler.dart, microservice/docs/backend-spec.md:754, microservice/docs/deploy.md
