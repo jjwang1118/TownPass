@@ -29,7 +29,8 @@ const currentSlot = computed(() => SLOTS.find((s) => statuses.value[s.key] === '
 </script>
 
 <template>
-  <PageLayout>
+  <!-- 長輩查看綁定的另一位長輩時，加返回鍵回到「綁定長輩」分頁 -->
+  <PageLayout :title="state.familyUser.viaElder ? '關心的長輩' : undefined" fallback="/elder/invite?tab=bind">
     <div class="elder-row">
       <h2 class="page-heading">{{ elder.name }}今天的藥</h2>
       <AppIcon name="chevron-down" />

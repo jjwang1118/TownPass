@@ -9,7 +9,7 @@
 | 方法 | 路徑 | 誰可以用 | 說明 |
 |---|---|---|---|
 | POST | `/family/invites` | 長輩 | 產生 6 位數邀請碼與 QR 內容（10 分鐘、只能用一次）；舊的有效邀請碼立即失效 |
-| POST | `/family/bindings` | 家人 | `qr`（App 的 `qr_code_scan` 回覆）或 `code` 擇一，加上稱呼 `relation_label`（如「媽媽」） |
+| POST | `/family/bindings` | 長輩、家人 | `qr`（App 的 `qr_code_scan` 回覆）或 `code` 擇一，加上稱呼 `relation_label`（如「媽媽」） |
 | GET | `/family/bindings` | 長輩、家人 | 自己的綁定清單（附 `elder_phone`，家屬「打電話給長輩」用） |
 | PATCH | `/family/bindings/{id}` | 該家人 | 修改稱呼（前端存家屬和長輩的關係，例如「女兒」）；`notify_on_ack` 目前未使用（吃藥提醒已改為家屬每次同時收到） |
 | POST | `/family/bindings/{id}/complete-setup` | 該家人 | 完成初始設定，之後唯讀；重複呼叫不會出錯 |
@@ -22,7 +22,8 @@
 | code | HTTP | 情況 |
 |---|---|---|
 | `ROLE_REQUIRED` | 403 | 還沒選擇身分 |
-| `ELDER_ONLY` / `FAMILY_ONLY` | 403 | 身分不符（家人產生邀請碼、長輩輸入邀請碼） |
+| `ELDER_ONLY` | 403 | 身分不符（家人產生邀請碼） |
+| `SELF_BIND` | 409 | 輸入自己的邀請碼（不能綁定自己；邀請碼保持未使用） |
 | `INVITE_INVALID` | 400 | 邀請碼格式不正確 |
 | `INVITE_NOT_FOUND` | 404 | 找不到邀請碼 |
 | `INVITE_USED` | 409 | 已經使用過 |

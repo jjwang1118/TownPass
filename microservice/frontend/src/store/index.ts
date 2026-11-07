@@ -68,6 +68,10 @@ interface FamilyUserState {
   relation: string
   /** 是否已綁定長輩 */
   bound: boolean
+  /** 長輩用自己的帳號查看綁定的另一位長輩（長輩之間可以互相綁定）；家屬頁面改用長輩的登入 */
+  viaElder?: boolean
+  /** viaElder 時目前查看的綁定 */
+  bindingId?: string
 }
 
 interface RescueCardState {
@@ -98,6 +102,8 @@ interface State {
   cardCode: string | null
   viewLogs: ViewLog[]
   families: FamilyMember[]
+  /** 長輩綁定的其他長輩（我關心的長輩）；id 為綁定 id */
+  caredElders: FamilyMember[]
   invite: Invite
   familyUser: FamilyUserState
   rescue: RescueSession | null
@@ -135,6 +141,7 @@ function defaults(): State {
     cardCode: null,
     viewLogs: [],
     families: [],
+    caredElders: [],
     invite: { code: '', expiresAt: 0 },
     familyUser: { loggedIn: false, name: FAMILY_USER.name, relation: FAMILY_USER.relation, bound: false },
     rescue: null,
@@ -292,9 +299,16 @@ async function refreshCard(role: Role): Promise<void> {
   }
 }
 
+/** 綁定清單同時有「我邀請的」（我是 elder_id）與「我去綁定的」（我是 family_id） */
 async function refreshFamilies(): Promise<void> {
   const bindings = await get<BindingOut[]>('/family/bindings', { role: 'elder' })
-  state.families = bindings.map((b) => ({ id: b.id, name: b.family_name, relation: b.relation_label }))
+  const self = state.elderId
+  state.families = bindings
+    .filter((b) => b.elder_id === self)
+    .map((b) => ({ id: b.id, name: b.family_name, relation: b.relation_label }))
+  state.caredElders = bindings
+    .filter((b) => b.family_id === self)
+    .map((b) => ({ id: b.id, name: b.elder_name, relation: b.relation_label }))
 }
 
 /* ---------- 藥單 ---------- */
@@ -571,24 +585,52 @@ export async function unbindFamily(id: string): Promise<void> {
   await refreshFamilies()
 }
 
+export type ElderBindResult = 'ok' | 'self' | 'invalid'
+
+/** 長輩用自己的帳號輸入另一位長輩的邀請碼（長輩之間可以互相綁定，但不能綁定自己） */
+export async function bindAsElder(code: string): Promise<ElderBindResult> {
+  try {
+    await call(() => post('/family/bindings', { code, relation_label: '親友' }, { role: 'elder' }))
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'SELF_BIND') return 'self'
+    if (e instanceof ApiError && e.code !== 'NETWORK') return 'invalid'
+    throw e
+  }
+  await refreshFamilies()
+  return 'ok'
+}
+
+/** 長輩查看綁定的另一位長輩：沿用家屬頁面（FM-PG-03～05），改用長輩自己的登入 */
+export function viewCaredElder(bindingId: string): void {
+  Object.assign(state.familyUser, { loggedIn: true, bound: true, viaElder: true, bindingId })
+  state.loaded.family = false
+  // 長者本人的資料會被覆蓋，回到長者頁面時重新讀取
+  state.loaded.elder = false
+}
+
 /* ---------- 家屬端 ---------- */
 
+/** 家屬頁面使用的登入：家屬帳號，或長輩查看綁定的長輩時用長輩帳號 */
+const viewerRole = (): Role => (state.familyUser.viaElder ? 'elder' : 'family')
+
 async function refreshFamily(): Promise<void> {
-  const bindings = await get<BindingOut[]>('/family/bindings', { role: 'family' })
-  const binding = bindings[0]
+  const role = viewerRole()
+  const bindings = await get<BindingOut[]>('/family/bindings', { role })
+  const binding = state.familyUser.viaElder
+    ? bindings.find((b) => b.id === state.familyUser.bindingId)
+    : bindings[0]
   state.familyUser.bound = !!binding
   if (!binding) return
   state.elderId = binding.elder_id
   state.elder = { name: binding.elder_name, phone: binding.elder_phone }
-  await Promise.all([refreshPrescriptions('family'), refreshAppointments('family'), refreshCard('family')])
+  await Promise.all([refreshPrescriptions(role), refreshAppointments(role), refreshCard(role)])
 }
 
 /** FM-PG-01 用台北通帳號登入（瀏覽器使用模擬帳號） */
 export async function familyLogin(): Promise<void> {
   await call(async () => {
     const user = await me('family')
-    state.familyUser.loggedIn = true
-    state.familyUser.name = user.real_name
+    Object.assign(state.familyUser, { loggedIn: true, name: user.real_name, viaElder: false, bindingId: undefined })
     await refreshFamily()
     state.loaded.family = true
   })
@@ -596,7 +638,7 @@ export async function familyLogin(): Promise<void> {
 
 /** 進入家屬頁面前呼叫：已登入過就重新讀取長輩的資料 */
 export async function ensureFamily(force = false): Promise<void> {
-  if (!state.familyUser.loggedIn || !getToken('family')) {
+  if (!state.familyUser.loggedIn || !getToken(viewerRole())) {
     state.familyUser.loggedIn = false
     return
   }

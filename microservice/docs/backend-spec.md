@@ -127,7 +127,7 @@
 | 救命卡重新產生卡號 | 可 | 可（初始設定後也可以） | — |
 | 撤回健康資料同意 | 可 | — | — |
 | 救命卡查看紀錄 | 讀 | 讀 | — |
-| 家人綁定 | 產生邀請碼、解除 | 使用邀請碼 | — |
+| 家人綁定 | 產生邀請碼、解除；也可使用其他長輩的邀請碼（長輩互相綁定） | 使用邀請碼 | — |
 | 預約回診 | 讀寫 | 讀 | — |
 
 「重新產生卡號」開放給家人，因為卡片遺失時可能是家人發現。
@@ -570,7 +570,7 @@ microservice/backend/
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | POST | `/family/invites` | 長輩產生邀請碼，回 `code`、`qr_url`（邀請 QR 的內容：`{前端網址}/invite/{code}`）、`expires_at`；舊的有效邀請碼立即失效 |
-| POST | `/family/bindings` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上稱呼 `relation_label`；完成綁定 |
+| POST | `/family/bindings` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上稱呼 `relation_label`；完成綁定。長輩、家人都可以使用（長輩之間可以互相綁定），輸入自己的邀請碼回 `409 SELF_BIND` |
 | GET | `/family/bindings` | 綁定清單 |
 | PATCH | `/family/bindings/{id}` | 家人修改 `relation_label`（`notify_on_ack` 目前未使用） |
 

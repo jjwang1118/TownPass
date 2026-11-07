@@ -309,3 +309,33 @@
 [Modified Time]: 1108065405
 
 [Modified Position]: microservice/frontend/src/views/shared/SlotDetail.vue:40, microservice/frontend/src/components/cards/MedicineCard.vue:6, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依使用者要求切換到 feature/integrate-ocr（追蹤 myfork/feature/integrate-ocr；遠端沒有 feat/integrate-ocr）
+- 合併 Figma E15（邀請家屬，node 12:2796）與 F02（輸入邀請碼，node 13:2788）為同一頁：上方新增切換按鈕「邀請家屬／綁定長輩」（網址 ?tab=bind），AppBar 標題改為「家人綁定」
+- 新增 TabSwitch（樣式同 CM-SEG-01，選項平分整列）；F02 表單抽成共用的 BindElderForm，FM-PG-02 與新分頁共用，行為不變
+- 一個帳號只能是長輩或家人（後端不改，使用者選 A）：App 內帳號已是長輩，綁定分頁顯示警示並停用「確認綁定」；瀏覽器（模擬家屬帳號）可正常綁定，成功後進家屬首頁
+- 補裝 feature/integrate-ocr 需要的套件（tesseract.js），否則開發伺服器與 build 會失敗
+- 驗證：npm run build（含 vue-tsc）通過、npm test 13 個通過；無頭瀏覽器截圖確認兩個分頁版面
+
+[Modified Time]: 1108064804
+
+[Modified Position]: microservice/frontend/src/views/elder/InviteFamily.vue:7, microservice/frontend/src/views/elder/InviteFamily.vue:26, microservice/frontend/src/views/elder/InviteFamily.vue:64, microservice/frontend/src/components/segments/TabSwitch.vue:1, microservice/frontend/src/views/shared/BindElderForm.vue:1, microservice/frontend/src/views/family/BindElder.vue:1, microservice/frontend/src/router/index.ts:28
+
+[Modified Description]:
+- 綁定規則改為「只禁止自己綁自己，長輩之間可以互相綁定」（使用者確認，本次同時擔任前端＋後端工程師）
+- 後端：輸入邀請碼不再限定家人身分（只要求已選身分）；邀請碼是自己產生的回 409 SELF_BIND，交易不 commit、邀請碼保持未使用；提醒吃藥（nudge）原本就只看綁定，不需修改
+- 後端測試：test_only_family_can_bind 改為 test_elders_can_bind_each_other，新增 test_cannot_bind_self_and_invite_stays_unused；193 個測試通過
+- 前端：綁定長輩分頁改用長輩自己的帳號綁定（拿掉 App 內停用的限制），輸入自己的邀請碼時提示；成功後顯示提示並列在「我關心的長輩」，點「查看」沿用家屬首頁（viaElder 模式用長輩登入，返回鍵回綁定分頁，回到長者頁面時重新讀取本人資料）
+- 前端：綁定清單過濾方向（我邀請的 → 已綁定的家屬；我去綁定的 → 我關心的長輩）；EL-CRD-13 卡片可換說明與按鈕文字
+- 文件：規格書 §3.1、§7.2、family README 錯誤碼、EL-PG-17 規則
+- 驗證：npm run build、npm test 13 個通過；API 端到端（自己綁自己 409 SELF_BIND、長輩綁長輩 201）；瀏覽器截圖確認兩個分頁與我關心的長輩列表，測試綁定已刪除；「查看」→ 家屬首頁的點擊流程未能自動化實測
+- 重新啟動本機後端（uvicorn，DATABASE_URL 指向 5433 的 chiah-ioh-lo-db）以套用新規則
+
+[Modified Time]: 1108071320
+
+[Modified Position]: microservice/backend/app/modules/family/service.py:95, microservice/backend/tests/test_family.py:126, microservice/frontend/src/store/index.ts, microservice/frontend/src/views/shared/BindElderForm.vue, microservice/frontend/src/views/elder/InviteFamily.vue, microservice/frontend/src/components/cards/FamilyMemberCard.vue:2, microservice/frontend/src/views/family/FamilyHome.vue:33, microservice/docs/backend-spec.md:130, microservice/docs/backend-spec.md:573, microservice/backend/app/modules/family/README.md:12, microservice/docs/front_specific/interfaces/EL-PG-17.md:14

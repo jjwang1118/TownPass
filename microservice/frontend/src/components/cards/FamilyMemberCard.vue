@@ -1,20 +1,24 @@
 <script setup lang="ts">
-/** EL-CRD-13 已綁定家屬卡片 */
+/** EL-CRD-13 已綁定家屬卡片；也用於「我關心的長輩」（換說明文字與按鈕） */
 import AppIcon from '@/components/AppIcon.vue'
 
-defineProps<{ name: string; relation: string }>()
-const emit = defineEmits<{ unbind: [] }>()
+withDefaults(defineProps<{ name: string; relation?: string; desc?: string; actionText?: string }>(), {
+  relation: '',
+  desc: '收到用藥與回診提醒',
+  actionText: '取消綁定',
+})
+const emit = defineEmits<{ action: [] }>()
 </script>
 
 <template>
   <article class="el-crd-13">
     <span class="icon"><AppIcon name="person" /></span>
     <span class="texts">
-      <span class="name font-h3-semibold">{{ name }}（{{ relation }}）</span>
-      <span class="desc font-h3-regular">收到用藥與回診提醒</span>
+      <span class="name font-h3-semibold">{{ name }}<template v-if="relation">（{{ relation }}）</template></span>
+      <span class="desc font-h3-regular">{{ desc }}</span>
     </span>
-    <button type="button" class="unbind font-h3-regular" :aria-label="`取消綁定 ${name}`" @click="emit('unbind')">
-      取消綁定
+    <button type="button" class="unbind font-h3-regular" :aria-label="`${actionText} ${name}`" @click="emit('action')">
+      {{ actionText }}
     </button>
   </article>
 </template>

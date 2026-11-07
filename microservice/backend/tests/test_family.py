@@ -122,11 +122,26 @@ async def test_invite_not_found(api: httpx.AsyncClient, people: dict) -> None:
     assert resp.status_code == 404
 
 
-async def test_only_family_can_bind(api: httpx.AsyncClient, people: dict, login: LoginFn) -> None:
-    other_elder_h, _ = await login("elder-2", "王阿公", "elder")
+async def test_elders_can_bind_each_other(api: httpx.AsyncClient, people: dict, login: LoginFn) -> None:
+    other_elder_h, other_elder_id = await login("elder-2", "王阿公", "elder")
     invite = await _invite(api, people["elder"][0])
     resp = await _bind(api, other_elder_h, code=invite["code"])
-    assert resp.json()["error"]["code"] == "FAMILY_ONLY"
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["family_id"] == str(other_elder_id)
+    # 反過來也可以
+    back = await _invite(api, other_elder_h)
+    assert (await _bind(api, people["elder"][0], code=back["code"])).status_code == 201
+    # 兩人的綁定清單都列出兩筆（我邀請的、我綁定的）
+    assert len((await api.get(f"{API}/family/bindings", headers=other_elder_h)).json()) == 2
+
+
+async def test_cannot_bind_self_and_invite_stays_unused(api: httpx.AsyncClient, people: dict) -> None:
+    invite = await _invite(api, people["elder"][0])
+    resp = await _bind(api, people["elder"][0], code=invite["code"])
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "SELF_BIND"
+    # 交易沒有 commit，邀請碼還能給家人用
+    assert (await _bind(api, people["family"][0], code=invite["code"])).status_code == 201
 
 
 async def test_already_bound_keeps_invite_unused(api: httpx.AsyncClient, people: dict) -> None:

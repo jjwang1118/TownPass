@@ -93,7 +93,9 @@ class FamilyService:
         )
 
     async def accept_invite(self, family_id: UUID, body: BindingCreate) -> BindingOut:
-        await self._require_role(family_id, UserRole.FAMILY)
+        """長輩、家人都可以輸入邀請碼（長輩之間可以互相綁定），但不能綁定自己。"""
+        if (await self.auth.get_me(family_id)).role is None:
+            raise Forbidden("請先選擇身分", code="ROLE_REQUIRED")
         code = rules.code_from_input(body.raw_code)
         if code is None:
             raise ValidationFailed("邀請碼格式不正確", code="INVITE_INVALID")
@@ -102,6 +104,10 @@ class FamilyService:
         elder_id = await self.repo.consume_invite(code, family_id, now)
         if elder_id is None:
             await self._raise_invite_unusable(code)
+
+        if elder_id == family_id:
+            # 不 commit，邀請碼保持未使用
+            raise Conflict("這是您自己的邀請碼，請輸入對方的邀請碼", code="SELF_BIND")
 
         if await self.repo.find_active_binding(elder_id, family_id) is not None:
             # 不 commit，邀請碼保持未使用
