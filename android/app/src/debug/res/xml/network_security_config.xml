@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 呷藥囉本地部署：只在 debug 版允許 Android 模擬器用 http 連到電腦本機的前端與後端。
+     10.0.2.2 是模擬器連到電腦本機的固定位址。其他網址與 release 版維持系統預設（只允許 https）。 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

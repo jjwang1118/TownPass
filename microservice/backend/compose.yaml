@@ -1,4 +1,7 @@
-# 本機開發用 PostgreSQL：docker compose up -d
+# 本地部署
+#   開發（後端用 uv run 跑）：  docker compose up -d                       → 只啟動資料庫
+#   Demo（全部用 Docker 跑）：  docker compose --profile app up -d --build → 資料庫＋後端
+# 說明見 ../docs/deploy.md
 services:
   db:
     image: postgres:17
@@ -10,6 +13,32 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chiah_ioh_lo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  api:
+    profiles: ["app"]
+    build: .
+    env_file: .env
+    environment:
+      # 容器裡要連 db 容器，不是 localhost
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/chiah_ioh_lo
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      # Firebase 服務帳戶金鑰放在 backend/secrets/（不 commit）
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    # 每次啟動：更新資料表 → 匯入範例資料（補上之後 2 週的門診）→ 啟動後端
+    command: sh -c "alembic upgrade head && python -m seed.load && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
 
 volumes:
   pgdata:

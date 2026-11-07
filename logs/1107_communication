@@ -205,3 +205,16 @@
 - 106 個測試通過
 [Modified Time]: 1107194622
 [Modified Position]: microservice/docs/deploy.md, microservice/docs/backend-spec.md, microservice/backend/app/core/config.py, microservice/backend/app/main.py, microservice/backend/app/integrations/fcm/client.py, microservice/backend/scripts/gen_secrets.py, microservice/backend/.dockerignore, .gitignore
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 依使用者決定取消線上部署，改為本地部署：資料庫與後端用 Docker 跑在一台電腦，Demo 用 Android Studio 模擬器；推播保留 Firebase 免費方案（選用）
+- 後端內建排程（app/modules/internal/scheduler.py）：啟動後每分鐘執行 TickService，取代外部排程服務；SCHEDULER_ENABLED 可關閉
+- compose.yaml 新增 api 服務（--profile app），啟動時自動 alembic upgrade、seed.load（補上之後 2 週門診）；資料庫加上健康檢查
+- 設定預設值改為模擬器用（FRONTEND_BASE_URL=http://10.0.2.2:5173、EXTRA_CORS_ORIGINS=http://localhost:5173）；移除雲端啟動檢查、.env.cloud、scripts/gen_secrets，改為 scripts/init_env 建立 .env 並產生金鑰（已存在不覆蓋）
+- Firebase 金鑰放 backend/secrets/（.gitignore、.dockerignore 排除）；後端 log 改為顯示 app 的 INFO（推播內容、排程結果）
+- App（僅 debug 版）：android/app/src/debug 新增 network_security_config，允許模擬器以 http 連 10.0.2.2、localhost
+- 驗證：docker compose 啟動成功（migration、seed、排程啟動）、模擬器來源 CORS 通過、其他來源被擋；APK 建置因本機 Android SDK 未同意 NDK 授權而未完成，XML 已通過格式檢查
+- 改寫 docs/deploy.md 為本地部署版；更新規格書 §2、§5.1、§6.1、§10 與相關 README；共 107 個測試通過（含模擬 Windows 條件）
+[Modified Time]: 1107201329
+[Modified Position]: microservice/backend/app/modules/internal/scheduler.py, microservice/backend/app/main.py, microservice/backend/app/core/config.py, microservice/backend/compose.yaml, microservice/backend/.env.example, microservice/backend/scripts/init_env.py, microservice/backend/.dockerignore, .gitignore, android/app/src/debug/, microservice/docs/deploy.md, microservice/docs/backend-spec.md, microservice/backend/tests/

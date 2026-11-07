@@ -103,5 +103,5 @@ microservice/**/target/
 microservice/**/.env
 microservice/**/.firebase/
 
-# 部署用環境變數（含金鑰）
-microservice/**/.env.cloud
+# Firebase 服務帳戶金鑰等（含金鑰）
+microservice/**/secrets/

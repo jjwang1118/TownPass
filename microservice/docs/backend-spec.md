@@ -48,15 +48,15 @@
 ```
 ┌──────────────┐  flutterObject   ┌────────────────┐   HTTPS/JSON   ┌──────────────────┐
 │ 城市通 App    │ ◀──────────────▶ │ 微服務網頁       │ ─────────────▶ │ 後端 API          │
-│ (Flutter)    │                  │ (WebView)      │                │ FastAPI@Render   │
+│ (Flutter)    │                  │ (WebView)      │                │ FastAPI（本機）   │
 └──────▲───────┘                  └────────────────┘                └───┬──────┬───────┘
        │ FCM 推播                                                       │      │
        └────────────────────────────────────────────────────────────────┘      │
                                                                                ▼
                                      ┌──────────────────┐            ┌──────────────────┐
-                                     │ cron-job.org     │──每分鐘───▶│ PostgreSQL (Neon) │
-                                     │ POST /internal/  │  呼叫 API  │                   │
-                                     │      tick        │            └──────────────────┘
+                                     │ 後端內建排程     │──每分鐘───▶│ PostgreSQL        │
+                                     │ TickService      │  檢查提醒  │ （本機 Docker）   │
+                                     │                  │            └──────────────────┘
                                      └──────────────────┘
 ```
 
@@ -73,7 +73,7 @@
 
 ### 2.2 排程
 
-免費主機沒有請求時會休眠，程式內的排程器（APScheduler）不可靠。改用 **cron-job.org 每分鐘呼叫 `POST /internal/tick`**，由後端檢查到期的提醒，同時讓主機不休眠。詳見 [§6](#6-排程與推播)。
+本地部署由**後端內建排程**每分鐘執行一次 `TickService`，檢查到期的提醒（`app/modules/internal/scheduler.py`）。`POST /internal/tick` 保留給手動測試。詳見 [§6](#6-排程與推播)。
 
 ### 2.3 與城市通 App 的溝通
 
@@ -216,8 +216,7 @@ microservice/backend/
 ### 5.1 選擇
 
 - **PostgreSQL**：資料關聯強（使用者、綁定、藥品、預約、紀錄），且需要交易（邀請碼只能用一次、門診名額）。
-- **代管**：Neon 免費方案（不用信用卡）。免費主機重新部署後檔案會消失，不能用 SQLite；Render Postgres 免費 30 天後過期。
-- **本機開發**：Docker 執行 `postgres:17`。
+- **部署**：本地 Docker（`compose.yaml`），資料存在 volume `pgdata`。
 - **工具**：SQLAlchemy 2.0（async）+ `asyncpg`，Alembic 管理資料表變更。
 - **時間**：一律存 `timestamptz`（UTC），業務邏輯以 `Asia/Taipei` 計算。
 - **主鍵**：`uuid`。
@@ -481,7 +480,7 @@ microservice/backend/
 
 ### 6.1 `/internal/tick`
 
-cron-job.org 每分鐘呼叫一次，header 帶 `X-Internal-Secret` 驗證呼叫者。每次執行以下工作，每項都要可以重複執行而不重複發送：
+後端內建排程每分鐘執行一次（也可手動呼叫，header 帶 `X-Internal-Secret`）。每次執行以下工作，每項都要可以重複執行而不重複發送：
 
 | 工作 | 條件 | 動作 |
 |---|---|---|
@@ -609,7 +608,7 @@ cron-job.org 每分鐘呼叫一次，header 帶 `X-Internal-Secret` 驗證呼叫
 | POST | `/responder/login` | 帳號密碼登入，比對名冊；帳密錯誤回 `401 INVALID_CREDENTIALS`（不透露帳號是否存在），離職或無救護權限回 `403 RESPONDER_NOT_AUTHORIZED`「無權限」 |
 | POST | `/responder/cards/lookup` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上 `location`（App 的 `location` 回覆）；回救命卡內容；寫查看紀錄並推播家人 |
 
-查詢回應依顯示順序排列：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人，並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在伺服器記憶體（Render 免費方案只有一台）。
+查詢回應依顯示順序排列：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人，並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在後端記憶體，重新啟動後歸零。
 
 **appointment**
 
@@ -694,35 +693,33 @@ Python 3.12。
 
 ## 10. 部署
 
-比賽規定不能使用付費服務，所以全部使用**不用綁信用卡的永久免費方案**。**完整步驟見 [deploy.md](deploy.md)。**
+比賽規定不能使用付費服務（包含需要綁定帳單的免費額度），所以採**本地部署**：資料庫和後端用 Docker 跑在一台電腦上，Demo 用 Android Studio 模擬器。**完整步驟見 [deploy.md](deploy.md)。**
 
 | 項目 | 設定 |
 |---|---|
-| 後端 | Render Web Service（Free，Singapore），從 GitHub 以 `microservice/backend/Dockerfile` 建置；只開一台（查詢次數限制記在記憶體） |
-| 資料庫 | Neon Free（Singapore）。不用 Render Postgres（免費 30 天後過期） |
-| 排程 | cron-job.org 每分鐘 `POST /api/v1/internal/tick`，header 帶 `X-Internal-Secret`；同時讓 Render 不休眠。不用 Render Cron Jobs（沒有免費方案） |
-| 推播 | Firebase Spark（免費方案）的 Cloud Messaging，以服務帳戶金鑰發送 |
+| 啟動 | `docker compose --profile app up -d --build`：資料庫＋後端；後端啟動時自動更新資料表、匯入範例資料（含之後 2 週門診） |
+| 資料庫 | PostgreSQL 17（Docker，資料存在 volume `pgdata`） |
+| 排程 | **後端內建**，啟動後每分鐘執行一次 `TickService`（`SCHEDULER_ENABLED=true`）；`POST /api/v1/internal/tick` 保留給手動測試 |
+| App 連線 | 模擬器以 `http://10.0.2.2` 連到電腦本機；App 只在 debug 版允許這兩個網址使用 http（`android/app/src/debug/res/xml/network_security_config.xml`） |
+| 推播 | Firebase Spark（免費、不綁卡）的 Cloud Messaging，服務帳戶金鑰放 `backend/secrets/`；未設定時推播內容寫在後端 log |
 | 健康檢查 | `GET /health` |
 
-原本規劃的 Google Cloud Run、Cloud Scheduler 需要綁定帳單帳戶（超過免費額度會收費），不符合比賽規定，已改用以上服務。
+原本規劃的雲端部署（Cloud Run、Render 等）已取消。
 
-**環境變數**（部署用 `.env.cloud`，由 `uv run python -m scripts.gen_secrets` 產生；本機用 `.env`）
+**環境變數**（`.env`，由 `uv run python -m scripts.init_env` 從 `.env.example` 建立並產生金鑰）
 
 | 名稱 | 說明 |
 |---|---|
-| `DATABASE_URL` | PostgreSQL 連線字串；可直接貼上 Neon 的 `postgresql://…?sslmode=require`，會自動轉成 asyncpg 格式 |
-| `JWT_SECRET` | JWT 簽章金鑰，至少 32 字元 |
+| `DATABASE_URL` | PostgreSQL 連線字串；用 docker compose 啟動後端時自動改為連 `db` 容器 |
+| `JWT_SECRET` | JWT 簽章金鑰 |
 | `FIELD_ENCRYPTION_KEY` | Fernet 金鑰；開始存資料後不可更換、不可遺失 |
-| `INTERNAL_SECRET` | 呼叫 `/internal/tick` 的密鑰 |
-| `FIREBASE_CREDENTIALS` | 空白＝推播只寫 log；否則為 Firebase 服務帳戶金鑰（JSON 內容或檔案路徑） |
-| `FRONTEND_BASE_URL` | 前端網址：CORS、推播 deeplink、救命卡與邀請 QR |
-| `EXTRA_CORS_ORIGINS` | 額外允許的網頁來源，逗號分隔（例如前端本機開發 `http://localhost:5173`） |
+| `INTERNAL_SECRET` | 手動呼叫 `/internal/tick` 的密鑰 |
+| `FIREBASE_CREDENTIALS` | 空白＝推播只寫 log；否則為 Firebase 服務帳戶金鑰（檔案路徑如 `secrets/firebase.json`，或 JSON 內容） |
+| `FRONTEND_BASE_URL` | 前端網址，預設 `http://10.0.2.2:5173`（模擬器）：CORS、推播 deeplink、救命卡與邀請 QR |
+| `EXTRA_CORS_ORIGINS` | 額外允許的網頁來源，預設 `http://localhost:5173`（電腦瀏覽器） |
+| `SCHEDULER_ENABLED` | 後端內建排程，預設 `true` |
 | `REMIND_INTERVAL_MINUTES` | 重新提醒間隔，預設 10 |
 | `DEMO_MODE` | 開啟後可切換身分、使用模擬觸發 API |
-
-在雲端（Render 會設定 `RENDER` 環境變數）若金鑰仍是開發用預設值、或資料庫、前端網址指向 localhost，後端會**拒絕啟動**並列出原因。
-
-Dockerfile 啟動時讀取平台提供的 `PORT`。
 
 ---
 

@@ -8,7 +8,8 @@
 | `test_townpass_messages.py` | 讀 App 的 `account.json` 和 handler 原始碼，確認後端格式和 App 一致 | 否 |
 | `test_rules.py` | 時段分配、剩餘天數、編號、朗讀稿、同成分、卡號等純計算 | 否 |
 | `test_app.py` | 路由、錯誤格式、登入檢查；資料表能編譯成 PostgreSQL；tzdata | 否 |
-| `test_config.py` | 連線字串轉換、CORS 來源、雲端啟動前的金鑰檢查 | 否 |
+| `test_config.py` | 連線字串轉換、CORS 來源、模擬器用的預設值 | 否 |
+| `test_scheduler.py` | 內建排程：對齊每分鐘、執行一次會送出提醒、隨後端啟動與停止 | 部分 |
 | `test_family.py` | 邀請碼、綁定、權限檢查 | 是 |
 | `test_medication.py` | 掃藥袋 QR、編號、同成分警示、藥卡、停用、時段、下一次吃藥、家人權限 | 是 |
 | `test_emergency_card.py` | 救命卡、同意、卡號、救護人員登入與查詢、通知家人、完整 Demo 流程 | 是 |

@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- 呷藥囉本地部署：debug 版允許模擬器以 http 連到電腦本機（見 res/xml/network_security_config.xml） -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>

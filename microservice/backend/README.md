@@ -18,36 +18,48 @@ backend/
 │   └── versions/         每一次變更一個檔案
 ├── seed/                 Demo 用種子資料與範例藥袋 QR
 ├── tests/                自動測試
-├── scripts/              開發與部署小工具（產生金鑰）
+├── scripts/              小工具（建立 .env 並產生金鑰）
+├── secrets/              Firebase 服務帳戶金鑰（自己建立，不 commit）
 ├── pyproject.toml        套件與工具設定（uv 管理）
 ├── uv.lock               鎖定的套件版本，要 commit
 ├── alembic.ini           Alembic 設定
-├── compose.yaml          本機 PostgreSQL
-├── Dockerfile            部署用（Render）
-├── .env.example          本機環境變數範本（複製成 .env，.env 不 commit）
-├── .env.cloud            部署用環境變數（scripts.gen_secrets 產生，不 commit）
+├── compose.yaml          本地部署：資料庫（預設）＋後端（--profile app）
+├── Dockerfile            後端映像檔
+├── .env.example          環境變數範本（scripts.init_env 會複製成 .env，.env 不 commit）
 └── .dockerignore         不打包進映像檔的檔案（含金鑰檔）
 ```
 
-## 本機開發
+## 啟動
 
-需要 [uv](https://docs.astral.sh/uv/) 與 Docker。
+需要 [uv](https://docs.astral.sh/uv/) 與 Docker。第一次先建立 `.env`（會產生加密金鑰）：
 
 ```bash
 cd microservice/backend
-cp .env.example .env          # 填入 JWT_SECRET、FIELD_ENCRYPTION_KEY（產生方式見檔內說明）
-uv sync                       # 安裝套件（Python 3.12）
-docker compose up -d          # 啟動本機 PostgreSQL
-uv run alembic upgrade head   # 建立或更新資料表
-uv run python -m seed.load    # 匯入範例資料（見 seed/README.md；Demo 前一天要再跑一次，產生之後 2 週的門診）
-
-uv run uvicorn app.main:app --reload
+uv sync                               # 安裝套件（Python 3.12）
+uv run python -m scripts.init_env     # 建立 .env
 ```
+
+**Demo（全部用 Docker）**：資料庫＋後端，啟動時自動更新資料表、匯入範例資料、啟動內建排程。
+
+```bash
+docker compose --profile app up -d --build
+```
+
+**開發（改程式即時生效）**：Docker 只跑資料庫，後端用 uv 跑。
+
+```bash
+docker compose up -d                  # 只啟動資料庫
+uv run alembic upgrade head           # 建立或更新資料表
+uv run python -m seed.load            # 匯入範例資料（產生之後 2 週的門診）
+uv run uvicorn app.main:app --reload  # 啟動後端（內建排程也會啟動）
+```
+
+兩種方式不要同時開，都會佔用 port 8000。Android 模擬器裡用 `http://10.0.2.2:8000` 連後端。完整說明見 [../docs/deploy.md](../docs/deploy.md)。
 
 - API 文件：<http://localhost:8000/docs>
 - 測試：`uv run pytest`
 
-**Windows**：以上指令在 PowerShell 都可以直接執行（`cp` 是 `Copy-Item` 的別名）。台北時區資料由 `tzdata` 套件提供，不需要另外安裝。下方 curl 範例用到 bash 語法，請在 Git Bash 執行，或改用 Swagger。
+**Windows**：以上指令在 PowerShell 都可以直接執行。台北時區資料由 `tzdata` 套件提供，不需要另外安裝。下方 curl 範例用到 bash 語法，請在 Git Bash 執行，或改用 Swagger。
 
 修改 `models.py` 後，產生新的 migration 並檢查內容再 commit，見 [alembic/README.md](alembic/README.md)。
 
@@ -79,6 +91,6 @@ curl -X POST http://localhost:8000/api/v1/auth/townpass \
 - **後端 → App**：回應中的 `call`、`map` 等欄位是完整的 `{ name, data }`，前端直接
   `window.flutterObject.postMessage(JSON.stringify(...))`。
 
-## 部署（全部免費方案）
+## 部署
 
-Render（後端）＋ Neon（資料庫）＋ cron-job.org（排程）＋ Firebase Spark（推播），不用綁信用卡。完整步驟見 [../docs/deploy.md](../docs/deploy.md)。
+比賽不能使用付費服務，所以採本地部署：資料庫與後端用 Docker 跑在一台電腦上，Demo 用 Android Studio 模擬器；推播用 Firebase 免費方案（選用）。完整步驟見 [../docs/deploy.md](../docs/deploy.md)。

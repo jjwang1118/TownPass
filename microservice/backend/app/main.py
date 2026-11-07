@@ -1,3 +1,8 @@
+import asyncio
+import contextlib
+import logging
+from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,6 +14,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.demo.router import router as demo_router
 from app.modules.emergency_card.router import router as emergency_card_router
 from app.modules.family.router import router as family_router
+from app.modules.internal import scheduler
 from app.modules.internal.router import router as internal_router
 from app.modules.medication.router import router as medication_router
 from app.modules.notification.router import router as notification_router
@@ -17,16 +23,25 @@ from app.modules.responder.router import router as responder_router
 
 API_PREFIX = "/api/v1"
 
+# 讓 app.* 的 INFO log（排程結果、推播內容）顯示在終端機
+logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    task = asyncio.create_task(scheduler.run_forever()) if get_settings().scheduler_enabled else None
+    yield
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    if settings.on_cloud and (problems := settings.production_problems()):
-        # 在雲端用到開發設定時直接啟動失敗；Render 會保留舊版本繼續服務
-        raise RuntimeError("部署設定有誤：" + "；".join(problems))
+    app = FastAPI(title="呷藥囉 API", version="0.1.0", lifespan=lifespan)
 
-    app = FastAPI(title="呷藥囉 API", version="0.1.0")
-
-    # 微服務網頁（Firebase Hosting）在 WebView 中呼叫後端（Render），需要 CORS
+    # 微服務網頁在台北通的 WebView 中呼叫後端，需要 CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -52,7 +67,7 @@ def create_app() -> FastAPI:
         api.include_router(demo_router)
     app.include_router(api)
 
-    # 健康檢查（部分平台保留結尾為 z 的路徑，如 /healthz，所以用 /health）
+    # 健康檢查
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
         return {"status": "ok"}

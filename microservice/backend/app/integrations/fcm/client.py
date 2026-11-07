@@ -34,7 +34,7 @@ class FcmPusher:
         from firebase_admin import credentials as fb_credentials
 
         if not firebase_admin._apps:
-            # 直接貼上的 JSON 內容（Render 環境變數），或 JSON 檔路徑（Render Secret File、本機）
+            # 直接貼上的 JSON 內容，或 JSON 檔路徑（例如 secrets/firebase.json）
             source = json.loads(credentials) if credentials.lstrip().startswith("{") else credentials
             firebase_admin.initialize_app(fb_credentials.Certificate(source))
 
