@@ -25,6 +25,8 @@ const form = reactive({
   slotNames: SLOTS.filter((s) => props.initial.slots.includes(s.key)).map((s) => s.name) as string[],
   meal: props.initial.meal as string,
   quantity: props.initial.quantity > 0 ? String(props.initial.quantity) : '',
+  /** 健保藥品代號：從藥名清單選到時帶入，用來比對同成分 */
+  licenseNo: props.initial.licenseNo,
 })
 const tried = ref(false)
 
@@ -49,8 +51,10 @@ function onQuantityInput(v: string) {
 
 function onSelect(drug: DrugEntry) {
   const keep = props.initial.name.toLowerCase().startsWith(drug.name.toLowerCase())
-  form.name = keep ? props.initial.name : `${drug.name} ${drug.doses[0]}`
-  form.effect = drug.effect
+  const dose = drug.doses[0]
+  form.name = keep ? props.initial.name : dose === '不分劑量' ? drug.name : `${drug.name} ${dose}`
+  if (drug.effect) form.effect = drug.effect
+  if (!keep) form.licenseNo = drug.licenses?.[dose]
 }
 
 function submit() {
@@ -63,6 +67,7 @@ function submit() {
     slots: form.slotNames.map((n) => SLOT_KEY_BY_NAME[n]),
     meal: form.meal as MealTiming,
     quantity: quantityNumber.value,
+    licenseNo: form.licenseNo,
   })
 }
 </script>

@@ -128,3 +128,24 @@ ID 格式：`{使用者}-{類型}-{流水號}`，介面與元件共用此規則�
 | 容器 | | | | | | |
 | └ 子元素 | | | | | | |
 ````
+
+## 串接後端
+
+前端所有資料都來自後端 API（`microservice/backend`，規格書 `docs/backend-spec.md` §7）：
+
+| 檔案 | 內容 |
+| --- | --- |
+| `src/api/client.ts` | 呼叫 API：網址、登入憑證、錯誤（`ApiError` 的 `message` 可直接顯示） |
+| `src/api/types.ts` | 後端回應格式 |
+| `src/api/mappers.ts` | 後端資料 ↔ 前端型別（畫面元件只用 `@/types`） |
+| `src/store/index.ts` | 後端資料的快取與各動作；只有草稿、預約選擇、朗讀語言等畫面暫存存在 localStorage |
+
+- **後端網址**：環境變數 `VITE_API_BASE`；沒有設定時用「目前網頁的主機:8000」，所以電腦瀏覽器（localhost:5173）連 `localhost:8000`，模擬器（10.0.2.2:5173）連 `10.0.2.2:8000`。
+- **登入**：長者、家屬在台北通 App 內用 `userinfo` 登入；一般瀏覽器沒有 App 時用模擬帳號（長者「王美玉」、家屬「陳小華」）。救護人員用分隊＋人員編號＋密碼（範例帳號見 `backend/seed/README.md`）。
+- **連不到後端**時畫面上方顯示紅色提示與「重新連線」按鈕。
+- **救護人員查詢**：不使用身分證字號，改輸入救命卡卡號（長者的緊急醫療卡頁會顯示卡號），App 內也可以掃卡片 QR Code。
+- **緊急醫療卡**：依 UI 只有一位緊急聯絡人，不收集常去醫院與病歷號。
+- **拍藥袋**：手機上的辨識模型還沒接上，先把模擬辨識結果送到後端 `photo-preview` 比對、打分數。
+
+本機測試：後端 `docker compose --profile app up -d --build`（或 `uv run uvicorn app.main:app --reload`），前端 `npm install && npm run dev`，瀏覽器開 <http://localhost:5173>。
+

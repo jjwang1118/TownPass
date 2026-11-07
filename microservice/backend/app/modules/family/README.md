@@ -10,8 +10,8 @@
 |---|---|---|---|
 | POST | `/family/invites` | 長輩 | 產生 6 位數邀請碼與 QR 內容（10 分鐘、只能用一次）；舊的有效邀請碼立即失效 |
 | POST | `/family/bindings` | 家人 | `qr`（App 的 `qr_code_scan` 回覆）或 `code` 擇一，加上稱呼 `relation_label`（如「媽媽」） |
-| GET | `/family/bindings` | 長輩、家人 | 自己的綁定清單 |
-| PATCH | `/family/bindings/{id}` | 該家人 | 修改稱呼；`notify_on_ack` 目前未使用（吃藥提醒已改為家屬每次同時收到） |
+| GET | `/family/bindings` | 長輩、家人 | 自己的綁定清單（附 `elder_phone`，家屬「打電話給長輩」用） |
+| PATCH | `/family/bindings/{id}` | 該家人 | 修改稱呼（前端存家屬和長輩的關係，例如「女兒」）；`notify_on_ack` 目前未使用（吃藥提醒已改為家屬每次同時收到） |
 | POST | `/family/bindings/{id}/complete-setup` | 該家人 | 完成初始設定，之後唯讀；重複呼叫不會出錯 |
 | DELETE | `/family/bindings/{id}` | 該長輩 | 解除綁定 |
 

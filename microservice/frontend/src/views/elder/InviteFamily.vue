@@ -42,7 +42,7 @@ function confirmUnbind() {
 <template>
   <PageLayout title="邀請家屬" fallback="/elder">
     <h2 class="page-heading">請家屬輸入這組數字</h2>
-    <p class="page-desc">家屬在自己手機的「藥報平安」輸入後，就會收到您的用藥和回診提醒。</p>
+    <p class="page-desc">家屬在自己手機的「呷藥囉」輸入後，就會收到您的用藥和回診提醒。</p>
     <InviteCodeCard :code="state.invite.code" :valid-text="validText" />
     <div class="actions">
       <ReadAloudButton flex @click="readCode" />

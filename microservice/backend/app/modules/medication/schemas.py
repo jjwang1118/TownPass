@@ -38,6 +38,7 @@ class RxQrItem(BaseModel):
     mg: str | None = Field(default=None, max_length=32)  # 劑量，例如「5 毫克」
     use: str | None = Field(default=None, max_length=128)
     qty: Qty = Field(gt=0, max_digits=3, decimal_places=1)
+    total: Qty | None = Field(default=None, gt=0, max_digits=6, decimal_places=1)  # 總顆數
     when: list[SlotKey] | None = Field(default=None, min_length=1)
     freq: Frequency | None = None
     meal: MealTiming
@@ -99,6 +100,7 @@ class PhotoItemIn(BaseModel):
     strength: str | None = Field(default=None, max_length=32)
     purpose: str | None = Field(default=None, max_length=128)
     dose_qty: Qty | None = Field(default=None, gt=0, max_digits=3, decimal_places=1)
+    quantity: Qty | None = Field(default=None, gt=0, max_digits=6, decimal_places=1)  # 總顆數
     slots: list[SlotKey] | None = None
     frequency: Frequency | None = None
     meal_timing: MealTiming | None = None
@@ -126,6 +128,7 @@ class DraftItem(BaseModel):
     strength: str | None = Field(default=None, max_length=32)
     purpose: str | None = Field(default=None, max_length=128)
     dose_qty: Qty = Field(gt=0, max_digits=3, decimal_places=1)
+    quantity: Qty | None = Field(default=None, gt=0, max_digits=6, decimal_places=1)  # 總顆數；沒有時用藥單的天數推算
     slots: Slots = Field(min_length=1)  # 什麼時候吃（可複選）
     meal_timing: MealTiming
     needs_review: bool = False  # 劑量選「看不清楚／不確定」，加入後標示「待核對」
@@ -139,7 +142,7 @@ class PrescriptionDraft(BaseModel):
     department: str | None = Field(default=None, max_length=64)  # 手動新增時可之後補填
     doctor: str | None = Field(default=None, max_length=64)
     visit_date: dt.date
-    days: int | None = Field(default=None, gt=0, le=365)  # 拍照看不出來時為 null，加入前必須填
+    days: int | None = Field(default=None, gt=0, le=365)  # 給藥天數；每個藥都有總顆數時可以不填
     items: list[DraftItem] = Field(min_length=1, max_length=20)
 
 
@@ -215,9 +218,12 @@ class MedicationOut(BaseModel):
     strength: str | None
     purpose: str | None
     dose_qty: Qty
+    quantity: Qty | None  # 總顆數
     slots: list[TimeSlotItem]
     meal_timing: MealTiming
     meal_timing_label: str
+    run_out_date: dt.date  # 這個藥吃完的那一天
+    days_left: int  # 還剩幾天 = 剩下顆數 ÷ 每天吃幾顆
     needs_review: bool  # 待核對
     status: MedicationStatus
     stop_reason: StopReason | None
@@ -233,9 +239,9 @@ class PrescriptionOut(BaseModel):
     department: str | None
     doctor: str | None
     visit_date: dt.date
-    days: int
-    run_out_date: dt.date
-    days_left: int
+    days: int | None
+    run_out_date: dt.date  # 最晚吃完的藥
+    days_left: int  # 最晚吃完的藥還剩幾天
     status: PrescriptionStatus
     needs_review: bool  # 有待核對的藥
     medications: list[MedicationOut]
@@ -264,6 +270,7 @@ class MedicationUpdate(BaseModel):
     strength: str | None = Field(default=None, max_length=32)
     purpose: str | None = Field(default=None, min_length=1, max_length=128)
     dose_qty: Qty | None = Field(default=None, gt=0, max_digits=3, decimal_places=1)
+    quantity: Qty | None = Field(default=None, gt=0, max_digits=6, decimal_places=1)
     slots: Slots | None = Field(default=None, min_length=1)
     meal_timing: MealTiming | None = None
     needs_review: bool | None = None

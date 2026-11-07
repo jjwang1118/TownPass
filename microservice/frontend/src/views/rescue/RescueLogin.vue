@@ -18,16 +18,27 @@ const staffId = ref(state.rescue?.staffId ?? '')
 const password = ref('')
 const sheetOpen = ref(false)
 const tried = ref(false)
+const loginError = ref('')
+const loggingIn = ref(false)
 
 const REQUIRED = '此欄必填'
 const staffError = computed(() => (tried.value && !staffId.value.trim() ? REQUIRED : ''))
 const passwordError = computed(() => (tried.value && !password.value ? REQUIRED : ''))
 
-function login() {
+async function login() {
   tried.value = true
-  if (!unit.value || !staffId.value.trim() || !password.value) return
-  rescueLogin(unit.value, staffId.value.trim().toUpperCase())
-  router.push('/rescue/search')
+  loginError.value = ''
+  if (!unit.value || !staffId.value.trim() || !password.value || loggingIn.value) return
+  loggingIn.value = true
+  try {
+    await rescueLogin(unit.value, staffId.value.trim().toUpperCase(), password.value)
+    router.push('/rescue/search')
+  } catch (e) {
+    // 單位、編號、密碼錯誤：「單位、人員編號或密碼錯誤」；已離職：「無權限」
+    loginError.value = e instanceof Error ? e.message : '登入失敗，請再試一次'
+  } finally {
+    loggingIn.value = false
+  }
 }
 </script>
 
@@ -52,8 +63,9 @@ function login() {
       autocomplete="current-password"
       :error-text="passwordError"
     />
+    <WarningNotice v-if="loginError" role="alert">{{ loginError }}</WarningNotice>
     <div class="flex-spacer" />
-    <PrimaryButton @click="login">登入</PrimaryButton>
+    <PrimaryButton :disabled="loggingIn" @click="login">{{ loggingIn ? '登入中…' : '登入' }}</PrimaryButton>
 
     <SelectSheet
       :open="sheetOpen"

@@ -98,10 +98,11 @@ class MedicationService:
     async def create(self, user_id: UUID, elder_id: UUID, body: PrescriptionCreate) -> PrescriptionCreated:
         """「確認無誤，加入藥單」：配一個字母，記錄核對的人。"""
         await self.family.ensure_access(user_id, elder_id, Access.WRITE)
-        if body.days is None:
-            raise ValidationFailed("請填寫吃幾天", code="DAYS_REQUIRED")
+        if body.days is None and any(i.quantity is None for i in body.items):
+            raise ValidationFailed("請填寫總顆數或吃幾天", code="DAYS_REQUIRED")
 
         await self.repo.lock_elder(elder_id)
+        await self._finish_expired(elder_id)
         letter = await self._next_letter(elder_id)
         warnings = await self._warnings(letter, body.items, await self.repo.list_active(elder_id))
 
@@ -144,7 +145,7 @@ class MedicationService:
     ) -> list[PrescriptionOut]:
         """我的藥單：吃藥中（依字母），或已吃完（新的在前）。"""
         await self.family.ensure_access(user_id, elder_id, Access.READ)
-        await self.repo.finish_expired(elder_id, clock.today_taipei(), clock.now())
+        await self._finish_expired(elder_id)
         prescriptions = await self.repo.list_prescriptions(elder_id, status)
         medications = await self.repo.list_by_prescriptions([p.id for p in prescriptions])
         await self.session.commit()
@@ -280,7 +281,7 @@ class MedicationService:
         return [
             self._dose(m, p)
             for m, p in await self.repo.list_active(elder_id)
-            if rules.is_scheduled_on(p.visit_date, p.days, day)
+            if self._scheduled(m, p, day)
         ]
 
     async def slot_view(self, elder_id: UUID, slot_key: SlotKey, day: dt.date) -> TodaySlot | None:
@@ -290,25 +291,23 @@ class MedicationService:
     async def elders_scheduled_on(self, day: dt.date) -> list[UUID]:
         """這天有藥要吃的長輩（排程用）。"""
         rows = await self.repo.list_all_active()
-        return sorted({m.elder_id for m, p in rows if rules.is_scheduled_on(p.visit_date, p.days, day)})
+        return sorted({m.elder_id for m, p in rows if self._scheduled(m, p, day)})
 
     async def running_out_on(self, run_out: dt.date) -> dict[UUID, list[Prescription]]:
         """在這天吃完的吃藥中藥單，依長輩分組（回診提醒用）。"""
-        result: dict[UUID, dict[UUID, Prescription]] = {}
-        for _, p in await self.repo.list_all_active():
-            if rules.run_out_date(p.visit_date, p.days) == run_out:
-                result.setdefault(p.elder_id, {})[p.id] = p
-        return {elder_id: sorted(ps.values(), key=lambda p: p.letter) for elder_id, ps in result.items()}
+        result: dict[UUID, list[Prescription]] = {}
+        for p, meds in self._group(await self.repo.list_all_active()):
+            if self._rx_run_out(p, meds) == run_out:
+                result.setdefault(p.elder_id, []).append(p)
+        return {elder_id: sorted(ps, key=lambda p: p.letter) for elder_id, ps in result.items()}
 
     async def soonest_run_out(self, elder_id: UUID) -> list[Prescription]:
         """最快吃完的那幾張藥單（Demo 回診提醒用）。"""
-        prescriptions = {p.id: p for _, p in await self.repo.list_active(elder_id)}.values()
-        if not prescriptions:
+        groups = [(p, self._rx_run_out(p, meds)) for p, meds in self._group(await self.repo.list_active(elder_id))]
+        if not groups:
             return []
-        soonest = min(rules.run_out_date(p.visit_date, p.days) for p in prescriptions)
-        return sorted(
-            (p for p in prescriptions if rules.run_out_date(p.visit_date, p.days) == soonest), key=lambda p: p.letter
-        )
+        soonest = min(run_out for _, run_out in groups)
+        return sorted((p for p, run_out in groups if run_out == soonest), key=lambda p: p.letter)
 
     async def last_visit(self, elder_id: UUID) -> LastVisit | None:
         """最近看診的吃藥中藥單（回診預約「已從藥單 A 帶入科別」）。"""
@@ -326,7 +325,7 @@ class MedicationService:
     # ---------- 內部：預覽 ----------
 
     async def _preview(self, elder_id: UUID, draft: PrescriptionDraft, uncertain: list[Uncertain]) -> PreviewOut:
-        await self.repo.finish_expired(elder_id, clock.today_taipei(), clock.now())
+        await self._finish_expired(elder_id)
         letter = await self._next_letter(elder_id)
         warnings = await self._warnings(letter, draft.items, await self.repo.list_active(elder_id))
         await self.session.commit()
@@ -365,6 +364,8 @@ class MedicationService:
             raise ValidationFailed("沒有掃到 QR Code", code="QR_EMPTY")
         try:
             data = json.loads(raw)
+            if isinstance(data, dict) and "medicines" in data:
+                return MedicationService._from_app_qr(data)
             if isinstance(data, dict) and data.get("v") == 1:
                 return MedicationService._from_qr_v1(RxQrPayloadV1.model_validate(data))
             payload = RxQrPayload.model_validate(data)
@@ -384,11 +385,58 @@ class MedicationService:
                     strength=i.mg,
                     purpose=i.use,
                     dose_qty=i.qty,
+                    quantity=i.total,
                     slots=i.when or rules.FREQUENCY_SLOTS[i.freq],  # type: ignore[index]  # schema 已確認擇一
                     meal_timing=i.meal,
                 )
                 for i in payload.items
             ],
+        )
+
+    @staticmethod
+    def _from_app_qr(data: dict) -> PrescriptionDraft:
+        """前端格式（docs/qrcode_format.md，和前端 utils/qr.ts 相同）。缺必填欄位時列出缺什麼。"""
+        medicines = data.get("medicines") if isinstance(data.get("medicines"), list) else []
+        missing = []
+        if not str(data.get("hospital") or "").strip():
+            missing.append("院區（hospital）")
+        if not medicines:
+            missing.append("藥品清單（medicines）")
+        elif any(not isinstance(m, dict) or not str(m.get("name") or "").strip() for m in medicines):
+            missing.append("藥名（medicines[].name）")
+        if missing:
+            raise ValidationFailed(f"藥袋 QR Code 缺少：{'、'.join(missing)}", code="QR_INVALID")
+
+        days = data.get("days")
+        days = int(days) if isinstance(days, int | float) and 0 < days <= 365 else None
+        items = []
+        for m in medicines:
+            slots = rules.qr_slots(m.get("slots"), m.get("frequency"))
+            amount = Decimal(str(m.get("amount") or 1))
+            amount = amount if amount > 0 else Decimal(1)
+            quantity = m.get("quantity")
+            quantity = Decimal(str(quantity)) if isinstance(quantity, int | float) and quantity > 0 else None
+            if quantity is None:  # 沒有總顆數：天數（預設 28）× 每天吃幾顆
+                quantity = (days or rules.QR_DEFAULT_DAYS) * rules.daily_amount(amount, slots)
+            items.append(
+                DraftItem(
+                    name=str(m["name"]).strip(),
+                    license_no=str(m.get("lic") or "").strip() or None,
+                    purpose=str(m.get("effect") or "").strip() or None,
+                    dose_qty=amount,
+                    quantity=quantity,
+                    slots=slots,
+                    meal_timing=rules.MEAL_BY_NAME.get(str(m.get("meal")), MealTiming.AFTER),
+                )
+            )
+        return PrescriptionDraft(
+            source=PrescriptionSource.QR,
+            hospital=str(data["hospital"]).strip(),
+            department=str(data.get("department") or "").strip() or None,
+            doctor=str(data.get("doctor") or "").strip() or None,
+            visit_date=rules.qr_date(data.get("visitDate"), clock.today_taipei()),
+            days=days,
+            items=items,
         )
 
     @staticmethod
@@ -425,7 +473,10 @@ class MedicationService:
             if getattr(body, field) is not None:
                 check(field, body.confidence.get(field, 1.0))
         check("visit_date", body.confidence.get("visit_date", 1.0) if body.visit_date else 0.0, "請確認看診日")
-        check("days", body.confidence.get("days", 1.0) if body.days else 0.0, "請照藥袋填寫吃幾天")
+        if body.days or all(i.quantity for i in body.items):
+            check("days", body.confidence.get("days", 1.0) if body.days else 1.0, "請照藥袋填寫吃幾天")
+        else:
+            check("days", 0.0, "請照藥袋填寫總顆數或吃幾天")
 
         items = []
         for index, item in enumerate(body.items):
@@ -452,6 +503,7 @@ class MedicationService:
                     strength=strength,
                     purpose=item.purpose,
                     dose_qty=item.dose_qty or Decimal(1),
+                    quantity=item.quantity,
                     slots=slots or [SlotKey.MORNING],
                     meal_timing=item.meal_timing or MealTiming.AFTER,
                 )
@@ -584,8 +636,8 @@ class MedicationService:
             doctor=p.doctor,
             visit_date=p.visit_date,
             days=p.days,
-            run_out_date=rules.run_out_date(p.visit_date, p.days),
-            days_left=rules.days_left(p.visit_date, p.days, clock.today_taipei()),
+            run_out_date=self._rx_run_out(p, medications),
+            days_left=self._rx_days_left(p, medications),
             status=p.status,
             needs_review=any(m.needs_review for m in medications if m.status is MedicationStatus.ACTIVE),
             medications=[self._to_out(m, p, names) for m in sorted(medications, key=lambda m: m.seq)],
@@ -601,7 +653,7 @@ class MedicationService:
             dose_qty=m.dose_qty,
             meal_label=rules.MEAL_TIMING_LABELS[m.meal_timing],
             times=[s.time for s in slots],
-            days_left=rules.days_left(p.visit_date, p.days, clock.today_taipei()),
+            days_left=self._days_left(m, p),
         )
         return MedicationOut(
             id=m.id,
@@ -614,9 +666,12 @@ class MedicationService:
             strength=m.strength,
             purpose=m.purpose,
             dose_qty=m.dose_qty,
+            quantity=m.quantity,
             slots=slots,
             meal_timing=m.meal_timing,
             meal_timing_label=rules.MEAL_TIMING_LABELS[m.meal_timing],
+            run_out_date=rules.run_out_date(p.visit_date, max(self._supply(m, p), 1)),
+            days_left=self._days_left(m, p),
             needs_review=m.needs_review,
             status=m.status,
             stop_reason=m.stop_reason,
@@ -643,12 +698,12 @@ class MedicationService:
         return [
             self._dose(m, p)
             for m, p in rows
-            if slot_key.value in m.slots and rules.is_scheduled_on(p.visit_date, p.days, day)
+            if slot_key.value in m.slots and self._scheduled(m, p, day)
         ]
 
     def _slot_view(self, rows: list[Row], slot_key: SlotKey, day: dt.date) -> TodaySlot | None:
         selected = [
-            (m, p) for m, p in rows if slot_key.value in m.slots and rules.is_scheduled_on(p.visit_date, p.days, day)
+            (m, p) for m, p in rows if slot_key.value in m.slots and self._scheduled(m, p, day)
         ]
         if not selected:
             return None
@@ -669,6 +724,48 @@ class MedicationService:
             speech_text=speech.slot(time=time, groups=spoken),
             speech_text_en=speech.slot(time=time, groups=spoken, lang=speech.Lang.EN),
         )
+
+    # ---------- 內部：藥量（還剩幾天 = 剩下顆數 ÷ 每天吃幾顆） ----------
+
+    @staticmethod
+    def _supply(m: Medication, p: Prescription) -> int:
+        """這個藥總共可以吃幾天。"""
+        return rules.supply_days(m.dose_qty, m.slots, m.quantity, p.days)
+
+    def _scheduled(self, m: Medication, p: Prescription, day: dt.date) -> bool:
+        supply = self._supply(m, p)
+        return supply > 0 and rules.is_scheduled_on(p.visit_date, supply, day)
+
+    def _days_left(self, m: Medication, p: Prescription) -> int:
+        return rules.days_left(p.visit_date, self._supply(m, p), clock.today_taipei())
+
+    def _rx_run_out(self, p: Prescription, medications: Sequence[Medication]) -> dt.date:
+        """藥單吃完日：最晚吃完的藥（停用的藥不算）；沒有藥時用藥單天數。"""
+        active = [m for m in medications if m.status is MedicationStatus.ACTIVE]
+        supply = max((self._supply(m, p) for m in active), default=p.days or 0)
+        return rules.run_out_date(p.visit_date, max(supply, 1))
+
+    def _rx_days_left(self, p: Prescription, medications: Sequence[Medication]) -> int:
+        active = [m for m in medications if m.status is MedicationStatus.ACTIVE]
+        return max((self._days_left(m, p) for m in active), default=0)
+
+    @staticmethod
+    def _group(rows: list[Row]) -> list[tuple[Prescription, list[Medication]]]:
+        groups: dict[UUID, tuple[Prescription, list[Medication]]] = {}
+        for m, p in rows:
+            groups.setdefault(p.id, (p, []))[1].append(m)
+        return list(groups.values())
+
+    async def _finish_expired(self, elder_id: UUID) -> None:
+        """所有藥都吃完（超過可以吃的天數）的藥單改為「已吃完」，釋放字母。由呼叫端 commit。"""
+        today, now = clock.today_taipei(), clock.now()
+        prescriptions = await self.repo.list_prescriptions(elder_id, PrescriptionStatus.ACTIVE)
+        medications = await self.repo.list_by_prescriptions([p.id for p in prescriptions])
+        for p in prescriptions:
+            if self._rx_run_out(p, [m for m in medications if m.prescription_id == p.id]) < today:
+                p.status = PrescriptionStatus.FINISHED
+                p.finished_at = now
+        await self.session.flush()
 
     @staticmethod
     def _slot_items(slots: Sequence[SlotKey]) -> list[TimeSlotItem]:

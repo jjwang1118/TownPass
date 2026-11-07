@@ -39,3 +39,21 @@
 [Modified Time]: 1108010011
 
 [Modified Position]: logs/1107_communication
+
+[Modified Description]:
+- 在 feature/integrate-frontend 串接前端與後端（使用者決定：QR 用前端格式、還剩幾天用總顆數、醫療卡照 UI、由本次一起修改前端）
+- 後端：解析前端格式的藥袋 QR（docs/qrcode_format.md：中文時段、QAM 等頻率代碼、民國日期，缺欄位時列出缺什麼），另接受選填的 lic（健保碼）、doctor；v1、v2 仍可掃
+- 後端：藥品新增總顆數 quantity，還剩幾天改為「剩下顆數 ÷ 每天吃幾顆」每個藥各自算（和前端 utils/supply.ts 相同），藥單天數改選填，藥都吃完才移到已吃完；提醒、回診提醒、救命卡目前用藥跟著改
+- 後端：救命卡新增特殊狀況（加密）、慣用語言；家屬綁定清單附 elder_phone；回診預約帶入科別改取最近一張有科別的藥單；英文朗讀稿把「毫克」換成 mg
+- migration a9dcbfe982d4（可降版）；範例藥袋改為前端格式並重新產生 QR
+- 前端：新增 src/api/（client 呼叫後端與登入憑證、types、mappers），store 改為後端資料的快取，只有草稿、預約選擇、語言等存在 localStorage；連不到後端時畫面上方顯示「重新連線」
+- 前端：長者、家屬用台北通 userinfo 登入（瀏覽器用模擬帳號）；掃 QR、拍照改送後端預覽，確認藥單頁顯示同成分警示與「電腦不確定這一項」；藥名搜尋改查後端健保資料並帶入健保碼；加入藥單、醫療卡、邀請碼、綁定、解除綁定都呼叫後端
+- 前端：回診預約改用後端院區、科別、醫師、門診、看診時間與名額，依序啟用、換前一項清空後面；預約失敗顯示原因
+- 前端：救護人員登入改為比對名冊（含密碼）；查詢改為救命卡卡號（不使用身分證字號），App 內可掃卡片 QR；醫療卡結果用後端資料；長者醫療卡頁顯示卡號
+- 前端：醫療卡移除第二聯絡人與常去醫院／病歷號；畫面名稱「藥報平安」改為「呷藥囉」
+- 驗證：後端 126 個測試通過；前端 vue-tsc 與 build 通過；以腳本照前端呼叫順序對本機後端跑完整流程（三條新增路徑、同成分警示、醫療卡、家屬綁定、救護查詢、回診預約、今天四個時段）皆成功；尚未在 App 實機與瀏覽器畫面實測
+- 更新規格書 §5.2、§5.3、§8.1、§7.2、§12，qrcode_format.md、frontend.md（新增「串接後端」）與各模組 README
+
+[Modified Time]: 1108012127
+
+[Modified Position]: microservice/backend/app/modules/medication/（rules.py、schemas.py、service.py、repository.py、models.py）, microservice/backend/app/modules/emergency_card/, microservice/backend/app/modules/family/, microservice/backend/app/modules/speech/rules.py, microservice/backend/alembic/versions/20261108_a9dcbfe982d4_medication_quantity_and_card_special.py, microservice/backend/seed/, microservice/backend/tests/, microservice/frontend/src/api/, microservice/frontend/src/store/index.ts, microservice/frontend/src/types.ts, microservice/frontend/src/utils/（booking.ts、card.ts）, microservice/frontend/src/views/, microservice/frontend/src/components/inputs/DrugSearch.vue, microservice/frontend/src/router/index.ts, microservice/frontend/src/App.vue, microservice/docs/（backend-spec.md、qrcode_format.md、frontend.md）

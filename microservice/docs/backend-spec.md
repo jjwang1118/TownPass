@@ -282,13 +282,13 @@ microservice/backend/
 | source | enum `photo` / `qr` / `manual` | 拍照辨識、掃 QR、手動 |
 | hospital / department / doctor | text NULL | 院區、科別、醫師；手動新增時可之後補填 |
 | visit_date | date | 看診日，從這天開始吃 |
-| days | int | 給藥天數（必填） |
+| days | int NULL | 給藥天數；藥品沒有總顆數時用來推算，每個藥都有總顆數時可以不填 |
 | status | enum `active` / `finished` | 吃藥中、已吃完 |
 | finished_at | timestamptz NULL | |
 | created_by | uuid FK users | 核對並加入的人（長輩或做初始設定的家人） |
 | created_at / updated_at | timestamptz | |
 
-唯一索引：`(elder_id, letter) WHERE status = 'active'`。過了吃藥天數的藥單在查詢或新增時自動改為 `finished`。
+唯一索引：`(elder_id, letter) WHERE status = 'active'`。藥單裡的藥都吃完後，在查詢或新增時自動改為 `finished`。
 
 **`medications`**：藥單裡的藥。
 
@@ -303,6 +303,7 @@ microservice/backend/
 | strength | text NULL | 劑量，例如「5 毫克」 |
 | purpose | text NULL | 用途 |
 | dose_qty | numeric(3,1) | 一次幾顆，支援半顆 |
+| quantity | numeric(6,1) NULL | 總顆數（藥袋上的數量），用來算還剩幾天 |
 | slots | text[] | 什麼時候吃：`morning` / `noon` / `evening` / `bedtime`，可複選 |
 | meal_timing | enum `before` / `after` | 飯前、飯後 |
 | needs_review | bool | 待核對（劑量選了「看不清楚／不確定」） |
@@ -355,6 +356,8 @@ microservice/backend/
 | birth_date | date | 出生年月日（顯示年齡） |
 | gender | enum | |
 | blood_type | enum `A` / `B` / `O` / `AB` / `unknown` | 血型 |
+| special | text 🔒 | JSON 陣列：特殊狀況，例如「心律調節器」 |
+| language | text NULL | 慣用語言：國語、台語、客語 |
 | chronic_conditions | text 🔒 | JSON 陣列，加密後儲存 |
 | allergies | text 🔒 | JSON 陣列：`[{"type":"drug","name":"盤尼西林"},{"type":"food","name":"海鮮"}]` |
 | updated_at / updated_by | | |
@@ -467,8 +470,11 @@ microservice/backend/
 
 **其他計算規則**：
 
-- **剩餘天數** = `visit_date + days − 今天`，小於 0 顯示 0。
-- **藥吃完日** = `visit_date + days − 1`。
+- **還剩幾天**（和前端 `utils/supply.ts` 相同）＝ 剩下顆數 ÷ 每天吃幾顆，無條件捨去：
+  - 每天吃幾顆 = 一次幾顆 × 一天幾個時段
+  - 剩下顆數 = 總顆數 − 每天吃幾顆 × 從看診日到今天過了幾天（沒有記錄實際服藥，假設都有按時吃）
+  - 沒有總顆數時，用藥單的天數推算
+- **藥吃完日** = 看診日 + 可以吃的天數 − 1；**藥單**的還剩幾天、吃完日取最晚吃完的藥。
 - **藥單字母** = 該長輩吃藥中的藥單沒用到的第一個字母（A～Z）。吃完或提早移到「已吃完」後字母釋放。
 - **藥的編號** = 字母＋藥單內的序號（A1、A2…）。
 
@@ -566,6 +572,8 @@ microservice/backend/
 | POST | `/family/bindings` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上稱呼 `relation_label`；完成綁定 |
 | GET | `/family/bindings` | 綁定清單 |
 | PATCH | `/family/bindings/{id}` | 家人修改 `relation_label`（`notify_on_ack` 目前未使用） |
+
+綁定清單附 `elder_phone`，家屬首頁「打電話給長輩」用。
 | POST | `/family/bindings/{id}/complete-setup` | 家人完成初始設定，之後唯讀 |
 | DELETE | `/family/bindings/{id}` | 長輩解除綁定 |
 
@@ -646,30 +654,28 @@ microservice/backend/
 
 ### 8.1 藥袋 QR
 
-比賽時自行產生範例 QR。**一個藥袋（一張藥單）一個 QR**，內容為 JSON：
+比賽時自行產生範例 QR。一個藥袋（一張藥單）一個 QR，內容為 JSON，**格式見 [qrcode_format.md](qrcode_format.md)**（前後端共用）：
 
 ```json
 {
-  "v": 2,
-  "t": "rx",
-  "hosp": "臺北市立聯合醫院仁愛院區",
-  "dept": "心臟內科",
-  "dr": "王醫師",
-  "date": "2026-11-05",
+  "hospital": "仁愛院區",
+  "department": "心臟內科",
+  "doctor": "王醫師",
+  "visitDate": "2026-11-05",
   "days": 28,
-  "items": [
-    {"lic": "B021571100", "name": "Amlodipine", "mg": "5 毫克", "use": "降血壓", "qty": 1, "when": ["morning"], "meal": "after"},
-    {"lic": "B022890100", "name": "Atorvastatin", "mg": "20 毫克", "use": "降血脂", "qty": 1, "freq": "HS", "meal": "after"}
+  "medicines": [
+    {"lic": "B021571100", "name": "Amlodipine 5 毫克", "amount": 1, "slots": ["早上"], "meal": "飯後", "effect": "降血壓", "quantity": 28},
+    {"lic": "B022890100", "name": "Atorvastatin 20 毫克", "amount": 1, "frequency": "HS", "meal": "飯後", "effect": "降血脂", "quantity": 28}
   ]
 }
 ```
 
-- `v`：格式版本。仍接受 v1（一個 QR 一個藥）；其他版本、不是藥袋 QR 或缺欄位回 `400 QR_INVALID`。
-- `lic`：健保藥品代號（10 碼）；`mg`：劑量。
-- `when`（時段，可複選）與 `freq`（頻率，換算見 [§5.3](#53-吃藥時段與規則)）擇一；`meal` 為 `before` / `after`。
-- `qty`：一次幾顆，可以是 `0.5`。API 回應中的顆數一律是 JSON 數字。
-- QR 本身含完整資料，掃描不需查詢醫院系統。
-- 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`（ATC 7 碼），和長輩吃藥中的藥、以及同一張藥單裡前面的藥比對。有重疊時回 `warnings: [{"type":"same_ingredient","code":"C1","with_code":"A1"}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
+- 必填：`hospital`、`medicines`（至少 1 筆）、`medicines[].name`；缺少時回 `400 QR_INVALID`，`message` 列出缺什麼（「藥袋 QR Code 缺少：院區（hospital）」）。
+- 時段：`slots`（早上／中午／晚上／睡前）優先，沒有時依 `frequency`（`QD`、`QAM`、`QPM`、`HS`、`QN`、`BID`、`Q12H`、`TID`、`Q8H`、`QID`、`Q6H`），都沒有為早上。
+- `visitDate` 可為 `YYYY-MM-DD`、`YYYY/MM/DD` 或民國年 `115.11.08`，沒有時為今天。
+- `quantity`（總顆數）沒有時為天數（預設 28）× 每天吃幾顆。
+- `lic`：健保藥品代號（選填）。同成分檢查以它查 `drug_licenses.ingredients`（ATC 7 碼），和長輩吃藥中的藥、以及同一張藥單裡前面的藥比對。有重疊時回 `warnings: [{"type":"same_ingredient","code":"C1","with_code":"A1"}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
+- 舊格式仍可掃：v1（`{"v":1,…}` 一個 QR 一個藥）、v2（`{"v":2,"hosp","items":[…]}`）。
 
 ### 8.2 救命卡卡號
 
@@ -785,7 +791,8 @@ Python 3.12。
 | 全螢幕提醒 | App | 聲音、震動、閃光、全螢幕顯示 |
 | 國台語朗讀 | 前端、App | 國語用 `microservice/frontend/tts/`（`speak(speech_text)`：App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App 已加 `tts_speak`、`tts_stop` handler（`lib/util/web_message_handler/tts_message_handler.dart`，`flutter_tts`，只用離線語音）；Android WebView 不支援 speechSynthesis，只能靠 App handler；英文稿 `speech_text_en` 要用 `speak(text, { lang: 'en-US' })` 朗讀，**前端模組與 App handler 目前只挑中文語音，需要補上英文（en-US）離線語音的選擇**；台語之後再定 |
 | 拍照辨識 | App | 拍照走台北通原生 handler（WebView 直接開相機可能失敗）；用裝置端模型（例如 Gemma 4 E2B）把照片整理成 [§8.3](#83-拍照辨識的輸入) 的欄位，再由前端送到 `photo-preview`；README 要揭露模型名稱、版本、量化格式、推論框架與來源 |
-| 救護人員查詢 | 前端 | UI R02 的「身分證字號」改為救命卡卡號輸入（或掃 QR） |
+| 救護人員查詢 | 前端 | ✅ UI R02 的「身分證字號」已改為救命卡卡號輸入，App 內可掃卡片 QR |
+| 串接後端 | 前端 | ✅ 前端改為呼叫後端 API（`frontend/src/api/`），說明見 [frontend.md](frontend.md)「串接後端」 |
 | 卡號 QR 與桌布 | 前端 | 依卡號產生 QR、敬老卡貼紙、手機桌布 |
 | 救護人員定位 | 前端 | 查詢前呼叫台北通 `location` 取得座標 |
 | 一鍵撥號 | 前端 | 呼叫台北通 `phone_call` |

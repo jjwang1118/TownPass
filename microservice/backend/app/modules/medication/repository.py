@@ -1,7 +1,7 @@
 import datetime as dt
 from uuid import UUID
 
-from sqlalchemy import Select, or_, select, text, update
+from sqlalchemy import Select, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.medication.models import (
@@ -31,20 +31,6 @@ class MedicationRepository:
         self.session.add(obj)
         await self.session.flush()
 
-    async def finish_expired(self, elder_id: UUID | None, today: dt.date, now: dt.datetime) -> None:
-        """已經過了吃藥天數的藥單改為「已吃完」，釋放字母。elder_id 為 None 時處理所有長輩。"""
-        stmt = (
-            update(Prescription)
-            .where(
-                Prescription.status == PrescriptionStatus.ACTIVE,
-                Prescription.visit_date + Prescription.days <= today,  # 吃完日的隔天起
-            )
-            .values(status=PrescriptionStatus.FINISHED, finished_at=now)
-        )
-        if elder_id is not None:
-            stmt = stmt.where(Prescription.elder_id == elder_id)
-        await self.session.execute(stmt)
-
     async def get_prescription(self, elder_id: UUID, prescription_id: UUID) -> Prescription | None:
         stmt = select(Prescription).where(Prescription.id == prescription_id, Prescription.elder_id == elder_id)
         return await self.session.scalar(stmt)
@@ -64,10 +50,14 @@ class MedicationRepository:
         return set(await self.session.scalars(stmt))
 
     async def latest_active_prescription(self, elder_id: UUID) -> Prescription | None:
-        """最近看診的吃藥中藥單（回診預約帶入科別）。"""
+        """最近看診、有科別的吃藥中藥單（回診預約帶入科別；手動新增還沒補填科別的不算）。"""
         stmt = (
             select(Prescription)
-            .where(Prescription.elder_id == elder_id, Prescription.status == PrescriptionStatus.ACTIVE)
+            .where(
+                Prescription.elder_id == elder_id,
+                Prescription.status == PrescriptionStatus.ACTIVE,
+                Prescription.department.is_not(None),
+            )
             .order_by(Prescription.visit_date.desc(), Prescription.created_at.desc())
             .limit(1)
         )

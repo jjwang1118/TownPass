@@ -55,9 +55,11 @@ class CardUpdate(BaseModel):
     blood_type: BloodType = BloodType.UNKNOWN
     chronic_conditions: list[str] = Field(default=[], max_length=20)
     allergies: list[Allergy] = Field(default=[], max_length=20)  # 藥物過敏、食物過敏
+    special: list[str] = Field(default=[], max_length=20)  # 特殊狀況
+    language: str | None = Field(default=None, max_length=8, examples=["台語"])  # 慣用語言
     contact: ContactIn
 
-    @field_validator("chronic_conditions")
+    @field_validator("chronic_conditions", "special")
     @classmethod
     def _clean(cls, items: list[str]) -> list[str]:
         cleaned = [i.strip() for i in items if i.strip()]
@@ -99,6 +101,8 @@ class CardOut(BaseModel):
     contact: ContactOut | None  # 緊急聯絡人（一位）
     chronic_conditions: list[str]  # 本人填寫
     allergies: list[Allergy]  # 本人填寫
+    special: list[str]  # 特殊狀況
+    language: str | None  # 慣用語言
     current_medications: list[DoseItem]  # 來自藥單，例如 A1
     code: CardCodeOut | None  # 撤回同意後為 null
     has_consent: bool
@@ -116,6 +120,8 @@ class ResponderCardOut(BaseModel):
     contact: ContactOut | None  # 「撥打 陳小華（女兒）」
     chronic_conditions: list[str]
     allergies: list[Allergy]
+    special: list[str]
+    language: str | None
     current_medications: list[DoseItem]
     disclaimer: str = DISCLAIMER
     close_at: dt.datetime  # 畫面自動關閉並清除資料的時間（查詢後 30 分鐘）

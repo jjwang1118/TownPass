@@ -45,6 +45,7 @@ class BindingOut(BaseModel):
     id: UUID
     elder_id: UUID
     elder_name: str
+    elder_phone: str  # 家屬「打電話給長輩」
     family_id: UUID
     family_name: str
     relation_label: str

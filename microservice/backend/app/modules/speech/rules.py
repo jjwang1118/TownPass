@@ -56,8 +56,11 @@ def drug_name(name: str, name_zh: str | None = None) -> str:
 
 
 def drug_name_en(name: str, name_en: str | None = None) -> str:
-    """英文稿要念的藥名：藥袋上的英文名 → 食藥署許可證的英文品名；都沒有英文就不念。"""
+    """英文稿要念的藥名：藥袋上的英文名 → 健保英文品名；都沒有英文就不念。中文劑量單位換成英文（5 毫克 → 5 mg）。"""
+    units = {"毫克": " mg", "微克": " mcg", "公克": " g", "毫升": " ml"}
     for candidate in (name, name_en):
+        for zh, en in units.items():
+            candidate = candidate.replace(zh, en) if candidate else candidate
         if candidate and (english := without_cjk(candidate)) and re.search(r"[A-Za-z]", english):
             return english
     return ""

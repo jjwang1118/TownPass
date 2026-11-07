@@ -20,19 +20,30 @@ watch(code, (v) => {
   error.value = ''
 })
 
-function submit() {
-  if (!/^\d{6}$/.test(code.value) || !bindWithInviteCode(code.value)) {
+const binding = ref(false)
+
+async function submit() {
+  if (!/^\d{6}$/.test(code.value)) {
     error.value = ERROR_TEXT
     return
   }
-  router.replace('/family/home')
+  if (binding.value) return
+  binding.value = true
+  try {
+    if (await bindWithInviteCode(code.value)) router.replace('/family/home')
+    else error.value = ERROR_TEXT
+  } catch {
+    /* 連線錯誤由畫面上方的提示顯示 */
+  } finally {
+    binding.value = false
+  }
 }
 </script>
 
 <template>
   <PageLayout title="綁定長輩" fallback="/family">
     <h2 class="page-heading">輸入長輩的邀請碼</h2>
-    <p class="page-desc">請長輩打開「藥報平安」→「邀請家屬」，把畫面上的 6 位數字告訴您。</p>
+    <p class="page-desc">請長輩打開「呷藥囉」→「邀請家屬」，把畫面上的 6 位數字告訴您。</p>
     <TextField
       v-model="code"
       label="邀請碼"

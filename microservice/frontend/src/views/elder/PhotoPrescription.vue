@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * EL-PG-05 長者：拍藥袋（拍照模式）
- * 拍照 → 辨識（後端尚未建立，使用模擬辨識結果，並併入 EL-PG-14 手動新增的藥品）→ EL-PG-07
+ * 拍照 → 辨識（手機上的辨識模型尚未接上，先用模擬辨識結果送後端比對打分，並併入 EL-PG-14 手動新增的藥品）→ EL-PG-07
  */
 import { useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
@@ -11,9 +11,13 @@ import { startDraftFromRecognition } from '@/store'
 
 const router = useRouter()
 
-function capture() {
-  startDraftFromRecognition()
-  router.push('/elder/add/review')
+async function capture() {
+  try {
+    await startDraftFromRecognition()
+    router.push('/elder/add/review')
+  } catch {
+    /* 錯誤由畫面上方的提示顯示 */
+  }
 }
 </script>
 

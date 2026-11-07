@@ -45,6 +45,8 @@ class EmergencyCard(UUIDPrimaryKey, Timestamps, Base):
     # 個資法第 6 條特種個資：加密儲存
     chronic_conditions: Mapped[list[str] | None] = mapped_column(EncryptedJSON)
     allergies: Mapped[list[dict[str, Any]] | None] = mapped_column(EncryptedJSON)
+    special: Mapped[list[str] | None] = mapped_column(EncryptedJSON)  # 特殊狀況，例如「裝心律調節器」
+    language: Mapped[str | None] = mapped_column(String(8))  # 慣用語言：國語、台語、客語
     updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 

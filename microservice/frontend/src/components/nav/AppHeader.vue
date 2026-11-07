@@ -1,12 +1,12 @@
 <script setup lang="ts">
-/** CM-NAV-01 導覽列（logo＋藥報平安） */
+/** CM-NAV-01 導覽列（logo＋呷藥囉） */
 import AppLogo from '@/components/AppLogo.vue'
 </script>
 
 <template>
   <header class="cm-nav-01">
     <AppLogo :size="24" />
-    <h1 class="title font-h3-semibold">藥報平安</h1>
+    <h1 class="title font-h3-semibold">呷藥囉</h1>
   </header>
 </template>
 

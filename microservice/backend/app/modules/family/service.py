@@ -178,6 +178,7 @@ class FamilyService:
                 id=b.id,
                 elder_id=b.elder_id,
                 elder_name=names[b.elder_id].real_name,
+                elder_phone=await self.auth.get_phone(b.elder_id),
                 family_id=b.family_id,
                 family_name=names[b.family_id].real_name,
                 relation_label=b.relation_label,

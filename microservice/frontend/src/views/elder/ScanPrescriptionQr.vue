@@ -12,8 +12,8 @@ import PageLayout from '@/components/PageLayout.vue'
 import QrScanCamera, { type ScanFailReason } from '@/components/cards/QrScanCamera.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { isInApp, scanQrCode } from '@/composables/flutterBridge'
-import { startDraftFromRecognition } from '@/store'
-import { parsePrescriptionQr } from '@/utils/qr'
+import { startDraftFromQr } from '@/store'
+import { ApiError } from '@/api/client'
 import { decodeQrFromFile } from '@/utils/qrImage'
 
 const router = useRouter()
@@ -32,18 +32,19 @@ function fail(message: string, raw?: string) {
   failure.value = { message, raw }
 }
 
-function onDetected(raw: string) {
-  const result = parsePrescriptionQr(raw)
-  if (!result.ok) {
-    if (result.reason === 'missing') {
-      fail(`這個二維碼的藥單資料不完整，缺少：${result.missing.join('、')}。`, raw)
+/** 交給後端解析（格式見 docs/qrcode_format.md）：會比對健保藥品資料，標示同成分的藥 */
+async function onDetected(raw: string) {
+  try {
+    await startDraftFromQr(raw)
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'QR_INVALID') {
+      fail(`${e.message}。請重新掃描，或上傳正確的照片。`, raw)
     } else {
-      fail('這不是藥袋的二維碼，請重新掃描，或上傳正確的照片。', raw)
+      fail(e instanceof Error ? e.message : '掃描失敗，請再試一次。')
     }
     return
   }
   failure.value = null
-  startDraftFromRecognition(result.rx)
   router.replace('/elder/add/review')
 }
 

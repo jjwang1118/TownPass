@@ -8,7 +8,7 @@ from pathlib import Path
 
 import segno
 
-from app.modules.medication.schemas import RxQrPayload
+from app.modules.medication.service import MedicationService
 
 SEED_DIR = Path(__file__).parent
 OUT_DIR = SEED_DIR / "qr"
@@ -18,7 +18,7 @@ def main() -> None:
     OUT_DIR.mkdir(exist_ok=True)
     samples = json.loads((SEED_DIR / "data" / "rx_samples.json").read_text(encoding="utf-8"))
     for sample in samples:
-        RxQrPayload.model_validate(sample["payload"])  # 確認格式正確
+        MedicationService._from_app_qr(sample["payload"])  # 確認格式正確（規格書 §8.1）
         content = json.dumps(sample["payload"], ensure_ascii=False, separators=(",", ":"))
         path = OUT_DIR / f"{sample['file']}.png"
         segno.make(content, error="m").save(path, scale=8, border=4)

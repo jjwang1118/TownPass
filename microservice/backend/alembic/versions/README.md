@@ -10,5 +10,6 @@
 | `20261107_70c6a238747c_reminder_scheduled_date_refill_notices.py` | `reminder_events` 改以台北日期判斷重複；新增 `refill_notices` |
 | `20261107_d4b4f0542791_appointment_booking.py` | `clinic_sessions` 新增 `issued_count`；`appointments` 新增取消時間、加入提醒、提醒紀錄與防重複預約索引 |
 | `20261108_f6497e343c3a_prescriptions_and_ui_alignment.py` | 依 UI 調整：新增藥單 `prescriptions`、重建 `medications`、`reminder_events`、`refill_notices`，移除 `time_slots`；救命卡改為姓名、出生年月日、血型；新增看診時間 `clinic_slots`；藥品資料加搜尋欄位。**無法降版**；會清空門診與預約（模擬資料，啟動時重新匯入） |
+| `20261108_a9dcbfe982d4_medication_quantity_and_card_special.py` | `medications` 新增總顆數 `quantity`，`prescriptions.days` 改為選填；`emergency_cards` 新增特殊狀況 `special`、慣用語言 `language` |
 
 產生與套用方式見 [../README.md](../README.md)。

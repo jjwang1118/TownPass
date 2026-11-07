@@ -9,7 +9,7 @@ Demo 與測試用的種子資料。規格書 §11.1。
 | 路徑 | 內容 |
 |---|---|
 | `data/nhi_drugs.json.gz` | 健保用藥品項 45,224 筆（真實資料，由 `make_nhi_drugs.py` 產生），用於同成分檢查與藥名搜尋 |
-| `data/rx_samples.json` | 範例藥袋 QR 的內容（v2，一張藥單多個藥，格式見規格書 §8.1） |
+| `data/rx_samples.json` | 範例藥袋 QR 的內容（一張藥單多個藥，格式見 `docs/qrcode_format.md`，含健保碼 `lic` 與總顆數） |
 | `data/responders.json` | 模擬消防局名冊 3 筆（密碼匯入時以 argon2 雜湊） |
 | `data/tpech_clinics.json` | 聯醫 7 院區、9 個院址（名稱、地址依聯醫官網）；各院址的科別（依院址特性簡化）、每科 2 位醫師的每週門診、每個看診時間的名額（模擬） |
 | `qr/*.png` | 由 `rx_samples.json` 產生的 QR 圖檔，可以印出來或用另一支手機顯示給 App 掃 |

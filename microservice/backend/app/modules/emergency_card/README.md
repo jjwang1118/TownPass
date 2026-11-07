@@ -24,6 +24,7 @@
 | `name`、`birth_date`、`age`、`gender`、`blood_type` | 姓名（加密）、出生年月日、年齡（例如 78）、性別、血型（A、B、O、AB、不知道） |
 | `contact` | 緊急聯絡人（一位），附 `call`（App 的 `phone_call` 訊息） |
 | `chronic_conditions`、`allergies` | 慢性病、過敏（藥物、食物），本人填寫，加密儲存 |
+| `special`、`language` | 特殊狀況（加密儲存）、慣用語言 |
 | `current_medications` | 目前用藥（A1 等），來自藥單，不能手動編輯 |
 | `code` | `code` 卡號（印在貼紙上）、`qr_url` QR 內容（敬老卡背面貼紙、手機桌布）；撤回同意後為 `null` |
 | `has_consent` | 是否已同意儲存健康資料 |

@@ -52,6 +52,8 @@ onMounted(() => {
         :days="prescriptionSupplyDays(draft)"
       />
       <WarningNotice>{{ notice }}</WarningNotice>
+      <!-- 後端比對健保藥品資料：成分相同時只標示，不阻擋 -->
+      <WarningNotice v-for="w in draft.warnings ?? []" :key="w" role="alert">{{ w }}</WarningNotice>
 
       <div v-for="(m, i) in draft.medicines" :key="m.code" class="item">
         <MedicineCheckCard
@@ -60,6 +62,7 @@ onMounted(() => {
           @edit="router.push(`/elder/add/medicine/${i}`)"
           @speak="speak(medicineSpeech(m, true), state.lang)"
         />
+        <p v-if="m.uncertain" class="uncertain font-h3-regular">電腦不確定這一項，請照藥袋核對</p>
         <CheckRow v-model="m.checked" :described-by="`med-${m.code}`">核對無誤</CheckRow>
       </div>
 
@@ -77,6 +80,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.uncertain {
+  color: var(--color-red-500, #d64545);
 }
 .hint {
   color: var(--color-primary-700);

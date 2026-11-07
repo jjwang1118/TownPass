@@ -2,25 +2,25 @@
   {
     "file": "rx_a_cardiology",
     "note": "藥單 A：仁愛院區心臟內科，3 個藥（早上 A1、A2，睡前 A3）",
-    "payload": {"v": 2, "t": "rx", "hosp": "臺北市立聯合醫院仁愛院區", "dept": "心臟內科", "dr": "王醫師", "date": "2026-11-05", "days": 28, "items": [
-      {"lic": "B021571100", "name": "Amlodipine", "mg": "5 毫克", "use": "降血壓", "qty": 1, "when": ["morning"], "meal": "after"},
-      {"lic": "A037344100", "name": "Aspirin", "mg": "100 毫克", "use": "預防血栓", "qty": 1, "when": ["morning"], "meal": "after"},
-      {"lic": "B022890100", "name": "Atorvastatin", "mg": "20 毫克", "use": "降血脂", "qty": 1, "when": ["bedtime"], "meal": "after"}
+    "payload": {"hospital": "仁愛院區", "department": "心臟內科", "doctor": "王醫師", "visitDate": "2026-11-05", "days": 28, "medicines": [
+      {"lic": "B021571100", "name": "Amlodipine 5 毫克", "amount": 1, "slots": ["早上"], "meal": "飯後", "effect": "降血壓", "quantity": 28},
+      {"lic": "A037344100", "name": "Aspirin 100 毫克", "amount": 1, "slots": ["早上"], "meal": "飯後", "effect": "預防血栓", "quantity": 28},
+      {"lic": "B022890100", "name": "Atorvastatin 20 毫克", "amount": 1, "slots": ["睡前"], "meal": "飯後", "effect": "降血脂", "quantity": 28}
     ]}
   },
   {
     "file": "rx_b_metabolism",
     "note": "藥單 B：中興院區新陳代謝科，2 個藥（B1 早中晚，B2 中午）",
-    "payload": {"v": 2, "t": "rx", "hosp": "臺北市立聯合醫院中興院區", "dept": "新陳代謝科", "dr": "陳醫師", "date": "2026-11-06", "days": 28, "items": [
-      {"lic": "B025635100", "name": "Metformin", "mg": "500 毫克", "use": "降血糖", "qty": 1, "when": ["morning", "noon", "evening"], "meal": "after"},
-      {"lic": "B025537100", "name": "Linagliptin", "mg": "5 毫克", "use": "降血糖", "qty": 1, "when": ["noon"], "meal": "after"}
+    "payload": {"hospital": "中興院區", "department": "新陳代謝科", "doctor": "陳醫師", "visitDate": "2026-11-06", "days": 28, "medicines": [
+      {"lic": "B025635100", "name": "Metformin 500 毫克", "amount": 1, "frequency": "TID", "meal": "飯後", "effect": "降血糖", "quantity": 84},
+      {"lic": "B025537100", "name": "Linagliptin 5 毫克", "amount": 1, "slots": ["中午"], "meal": "飯後", "effect": "降血糖", "quantity": 28}
     ]}
   },
   {
     "file": "rx_c_same_ingredient",
     "note": "藥單 C：和平院區家醫科，壓可平錠和 A1 脈優錠不同牌子但同成分（Amlodipine），示範同成分警示",
-    "payload": {"v": 2, "t": "rx", "hosp": "臺北市立聯合醫院和平婦幼院區（和平）", "dept": "家醫科", "dr": "林醫師", "date": "2026-11-06", "days": 14, "items": [
-      {"lic": "A047632100", "name": "Amcopine", "mg": "10 毫克", "use": "降血壓", "qty": 0.5, "when": ["morning"], "meal": "after"}
+    "payload": {"hospital": "和平婦幼院區（和平）", "department": "家醫科", "doctor": "林醫師", "visitDate": "2026-11-06", "medicines": [
+      {"lic": "A047632100", "name": "Amcopine 10 毫克", "amount": 0.5, "slots": ["早上"], "meal": "飯後", "effect": "降血壓", "quantity": 7}
     ]}
   }
 ]

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * EL-INP-02 藥名搜尋
+ * EL-INP-02 藥名搜尋（後端 GET /drugs/search，資料為健保用藥品項 4.5 萬筆）
  * - 輸入 2 個字以上即時比對字首（中英文、不分大小寫），比對字加粗
- * - 最多 8 筆，北市聯醫常用藥排前面
+ * - 最多 8 筆，北市聯醫常用藥排前面；同藥名只出現一次，選到的劑量帶入健保藥品代號
  * - 藥名必須從清單點選
  */
 import { computed, ref, watch } from 'vue'
 import TextField from './TextField.vue'
-import { DRUGS } from '@/data/mock'
+import { get } from '@/api/client'
+import { toDrugEntry } from '@/api/mappers'
+import type { DrugSearchItem } from '@/api/types'
 import type { DrugEntry } from '@/types'
 
 const props = defineProps<{ selected: string; errorText?: string }>()
@@ -18,9 +20,33 @@ const picked = ref(!!props.selected)
 /** 最近一次從清單選定（或初始帶入）的文字 */
 let pickedText = props.selected
 
+const found = ref<DrugEntry[]>([])
+const searching = ref(false)
+let timer = 0
+let latest = ''
+
 watch(query, (q) => {
   // 使用者修改文字後，需重新從清單選擇
   if (q !== pickedText) picked.value = false
+  window.clearTimeout(timer)
+  const text = q.trim()
+  if (picked.value || text.length < 2) {
+    found.value = []
+    return
+  }
+  // 停止打字 250 毫秒後才查詢，避免每打一個字就送一次
+  timer = window.setTimeout(async () => {
+    latest = text
+    searching.value = true
+    try {
+      const items = await get<DrugSearchItem[]>('/drugs/search', { role: 'elder', query: { q: text } })
+      if (latest === text) found.value = items.map(toDrugEntry)
+    } catch {
+      if (latest === text) found.value = []
+    } finally {
+      if (latest === text) searching.value = false
+    }
+  }, 250)
 })
 
 interface Match {
@@ -32,18 +58,17 @@ interface Match {
 const results = computed<Match[]>(() => {
   const q = query.value.trim()
   if (picked.value || q.length < 2) return []
-  const lower = q.toLowerCase()
-  const list: Match[] = []
-  DRUGS.forEach((drug) => {
-    const display = drug.zh ? `${drug.name}（${drug.zh}）` : drug.name
-    if (drug.name.toLowerCase().startsWith(lower) || drug.zh?.startsWith(q)) {
-      list.push({ drug, display, matchLen: q.length })
-    }
-  })
-  return list.sort((a, b) => Number(!!b.drug.common) - Number(!!a.drug.common)).slice(0, 8)
+  // 後端已依字首比對並排序（常用藥在前）；字首不在藥名開頭（例如比對到主成分）時不加粗
+  return found.value.map((drug) => ({
+    drug,
+    display: drug.zh ? `${drug.name}（${drug.zh}）` : drug.name,
+    matchLen: drug.name.toLowerCase().startsWith(q.toLowerCase()) ? q.length : 0,
+  }))
 })
 
-const showNotFound = computed(() => !picked.value && query.value.trim().length >= 2 && results.value.length === 0)
+const showNotFound = computed(
+  () => !picked.value && !searching.value && query.value.trim().length >= 2 && results.value.length === 0,
+)
 
 /** 回傳 [加粗字, 其餘字]；中文字首比對時加粗中文部分 */
 function split(m: Match): { before: string; bold: string; after: string } {
@@ -52,6 +77,7 @@ function split(m: Match): { before: string; bold: string; after: string } {
     return { before: '', bold: m.display.slice(0, m.matchLen), after: m.display.slice(m.matchLen) }
   }
   const idx = m.display.indexOf(q)
+  if (idx < 0) return { before: m.display, bold: '', after: '' }
   return { before: m.display.slice(0, idx), bold: q, after: m.display.slice(idx + q.length) }
 }
 

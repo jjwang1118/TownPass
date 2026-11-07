@@ -8,7 +8,6 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
-import { getUserInfo } from '@/composables/flutterBridge'
 import { familyLogin, state } from '@/store'
 
 const router = useRouter()
@@ -16,10 +15,14 @@ const loading = ref(false)
 
 async function login() {
   loading.value = true
-  const account = await getUserInfo()
-  familyLogin(account?.realName)
-  loading.value = false
-  router.replace(state.familyUser.bound ? '/family/home' : '/family/bind')
+  try {
+    await familyLogin()
+    router.replace(state.familyUser.bound ? '/family/home' : '/family/bind')
+  } catch {
+    /* 錯誤由畫面上方的提示顯示 */
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -34,7 +37,7 @@ async function login() {
       <rect x="102" y="72" width="10" height="38" fill="#356C77" />
       <rect x="40" y="110" width="80" height="10" rx="2" fill="#5AB4C5" />
     </svg>
-    <h1 class="title font-h1-semibold">藥報平安</h1>
+    <h1 class="title font-h1-semibold">呷藥囉</h1>
     <p class="page-desc">家屬版：隨時知道長輩今天要吃什麼藥</p>
     <div class="flex-spacer" />
     <PrimaryButton :disabled="loading" @click="login">使用台北通登入</PrimaryButton>

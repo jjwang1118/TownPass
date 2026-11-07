@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 藥報平安 logo（logo/S），裝飾圖，隱藏於報讀器 */
+/** 呷藥囉 logo（logo/S），裝飾圖，隱藏於報讀器 */
 withDefaults(defineProps<{ size?: number }>(), { size: 24 })
 </script>
 

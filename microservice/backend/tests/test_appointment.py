@@ -26,7 +26,7 @@ TODAY = dt.date(2026, 11, 5)
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
 RX_A = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]
 # 仁愛院區家醫科林醫師開的藥單 → 預約時帶入科別與醫師
-RX_FAMILY_MEDICINE = {**RX_A, "dept": "家醫科", "dr": "林醫師"}
+RX_FAMILY_MEDICINE = {**RX_A, "department": "家醫科", "doctor": "林醫師"}
 
 
 def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:

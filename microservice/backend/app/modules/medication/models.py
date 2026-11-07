@@ -76,7 +76,7 @@ class Prescription(UUIDPrimaryKey, Timestamps, Base):
     department: Mapped[str | None] = mapped_column(String(64))
     doctor: Mapped[str | None] = mapped_column(String(64))
     visit_date: Mapped[dt.date]  # 看診日，從這天開始吃
-    days: Mapped[int]
+    days: Mapped[int | None]  # 給藥天數；藥品沒有總顆數時用來推算
     status: Mapped[PrescriptionStatus] = mapped_column(
         enum_column(PrescriptionStatus), default=PrescriptionStatus.ACTIVE
     )
@@ -98,6 +98,7 @@ class Medication(UUIDPrimaryKey, Timestamps, Base):
     strength: Mapped[str | None] = mapped_column(String(32))  # 劑量，例如「5 毫克」
     purpose: Mapped[str | None] = mapped_column(String(128))
     dose_qty: Mapped[Decimal] = mapped_column(Numeric(3, 1))  # 一次幾顆
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(6, 1))  # 總顆數（藥袋上的數量）；還剩幾天 = 剩下顆數 ÷ 每天吃幾顆
     slots: Mapped[list[str]] = mapped_column(ARRAY(String(16)))  # SlotKey，依時間排序
     meal_timing: Mapped[MealTiming] = mapped_column(enum_column(MealTiming))
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))  # 待核對

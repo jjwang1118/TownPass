@@ -15,10 +15,10 @@ import type {
 } from '@/types'
 import { emptyCard } from '@/utils/card'
 
+/** 長者資料：登入後由後端（台北通姓名）取代 */
 export const ELDER: ElderProfile = {
-  name: '王美玉',
-  phone: '0928-111-222',
-  idNumber: 'A223456789',
+  name: '',
+  phone: '',
 }
 
 /** 預設藥單：測試資料已清空，藥單一律由使用者透過新增藥單流程建立 */

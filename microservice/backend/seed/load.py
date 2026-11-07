@@ -51,7 +51,7 @@ def seed_id(*parts: str) -> uuid.UUID:
 
 def sample_drug_codes() -> set[str]:
     """範例藥袋 QR 用到的健保藥品代號。"""
-    return {item["lic"] for s in read("rx_samples.json") for item in s["payload"]["items"] if item.get("lic")}
+    return {item["lic"] for s in read("rx_samples.json") for item in s["payload"]["medicines"] if item.get("lic")}
 
 
 async def load_licenses(session: AsyncSession, only: set[str] | None = None) -> int:

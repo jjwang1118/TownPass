@@ -100,6 +100,7 @@ class EmergencyCardService:
         if card is not None:
             card.chronic_conditions = None
             card.allergies = None
+            card.special = None
             card.updated_by = user_id
             await self.repo.revoke_codes(card.id, now)
         await self.session.commit()
@@ -122,6 +123,8 @@ class EmergencyCardService:
             "blood_type": body.blood_type,
             "chronic_conditions": body.chronic_conditions,
             "allergies": [a.model_dump(mode="json") for a in body.allergies],
+            "special": body.special,
+            "language": body.language,
             "updated_by": user_id,
         }
         card = await self.repo.get_card(elder_id)
@@ -194,6 +197,8 @@ class EmergencyCardService:
             contact=await self._contact_out(card.id),
             chronic_conditions=card.chronic_conditions or [],
             allergies=[Allergy.model_validate(a) for a in card.allergies or []],
+            special=card.special or [],
+            language=card.language,
             current_medications=await self.medication.list_active_doses(card.elder_id),
             close_at=now + RESULT_TTL,
         )
@@ -281,6 +286,8 @@ class EmergencyCardService:
             contact=await self._contact_out(card.id),
             chronic_conditions=card.chronic_conditions or [],
             allergies=[Allergy.model_validate(a) for a in card.allergies or []],
+            special=card.special or [],
+            language=card.language,
             current_medications=await self.medication.list_active_doses(card.elder_id),
             code=self._code_out(code) if code else None,
             has_consent=await self.repo.active_consent(card.elder_id, ConsentType.HEALTH_DATA) is not None,

@@ -10,20 +10,20 @@ import PageLayout from '@/components/PageLayout.vue'
 import WarningNotice from '@/components/alerts/WarningNotice.vue'
 import InfoNotice from '@/components/alerts/InfoNotice.vue'
 import EmergencyCallButton from '@/components/buttons/EmergencyCallButton.vue'
-import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import InfoList from '@/components/cards/InfoList.vue'
 import { RESCUE_CARD_MINUTES } from '@/data/constants'
-import { activeMedicines, closeRescueCard, state } from '@/store'
+import { closeRescueCard, state } from '@/store'
 import { useNow } from '@/composables/useNow'
 import { phoneCall } from '@/composables/flutterBridge'
-import { cardRows, cardSummary, hasContact, isCardEmpty } from '@/utils/card'
+import { cardRows, cardSummary, emptyCard, hasContact, isCardEmpty } from '@/utils/card'
 import { formatCountdown } from '@/utils/date'
 
 const router = useRouter()
 const now = useNow(1_000)
 
-const card = computed(() => state.card)
-const medicines = computed(() => activeMedicines(now.value))
+// 後端查詢結果（只有必要欄位）；目前用藥由後端依長者的藥單算好
+const card = computed(() => state.rescueCard?.card ?? emptyCard())
+const medicines = computed(() => state.rescueCard?.medicines ?? [])
 const openedAt = computed(() => state.rescue?.openedAt ?? null)
 const remaining = computed(() =>
   openedAt.value ? (openedAt.value + RESCUE_CARD_MINUTES * 60_000 - now.value.getTime()) / 1000 : 0,
@@ -32,14 +32,13 @@ const remaining = computed(() =>
 /** 只列出長者有填寫的欄位（聯絡人另以撥號按鈕呈現） */
 const rows = computed(() => {
   const { top, bottom } = cardRows(card.value)
-  const list = [...top, ...bottom].filter((r) => r.label !== '緊急聯絡人' && r.label !== '第二聯絡人')
+  const list = [...top, ...bottom].filter((r) => r.label !== '緊急聯絡人')
   if (card.value.updatedAt) list.push({ label: '最後更新', value: card.value.updatedAt })
   return list
 })
 const summary = computed(() => cardSummary(card.value, now.value))
 const empty = computed(() => isCardEmpty(card.value) && medicines.value.length === 0)
 const contact1 = computed(() => (hasContact(card.value.contact1) && card.value.contact1.phone ? card.value.contact1 : null))
-const contact2 = computed(() => (hasContact(card.value.contact2) && card.value.contact2.phone ? card.value.contact2 : null))
 const relationText = (r: string) => (r ? `（${r}）` : '')
 
 // 倒數到 0 自動關閉
@@ -51,7 +50,7 @@ watch(remaining, (sec) => {
 })
 
 onMounted(() => {
-  if (!openedAt.value) router.replace('/rescue/search')
+  if (!openedAt.value || !state.rescueCard) router.replace('/rescue/search')
 })
 
 function back() {
@@ -79,10 +78,6 @@ function back() {
       <EmergencyCallButton v-if="contact1" @click="phoneCall(contact1.phone)">
         撥打 {{ contact1.name }}{{ relationText(contact1.relation) }}
       </EmergencyCallButton>
-      <SecondaryButton v-if="contact2" @click="phoneCall(contact2.phone)">
-        撥打 {{ contact2.name }}{{ relationText(contact2.relation) }}
-      </SecondaryButton>
-
       <InfoList v-if="rows.length" :rows="rows" label="醫療卡內容" />
 
       <section v-if="medicines.length" class="meds" aria-labelledby="rescue-meds-title">

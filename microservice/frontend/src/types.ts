@@ -21,9 +21,15 @@ export interface Medicine {
   meal: MealTiming
   /** 領藥總顆數（藥袋上的數量），用來計算還剩幾天：剩下顆數 ÷ 每天吃幾顆 */
   quantity: number
+  /** 後端藥品 id（加入藥單後才有） */
+  id?: string
+  /** 健保藥品代號：藥名搜尋選到、或 QR Code 帶入時才有，用來比對同成分 */
+  licenseNo?: string
 }
 
 export interface Prescription {
+  /** 後端藥單 id */
+  id?: string
   /** 藥單分類字母，例：A */
   code: string
   hospital: string
@@ -31,9 +37,13 @@ export interface Prescription {
   /** 看診（領藥）日期 YYYY-MM-DD，從這天開始吃 */
   visitDate: string
   medicines: Medicine[]
+  doctor?: string
+  /** 已移到「已吃完」 */
+  finished?: boolean
 }
 
 export interface Appointment {
+  id?: string
   hospital: string
   department: string
   doctor: string
@@ -56,15 +66,16 @@ export interface EmergencyCard {
   name: string
   /** YYYY/MM/DD */
   birthday: string
+  /** 救護人員查詢結果只有年齡、沒有出生日期 */
+  age?: number | null
   gender: '女' | '男' | ''
   bloodType: 'A' | 'B' | 'O' | 'AB' | '不知道' | ''
+  /** 緊急聯絡人（只有一位，UI E14） */
   contact1: Contact
-  contact2: Contact | null
   chronic: string[]
   drugAllergy: string
   foodAllergy: string
   special: string[]
-  hospitalRecord: string
   language: '國語' | '台語' | '客語' | ''
   consent: boolean
   /** YYYY/MM/DD */
@@ -105,12 +116,13 @@ export interface RescueSession {
 export interface ElderProfile {
   name: string
   phone: string
-  idNumber: string
 }
 
 /** 新增藥單流程中的草稿藥品（含核對狀態） */
 export interface DraftMedicine extends Medicine {
   checked: boolean
+  /** 拍照辨識沒把握（紅框「電腦不確定這一項」） */
+  uncertain?: boolean
 }
 
 export interface DraftPrescription {
@@ -121,14 +133,31 @@ export interface DraftPrescription {
   medicines: DraftMedicine[]
   /** 由手動新增建立（非拍照／QR Code 辨識） */
   manual?: boolean
+  /** 新增方式（送給後端） */
+  source?: 'photo' | 'qr' | 'manual'
+  doctor?: string
+  /** 給藥天數（QR Code 帶入；藥品沒有總顆數時用） */
+  days?: number | null
+  /** 同成分警示文字，例：「C1 和 A1：這兩包好像是同一種藥，請問藥師」 */
+  warnings?: string[]
 }
 
 export interface BookingDraft {
   hospital: string
   department: string
   doctor: string
+  /** 門診（後端 session_id） */
   date: string
+  /** 看診時間（後端 slot_id） */
   time: string
+  /** 選到的項目 id 與顯示文字（後端資料） */
+  hospitalId?: string
+  departmentId?: string
+  doctorId?: string
+  dateLabel?: string
+  timeLabel?: string
+  /** 從哪一張藥單帶入院區與科別 */
+  fromLetter?: string
 }
 
 export interface SelectOption {
@@ -148,6 +177,8 @@ export interface DrugEntry {
   /** 北市聯醫常用藥排前面 */
   common?: boolean
   source: string
+  /** 劑量 → 健保藥品代號（後端藥名搜尋） */
+  licenses?: Record<string, string>
 }
 
 /** EL-PG-13／EL-PG-14 藥品表單值 */

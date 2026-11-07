@@ -95,6 +95,28 @@ def is_scheduled_on(visit_date: dt.date, days: int, day: dt.date) -> bool:
     return visit_date <= day <= run_out_date(visit_date, days)
 
 
+# ---------- 藥量（和前端 utils/supply.ts 相同）----------
+#
+# 還剩幾天 = 剩下顆數 ÷ 每天吃幾顆
+# - 每天吃幾顆 = 一次幾顆 × 一天幾個時段
+# - 剩下顆數 = 總顆數 − 每天吃幾顆 × 從看診日到今天過了幾天（沒有記錄實際服藥，假設都有按時吃）
+# - 沒有總顆數時，用藥單的給藥天數推算（天數 × 每天吃幾顆）
+# - 藥單還剩幾天、吃完日：取藥單內最晚吃完的藥
+
+
+def daily_amount(dose_qty: Decimal, slots: Iterable[str]) -> Decimal:
+    """每天吃幾顆。"""
+    return dose_qty * len(list(slots))
+
+
+def supply_days(dose_qty: Decimal, slots: Iterable[str], quantity: Decimal | None, days: int | None) -> int:
+    """這個藥總共可以吃幾天（總顆數 ÷ 每天吃幾顆，無條件捨去）；總顆數與天數都沒有時為 0。"""
+    daily = daily_amount(dose_qty, slots)
+    if quantity is None:
+        return days or 0
+    return int(quantity // daily) if daily > 0 else 0
+
+
 def next_letter(used: set[str]) -> str | None:
     """吃藥中的藥單沒用到的第一個字母；A～Z 都用完時回傳 None。"""
     return next((letter for letter in LETTERS if letter not in used), None)
@@ -197,3 +219,46 @@ def display_name(product_en: str | None, fallback: str = "") -> str:
         return fallback
     name = re.sub(r"\s+", " ", _FORM_WORDS.sub(" ", product_en)).strip(" ,.-")
     return (name or product_en).title()
+
+
+# ---------- 藥袋 QR（前端格式，規格書 §8.1；和前端 utils/qr.ts 相同）----------
+
+# 頻率代碼 → 時段（大小寫不拘）
+FREQUENCY_CODE_SLOTS: dict[str, list[SlotKey]] = {
+    "QD": [SlotKey.MORNING],
+    "QAM": [SlotKey.MORNING],
+    "QN": [SlotKey.BEDTIME],
+    "HS": [SlotKey.BEDTIME],
+    "QPM": [SlotKey.EVENING],
+    "BID": [SlotKey.MORNING, SlotKey.EVENING],
+    "Q12H": [SlotKey.MORNING, SlotKey.EVENING],
+    "TID": [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING],
+    "Q8H": [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING],
+    "QID": [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING, SlotKey.BEDTIME],
+    "Q6H": [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING, SlotKey.BEDTIME],
+}
+SLOT_BY_NAME: dict[str, SlotKey] = {label: key for key, label in SLOT_LABELS.items()} | {k.value: k for k in SlotKey}
+MEAL_BY_NAME: dict[str, MealTiming] = {"飯前": MealTiming.BEFORE, "飯後": MealTiming.AFTER} | {m.value: m for m in MealTiming}
+QR_DEFAULT_DAYS = 28  # 藥品沒有總顆數、藥單也沒有天數時
+
+
+def qr_slots(slots: object, frequency: object) -> list[SlotKey]:
+    """slots（早上／中午／晚上／睡前，或英文）優先；沒有時依頻率代碼；都沒有為早上。"""
+    names = slots if isinstance(slots, list) else []
+    keys = sort_slots(SLOT_BY_NAME[str(s)] for s in names if str(s) in SLOT_BY_NAME)
+    if keys:
+        return keys
+    code = re.sub(r"\s", "", str(frequency or "")).upper()
+    return FREQUENCY_CODE_SLOTS.get(code, [SlotKey.MORNING])
+
+
+def qr_date(value: object, today: dt.date) -> dt.date:
+    """YYYY-MM-DD、YYYY/MM/DD 或民國年 115.11.08；無法辨識時為今天。"""
+    match = re.match(r"^(\d{2,4})[-/.](\d{1,2})[-/.](\d{1,2})$", str(value or "").strip())
+    if not match:
+        return today
+    year, month, day = (int(g) for g in match.groups())
+    try:
+        return dt.date(year + 1911 if year < 1911 else year, month, day)
+    except ValueError:
+        return today

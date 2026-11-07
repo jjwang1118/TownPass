@@ -24,6 +24,8 @@ CARD = {
     "blood_type": "O",
     "chronic_conditions": ["高血壓", "糖尿病", "高血壓"],
     "allergies": [{"type": "drug", "name": "盤尼西林"}, {"type": "food", "name": "海鮮"}],
+    "special": ["裝心律調節器"],
+    "language": "台語",
     "contact": {"name": "陳小華", "relation": "女兒", "phone": "0912-345-678"},
 }
 
@@ -102,14 +104,10 @@ async def test_my_card(api: httpx.AsyncClient, ctx: dict) -> None:
     assert "hospital" not in card  # 不收集常去醫院
     assert card["chronic_conditions"] == ["高血壓", "糖尿病"]  # 去除重複
     assert [(a["type"], a["name"]) for a in card["allergies"]] == [("drug", "盤尼西林"), ("food", "海鮮")]
+    assert (card["special"], card["language"]) == (["裝心律調節器"], "台語")
     # 目前用藥來自藥單（A1 等編號）
     first = card["current_medications"][0]
-    assert (first["code"], first["name"], first["strength"], first["purpose"]) == (
-        "A1",
-        "Amlodipine",
-        "5 毫克",
-        "降血壓",
-    )
+    assert (first["code"], first["name"], first["purpose"]) == ("A1", "Amlodipine 5 毫克", "降血壓")
     # 緊急聯絡人（一位）：一鍵撥號訊息照 App 的 phone_call 格式
     assert (card["contact"]["name"], card["contact"]["relation"]) == ("陳小華", "女兒")
     assert card["contact"]["call"] == {"name": "phone_call", "data": "0912345678"}
