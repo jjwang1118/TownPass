@@ -378,3 +378,13 @@
 [Modified Time]: 1108004500
 
 [Modified Position]: microservice/docs/qrcode_format.md、microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue
+
+[Modified Description]:
+- 依使用者需求，網址型藥袋二維碼流程改為：掃描 → 網址送後端下載圖片＋OCR → 整理成藥單 → 確認藥單（人工核對）；任一步驟失敗顯示「掃描失敗：{錯誤原因}」
+- 新增 services/prescriptionOcr.ts（呼叫 POST /api/prescriptions/ocr、30 秒逾時、錯誤代碼對照錯誤原因），後端位址由 VITE_API_BASE_URL 設定（新增 .env.example）；未設定時顯示「無法連線到藥單辨識服務」，不使用假資料
+- 掃描頁辨識中顯示「正在讀取藥單，請稍候…」
+- qrcode_format.md 補充兩種二維碼內容與流程、新增第六節藥單辨識 API 規格與錯誤代碼
+
+[Modified Time]: 1108005600
+
+[Modified Position]: microservice/frontend/src/services/prescriptionOcr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/.env.example、microservice/docs/qrcode_format.md
