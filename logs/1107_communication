@@ -353,3 +353,11 @@
 [Modified Time]: 1108001200
 
 [Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/utils/qrImage.ts、microservice/frontend/src/components/cards/CameraArea.vue、microservice/frontend/src/components/cards/QrScanCamera.vue、microservice/frontend/package.json、microservice/frontend/package-lock.json
+
+[Modified Description]:
+- 依使用者回報（掃描後顯示假資料），QR Code 內容不是藥單格式時不再改用範例藥單，改為停在掃描頁顯示「這不是藥袋的 QR Code」並列出實際讀到的內容
+- 相機即時掃描改為持續偵測，同一內容不重複送出，掃到非藥單後可直接掃下一張
+
+[Modified Time]: 1108003000
+
+[Modified Position]: microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/components/cards/QrScanCamera.vue

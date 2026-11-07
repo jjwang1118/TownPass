@@ -11,7 +11,8 @@ const emit = defineEmits<{ detected: [raw: string] }>()
 
 const area = ref<InstanceType<typeof CameraArea> | null>(null)
 let timer = 0
-let done = false
+/** 上一次送出的內容：同一張 QR Code 持續對著鏡頭時不重複送出（不是藥單時可繼續掃下一張） */
+let lastRaw = ''
 
 function startDetect() {
   const Detector = window.BarcodeDetector
@@ -20,13 +21,13 @@ function startDetect() {
   const detector = new Detector({ formats: ['qr_code'] })
   window.clearInterval(timer)
   timer = window.setInterval(async () => {
-    if (done || video.readyState < 2) return
+    if (video.readyState < 2) return
     try {
       const codes = await detector.detect(video)
-      if (codes.length && !done) {
-        done = true
-        window.clearInterval(timer)
-        emit('detected', codes[0].rawValue)
+      const raw = codes[0]?.rawValue
+      if (raw && raw !== lastRaw) {
+        lastRaw = raw
+        emit('detected', raw)
       }
     } catch {
       /* 偵測失敗時下一輪再試 */

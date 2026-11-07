@@ -21,8 +21,20 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 const uploadError = ref('')
 
+/** 掃到的 QR Code 不是藥單時顯示的錯誤（含實際讀到的內容） */
+const scanError = ref('')
+const scannedRaw = ref('')
+
 function onDetected(raw: string) {
-  startDraftFromRecognition(parsePrescriptionQr(raw))
+  const rx = parsePrescriptionQr(raw)
+  if (!rx) {
+    scannedRaw.value = raw
+    scanError.value = '這不是藥袋的 QR Code，請重新掃描，或上傳正確的照片。'
+    uploadError.value = ''
+    return
+  }
+  scanError.value = ''
+  startDraftFromRecognition(rx)
   router.replace('/elder/add/review')
 }
 
@@ -60,6 +72,11 @@ onMounted(async () => {
   <PageLayout title="掃描 QR Code" fallback="/elder/add">
     <QrScanCamera @detected="onDetected" />
 
+    <div v-if="scanError" class="scan-error" role="alert">
+      <p class="font-h3-semibold">{{ scanError }}</p>
+      <p class="raw font-h3-regular">QR Code 內容：{{ scannedRaw }}</p>
+    </div>
+
     <input
       ref="fileInput"
       class="sr-only"
@@ -81,5 +98,18 @@ onMounted(async () => {
 <style scoped>
 .error {
   color: var(--alarm-red-500);
+}
+.scan-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--alarm-red-500);
+  color: var(--alarm-red-500);
+}
+.scan-error .raw {
+  color: var(--text-second);
+  overflow-wrap: anywhere;
 }
 </style>
