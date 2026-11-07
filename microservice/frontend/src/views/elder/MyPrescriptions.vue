@@ -7,6 +7,7 @@ import PrescriptionRow from '@/components/cards/PrescriptionRow.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
 import { daysLeft, isFinished, state } from '@/store'
 import { formatMonthDay } from '@/utils/date'
+import { isLongExpired } from '@/utils/supply'
 import type { Prescription } from '@/types'
 
 const router = useRouter()
@@ -14,7 +15,8 @@ const now = new Date()
 
 const sorted = computed(() => [...state.prescriptions].sort((a, b) => b.visitDate.localeCompare(a.visitDate)))
 const active = computed(() => sorted.value.filter((rx) => !isFinished(rx, now)))
-const finished = computed(() => sorted.value.filter((rx) => isFinished(rx, now)))
+// 吃完超過 3 個月的藥單不顯示
+const finished = computed(() => sorted.value.filter((rx) => isFinished(rx, now) && !isLongExpired(rx, now)))
 
 function openDetail(rx: Prescription) {
   router.push(`/elder/prescriptions/${state.prescriptions.indexOf(rx)}`)

@@ -16,6 +16,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/elder/add/qr', component: () => import('@/views/elder/ScanPrescriptionQr.vue'), meta: { id: 'EL-PG-06', title: '掃描 QR Code' } },
   { path: '/elder/add/review', component: () => import('@/views/elder/ReviewPrescription.vue'), meta: { id: 'EL-PG-07', title: '確認藥單' } },
   { path: '/elder/add/confirm', component: () => import('@/views/elder/ConfirmPrescription.vue'), meta: { id: 'EL-PG-08', title: '確認藥單' } },
+  { path: '/elder/add/done/:id', component: () => import('@/views/elder/PrescriptionAdded.vue'), meta: { id: 'EL-PG-19', title: '加入完成' } },
   { path: '/elder/add/medicine/:index', component: () => import('@/views/elder/EditMedicine.vue'), meta: { id: 'EL-PG-13', title: '修改藥品' } },
   { path: '/elder/add/manual', component: () => import('@/views/elder/ManualAddMedicine.vue'), meta: { id: 'EL-PG-14', title: '手動新增' } },
   { path: '/elder/booking', component: () => import('@/views/elder/BookingStart.vue'), meta: { id: 'EL-PG-09', title: '回診預約' } },

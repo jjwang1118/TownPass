@@ -6,7 +6,7 @@
  * - 藥單還剩幾天：取藥單內最晚吃完的藥（全部吃完才算整張藥單吃完）
  */
 import type { Medicine } from '@/types'
-import { diffDays, parseDate } from './date'
+import { addDays, diffDays, parseDate } from './date'
 
 interface WithMedicines {
   visitDate: string
@@ -51,4 +51,19 @@ export function prescriptionSupplyDays(rx: Pick<WithMedicines, 'medicines'>): nu
 /** 整張藥單還剩幾天（最晚吃完的那個藥） */
 export function prescriptionDaysLeft(rx: WithMedicines, now: Date): number {
   return Math.max(0, ...rx.medicines.map((m) => medicineDaysLeft(m, rx.visitDate, now)))
+}
+
+/** 整張藥單吃完的日期 = 看診日 + 可以吃幾天 */
+export function prescriptionEndDate(rx: WithMedicines): Date {
+  return addDays(parseDate(rx.visitDate), prescriptionSupplyDays(rx))
+}
+
+/** 已吃完的藥單保留顯示幾個月；超過就不顯示在「我的藥單」 */
+export const FINISHED_KEEP_MONTHS = 3
+
+/** 吃完已超過 3 個月 */
+export function isLongExpired(rx: WithMedicines, now: Date): boolean {
+  const limit = prescriptionEndDate(rx)
+  limit.setMonth(limit.getMonth() + FINISHED_KEEP_MONTHS)
+  return limit < now
 }

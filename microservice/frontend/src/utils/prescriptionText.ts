@@ -128,9 +128,10 @@ function medicineLines(lines: string[]): MedicineLine[] {
     // 標上「每次／天／總量」交給下方既有的欄位規則讀取。
     const rest = row[3].trim()
     const days = rest.match(/^(\d{1,3})(?![\d.])/)?.[1]
-    const found = days ? rest.slice(days.length).match(/(?:^|[^\d.])(\d{1,4}\.\d)(?![\d.])/)?.[1] : undefined
-    // 簡碼與總量常黏在一起（OTOP3 + 21.0 → 321.0）：超過「每次用量 × 天數 × 一天 4 次」就不採用
-    const total = found && Number(found) <= Number(row[2]) * Number(days) * 4 ? found : undefined
+    // 天數欄常整欄漏讀（2.00 HS CTOP1 42.0），沒有天數時仍讀總量
+    const found = rest.slice(days?.length ?? 0).match(/(?:^|[^\d.])(\d{1,4}\.\d)(?![\d.])/)?.[1]
+    // 簡碼與總量常黏在一起（OTOP3 + 21.0 → 321.0）：有天數時，超過「每次用量 × 天數 × 一天 4 次」就不採用
+    const total = found && (!days || Number(found) <= Number(row[2]) * Number(days) * 4) ? found : undefined
     const labels = [`每次 ${row[2]}`, days && `${days}天`, total && `總量:${total}`].filter(Boolean).join(' ')
     return [{ name: row[1].trim(), dosing: `${labels} ${rest}`.trim() }]
   })

@@ -169,3 +169,15 @@
 [Modified Time]: 1108043438
 
 [Modified Position]: microservice/frontend/src/views/elder/ConfirmPrescription.vue:14-36、microservice/frontend/src/views/shared/PrescriptionReview.vue:18、microservice/frontend/src/views/shared/PrescriptionReview.vue:73、microservice/frontend/src/utils/prescriptionText.ts:127-139、microservice/frontend/src/utils/prescriptionText.ts:158-163、microservice/frontend/tests/prescriptionText.test.mjs:43-53
+
+[Modified Description]:
+- 新增 EL-PG-19 長者：藥單加入完成（Figma E07，node 10:2317）：大字母徽章＋「藥單 {字母} 加好了」、提醒在實體藥袋寫字母、四個時段各吃哪幾號（沒有藥顯示「—」）、「時間到會通知您和家屬」、「查看我的藥單」→ EL-PG-18；返回鍵回首頁；已吃完的藥單改顯示不會提醒的提示
+- EL-PG-08「確認無誤，加入藥單」成功後改導向 EL-PG-19（原本暫回首頁）；規格書新增 EL-PG-19.md，EL-PG-08 Next interface 改指向 EL-PG-19
+- 確認藥單（EL-PG-07／08）新增提醒：看診日＋可吃天數已過時，提示「這張藥單已經吃完了（日期 吃完）」，並說明加入後放在「已吃完」不會出現在首頁；超過 3 個月另說明不會出現在「我的藥單」
+- 我的藥單：吃完超過 3 個月的藥單不顯示（supply.ts 新增 prescriptionEndDate、isLongExpired、FINISHED_KEEP_MONTHS）
+- 編號表格藥袋：天數欄整欄漏讀時仍讀總量（有天數時才做黏字合理性檢查）；新增 1 個測試
+- 驗證：npm test 13 個、vue-tsc、npm run build 通過；本機 headless Edge 實測：2018 年舊藥袋顯示「已吃完且超過 3 個月」提醒並進入 E07；18 個藥的藥袋缺總顆數時顯示提示，編輯補填後加入成功並進入 E07，四個時段明細正確
+
+[Modified Time]: 1108050716
+
+[Modified Position]: microservice/frontend/src/views/elder/PrescriptionAdded.vue（新增）、microservice/frontend/src/router/index.ts:19、microservice/frontend/src/views/elder/ConfirmPrescription.vue:3、microservice/frontend/src/views/elder/ConfirmPrescription.vue:21-23、microservice/frontend/src/views/shared/PrescriptionReview.vue:13-14、microservice/frontend/src/views/shared/PrescriptionReview.vue:38-47、microservice/frontend/src/views/shared/PrescriptionReview.vue:67、microservice/frontend/src/views/elder/MyPrescriptions.vue:10、microservice/frontend/src/views/elder/MyPrescriptions.vue:18-19、microservice/frontend/src/utils/supply.ts:56-70、microservice/frontend/src/utils/prescriptionText.ts:131-134、microservice/frontend/tests/prescriptionText.test.mjs:49-58、microservice/docs/front_specific/interfaces/EL-PG-19.md（新增）、microservice/docs/front_specific/interfaces/EL-PG-08.md:15

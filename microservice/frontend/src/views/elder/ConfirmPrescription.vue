@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * EL-PG-08 長者：資料確認（已全部核對）
- * 「確認無誤，加入藥單」→ 送到後端（配字母、記錄核對者）。藥單加入完成頁（Figma E07）尚未建檔，暫回到首頁。
+ * 「確認無誤，加入藥單」→ 送到後端（配字母、記錄核對者）→ EL-PG-19 藥單加入完成（Figma E07）。
  */
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -18,8 +18,9 @@ async function submit() {
   submitting.value = true
   error.value = ''
   try {
-    await commitDraft()
-    router.replace('/elder')
+    const created = await commitDraft()
+    // EL-PG-19 藥單加入完成（Figma E07）
+    router.replace(created ? `/elder/add/done/${created.prescription.id}` : '/elder')
   } catch (e) {
     // 連不到伺服器由畫面上方的提示顯示；其他原因（例如後端驗證失敗）顯示在加入按鈕上方
     if (e instanceof ApiError && e.code === 'NETWORK') return

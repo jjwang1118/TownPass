@@ -10,7 +10,8 @@ import WarningNotice from '@/components/alerts/WarningNotice.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { state } from '@/store'
-import { prescriptionSupplyDays } from '@/utils/supply'
+import { isLongExpired, prescriptionDaysLeft, prescriptionEndDate, prescriptionSupplyDays } from '@/utils/supply'
+import { formatSlashDate, toISODate } from '@/utils/date'
 import { useTts } from '@/composables/useTts'
 import { medicineSpeech } from '@/utils/speech'
 
@@ -33,6 +34,16 @@ const notice = computed(() =>
       : '這是電腦整理的結果，可能會看錯。請藥師或家人對照藥袋，全部打勾才能加入。'
     : '這是修改後的藥單。請再看一次，全部正確就按下方「確認無誤，加入藥單」。',
 )
+/** 看診日＋可以吃的天數已經過了：先提醒加入後不會出現在首頁（看不出總顆數時不判斷） */
+const finishedNotice = computed(() => {
+  const d = draft.value
+  const now = new Date()
+  if (!d || prescriptionSupplyDays(d) <= 0 || prescriptionDaysLeft(d, now) > 0) return ''
+  const end = formatSlashDate(toISODate(prescriptionEndDate(d)))
+  return isLongExpired(d, now)
+    ? `這張藥單已經吃完了（${end} 吃完），而且超過 3 個月，加入後不會出現在首頁和「我的藥單」。`
+    : `這張藥單已經吃完了（${end} 吃完），加入後會放在「我的藥單」的「已吃完」，不會出現在首頁，也不會提醒吃藥。`
+})
 const buttonText = computed(() => (allChecked.value ? '確認無誤，加入藥單' : `還有 ${unchecked.value} 項沒核對`))
 
 onMounted(() => {
@@ -53,6 +64,7 @@ onMounted(() => {
         :days="prescriptionSupplyDays(draft)"
       />
       <WarningNotice>{{ notice }}</WarningNotice>
+      <WarningNotice v-if="finishedNotice">{{ finishedNotice }}</WarningNotice>
       <!-- 後端比對健保藥品資料：成分相同時只標示，不阻擋 -->
       <WarningNotice v-for="w in draft.warnings ?? []" :key="w" role="alert">{{ w }}</WarningNotice>
 

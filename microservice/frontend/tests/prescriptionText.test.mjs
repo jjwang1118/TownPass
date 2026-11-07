@@ -46,6 +46,17 @@ test('編號表格藥袋（PaddleOCR 實際輸出）：藥名與用量黏在一�
   assert.deepEqual(result.items.map((item) => item.quantity), [42, 2, null, 21, null])
 })
 
+test('編號表格藥袋：天數欄整欄漏讀時，仍讀得到每個藥的總量', () => {
+  const result = parse([
+    'TOPIRAMATE100MG全 2.00 HS CTOP1 42.0 睡前一次部位',
+    'CHLORPRONAZINE 10OMG2.00 HS ONOR 42.0 通前',
+    'ROSUVASTATIN SMG 1.00 ORSU5 21.0 前',
+    '10. SENNOSIDE 12MG 3.00 QH 63.0',
+  ].join('\n'))
+  assert.equal(result.days, null)
+  assert.deepEqual(result.items.map((item) => item.quantity), [42, 42, 21, 63])
+})
+
 test('編號表格藥袋：個別天數被 OCR 讀錯時，仍取多數藥品的天數', () => {
   const result = parse(['1. AAAAMINE 10MG 1.00 21 QD 21.0', '2. BBBBLOL 5MG 1.00 21 QD 21.0', '3. CCCCPAM 2MG 3.00 71 HS 63.0'].join('\n'))
   assert.equal(result.days, 21)
