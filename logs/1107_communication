@@ -80,3 +80,259 @@
 [Modified Time]: 1107163235
 
 [Modified Position]: CLAUDE.md:69-91
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 安裝並授權 Figma plugin，讀取 Figma 設計稿「藥報平安」（node 9:1499｜E02 長者：首頁）
+- 新增 front_specific/ 目錄，建立草稿筆記檔，記錄 E02 首頁的畫面結構、使用的 icon 清單、潛在共用元件
+- 確認共用規則：狀態列（device system_status bar）不列入規格
+
+[Modified Time]: 1107173949
+
+[Modified Position]: microservice/docs/front_specific/_draft_notes.md:1-54
+
+[Modified Description]:
+- 依使用者新增的 frontend.md 編號規則與規格表範本，重寫 EL-PG-01（長者：首頁）介面規格與其 7 個元件規格
+- 元件改依類型分資料夾存放：front_specific/interfaces/、front_specific/components/{NAV,CRD,BTN,SEG,SYS,TAG,CHK,ALT,TXT}/
+
+[Modified Time]: 1107175224
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-01.md、microservice/docs/front_specific/components/{NAV,CRD,BTN,SEG}/*.md
+
+[Modified Description]:
+- 補充 EL-SEG-01（語言切換）與 EL-BTN-01（朗讀按鈕）的連動關係：選中的語言會決定朗讀按鈕發音的語言
+
+[Modified Time]: 1107175619
+
+[Modified Position]: microservice/docs/front_specific/components/SEG/EL-SEG-01.md、microservice/docs/front_specific/components/BTN/EL-BTN-01.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 9:1724｜E02b 長者：還沒有藥單），新增 EL-PG-02（長者：首頁（無藥））介面規格
+- 新增元件 EL-CRD-05（空白狀態卡）、EL-BTN-02（主要按鈕）
+- 更新 EL-CRD-04（功能入口列）使用於欄位，補上 EL-PG-02 用到的 3 筆子集
+- 更新 EL-PG-01 規則欄位，連結到已建檔的 EL-PG-02
+
+[Modified Time]: 1107180002
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-02.md、microservice/docs/front_specific/components/CRD/EL-CRD-05.md、microservice/docs/front_specific/components/BTN/EL-BTN-02.md、microservice/docs/front_specific/components/CRD/EL-CRD-04.md、microservice/docs/front_specific/interfaces/EL-PG-01.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 9:1848｜E03 長者：時段用藥詳情），新增 EL-PG-03 介面規格，Pre-interface 確認為 EL-PG-01 的「藥品卡」與「時段格」兩個入口
+- 新增元件 EL-NAV-02（導覽列含返回鍵）、EL-ALT-01（提示框）
+- 更新 EL-CRD-01（藥品卡）、EL-BTN-01（朗讀按鈕）、EL-SEG-01（語言切換）使用於欄位，補上 EL-PG-03；並補充 EL-CRD-01 在不同頁面科別顯示規則的差異
+- 回填 EL-PG-01 的 Next interface，把原本「ID 待定」改為確定的 EL-PG-03
+
+[Modified Time]: 1107180739
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-03.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/components/ALT/EL-ALT-01.md、microservice/docs/front_specific/components/CRD/EL-CRD-01.md、microservice/docs/front_specific/components/BTN/EL-BTN-01.md、microservice/docs/front_specific/components/SEG/EL-SEG-01.md、microservice/docs/front_specific/interfaces/EL-PG-01.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 9:1928｜E09 長者：用藥提醒通知示意），此 frame 為手機鎖定畫面推播情境展示（非 App 畫面），僅建立推播卡片元件 EL-ALT-02（用藥提醒推播卡），不建立 Interface
+
+[Modified Time]: 1107190031
+
+[Modified Position]: microservice/docs/front_specific/components/ALT/EL-ALT-02.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 9:1959｜E04 長者：新增藥單），新增 EL-PG-04 介面規格，Pre-interface 確認為 EL-PG-01「新增藥單」入口與 EL-PG-02「新增藥單」主要按鈕
+- 重用 EL-CRD-04（功能入口列）承接本頁 2 筆選項（拍藥袋照片、掃描藥袋 QR Code），更新使用於與固定內容表
+- 更新 EL-NAV-02 使用於欄位；回填 EL-PG-01、EL-PG-02 的 Next interface 為確定的 EL-PG-04
+
+[Modified Time]: 1107190359
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-04.md、microservice/docs/front_specific/components/CRD/EL-CRD-04.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/interfaces/EL-PG-01.md、microservice/docs/front_specific/interfaces/EL-PG-02.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 9:2025｜E05 長者：拍照／掃描），確認目前畫面僅為「拍照模式」，新增 EL-PG-05 介面規格，Pre-interface 為 EL-PG-04「拍藥袋照片」選項
+- 新增元件 EL-CRD-06（相機拍照區）、EL-BTN-03（次要按鈕外框）
+- 更新 EL-NAV-02 使用於欄位；回填 EL-PG-04 與 EL-CRD-04 固定內容表的 Next interface 為確定的 EL-PG-05
+
+[Modified Time]: 1107191020
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-05.md、microservice/docs/front_specific/components/CRD/EL-CRD-06.md、microservice/docs/front_specific/components/BTN/EL-BTN-03.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/interfaces/EL-PG-04.md、microservice/docs/front_specific/components/CRD/EL-CRD-04.md
+
+[Modified Description]:
+- 自行設計 EL-PG-06（長者：掃描藥袋 QR Code），因 Figma 原稿無此畫面，參考 EL-PG-05（拍藥袋）版面調整，已在規格中註明非 Figma 原稿、待設計師確認
+- 新增元件 EL-CRD-07（相機掃描區，自行設計）
+- 更新 EL-NAV-02、EL-BTN-03 使用於欄位；回填 EL-PG-04 與 EL-CRD-04 固定內容表的 Next interface 為確定的 EL-PG-06
+
+[Modified Time]: 1107191611
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-06.md、microservice/docs/front_specific/components/CRD/EL-CRD-07.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/components/BTN/EL-BTN-03.md、microservice/docs/front_specific/interfaces/EL-PG-04.md、microservice/docs/front_specific/components/CRD/EL-CRD-04.md
+
+[Modified Description]:
+- 讀取回診預約（E10/E10b/E10c/E11/E12/E16）、修改藥品流程（E06b/E06m）、緊急醫療卡（E13/E14）、邀請家屬（E15）共 12 個 Figma 畫面
+- frontend.md 新增 3 個元件類型：SEL（下拉選單）、INP（文字輸入框）、STP（數量選擇器）
+- 新增介面：EL-PG-09（回診預約）、EL-SH-01（選擇清單底部抽屜）、EL-PG-10（回診預約已填好）、EL-PG-11（確認預約）、EL-PG-12（預約成功）、EL-PG-13（修改藥品）、EL-PG-14（手動新增藥品）、EL-PG-15（緊急醫療卡）、EL-PG-16（編輯緊急醫療卡）、EL-PG-17（邀請家屬）
+- 新增元件：EL-SEL-01、EL-CRD-10、EL-INP-01、EL-INP-02、EL-STP-01、EL-SEG-02、EL-ALT-04、EL-CRD-11、EL-CRD-12、EL-CRD-13
+- 擴充既有元件：EL-ALT-02（推播卡，擴充支援回診提醒，時機依討論調整為「回診前 1 小時」，非 Figma 原稿「前一天」）、EL-ALT-01／EL-NAV-02／EL-BTN-01／EL-BTN-03／EL-CHK-01（補充使用於與變體）
+- 回填 EL-PG-01、EL-PG-02、EL-PG-05、EL-CRD-04 的 Next interface／固定內容表，將原本「ID 待定」改為確定 ID
+
+[Modified Time]: 1107213627
+
+[Modified Position]: microservice/docs/front_specific/interfaces/*.md（EL-PG-09～EL-PG-17、EL-SH-01）、microservice/docs/front_specific/components/**/*.md（新增與更新共 16 個檔案）、microservice/docs/frontend.md:29-31
+
+[Modified Description]:
+- EL-PG-17 朗讀邀請碼確認固定使用中文（國語）
+- 自行設計 EL-MD-01（長者：取消綁定確認彈窗），非 Figma 原稿；EL-CRD-13、EL-PG-17 接上此彈窗流程
+
+[Modified Time]: 1107214006
+
+[Modified Position]: microservice/docs/front_specific/components/BTN/EL-BTN-01.md、microservice/docs/front_specific/interfaces/EL-MD-01.md、microservice/docs/front_specific/components/CRD/EL-CRD-13.md、microservice/docs/front_specific/interfaces/EL-PG-17.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 10:2396｜E08 長者：我的藥單），新增 EL-PG-18 介面規格與 EL-CRD-14（藥單列）元件
+- 回填 EL-PG-01、EL-CRD-04 的「我的藥單」Next interface 為確定的 EL-PG-18
+- 整併 EL-BTN-02（主要按鈕）、EL-NAV-02（導覽列）使用於欄位，統一列出目前所有已建檔頁面
+
+[Modified Time]: 1107214128
+
+[Modified Position]: microservice/docs/front_specific/interfaces/EL-PG-18.md、microservice/docs/front_specific/components/CRD/EL-CRD-14.md、microservice/docs/front_specific/interfaces/EL-PG-01.md、microservice/docs/front_specific/components/CRD/EL-CRD-04.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/components/BTN/EL-BTN-02.md
+
+[Modified Description]:
+- 讀取 Figma 設計稿（node 10:1856｜E06 確認藥單核對中、node 10:2048｜E06a 資料確認），依討論結果調整設計：移除「辨識信心／核對狀態」欄位，藥品卡統一樣式，原紅框變體與「改成...」建議按鈕改為卡片內「編輯」按鈕；服用時機固定為早上／中午／晚上／睡前四選一
+- 新增元件 EL-CRD-08（藥單標頭）、EL-ALT-03（提醒框-警示）、EL-CRD-09（藥品核對卡）、EL-CHK-01（核對勾選列）
+- 更新 EL-BTN-02 補上啟用／停用狀態規格
+- 新增介面 EL-PG-07（確認藥單核對中）、EL-PG-08（資料確認已全部核對）
+- 更新 EL-NAV-02 使用於欄位；回填 EL-PG-05、EL-PG-06 的 Next interface 為確定的 EL-PG-07
+
+[Modified Time]: 1107202803
+
+[Modified Position]: microservice/docs/front_specific/components/CRD/EL-CRD-08.md、microservice/docs/front_specific/components/ALT/EL-ALT-03.md、microservice/docs/front_specific/components/CRD/EL-CRD-09.md、microservice/docs/front_specific/components/CHK/EL-CHK-01.md、microservice/docs/front_specific/components/BTN/EL-BTN-02.md、microservice/docs/front_specific/interfaces/EL-PG-07.md、microservice/docs/front_specific/interfaces/EL-PG-08.md、microservice/docs/front_specific/components/NAV/EL-NAV-02.md、microservice/docs/front_specific/interfaces/EL-PG-05.md、microservice/docs/front_specific/interfaces/EL-PG-06.md
+
+[Modified Description]:
+- 讀取家屬視角 F01-F08、救護人員視角 R01/R01b/R02/R02b/R03/R04，共 14 個 Figma 畫面
+- frontend.md 使用者前綴新增 `RE`（救護人員）
+- 將確認跨身分共用的元件從 `EL-` 整併改名為 `CM-` 前綴（檔名＋全部交叉引用同步更新）：CM-NAV-01/02、CM-CRD-01~06、CM-BTN-01~03、CM-SEG-01、CM-ALT-01~03、CM-INP-01、CM-SEL-01、CM-SH-01；並補上每個 CM 元件的「可見身分／切換」欄位
+- CM-INP-01 新增「錯誤」狀態變體（紅框＋紅字錯誤訊息），對應邀請碼／身分證字號輸入錯誤情境
+- 新增家屬介面 FM-PG-01~06（登入、輸入邀請碼、首頁、長輩用藥詳情、長輩的緊急醫療卡、救護人員查看通知）
+- 新增救護人員介面 RE-PG-01~04（登入、查詢長者、緊急醫療卡、頁面已自動關閉）
+- 新增元件 FM-ALT-01（提醒框-嚴重警示）、RE-BTN-01（緊急撥號按鈕）
+- 至此長者／家屬／救護人員三種身分的所有 Figma 畫面皆已建檔完成
+
+[Modified Time]: 1107215908
+
+[Modified Position]: microservice/docs/frontend.md:18、microservice/docs/front_specific/**（全目錄，共 30 個介面檔、28 個元件檔）
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依 microservice/docs/front_specific 規格，以 Vue 3 + TypeScript + Vite + vue-router 建立前端專案（設計 token 以 CSS variables 定義）
+- 實作長者 EL-PG-01～18、EL-MD-01、CM-SH-01；家屬 FM-PG-01～06；救護人員 RE-PG-01～04
+- 元件與頁面檔名改為可辨識的英文名稱（例：PrimaryButton.vue、MedicineCard.vue），規格 ID 寫在各檔案開頭註解
+- 透過 window.flutterObject 串接 App 內建 qr_code_scan、phone_call、notify、userinfo；瀏覽器端改用模擬資料、tel: 連結、Web Speech API
+- 後端尚未建立，資料使用 src/data/mock.ts 模擬並存於 localStorage
+- 「ID 待定」的頁面（回診詳情、藥單詳情、切換長輩、藥單加入完成）不實作，對應點擊暫不設行為；EL-PG-08 加入藥單後先回首頁
+- 不含比賽展示用元素（切換身分、模擬提醒等按鈕）
+
+[Modified Time]: 1107222542
+
+[Modified Position]: microservice/frontend/（package.json、vite.config.ts、tsconfig.json、index.html、src/**）
+
+[Modified Description]:
+- 開發用：elderlyCare（呷藥囉）服務的 destinationUrl 改為 http://10.0.2.2:5173/，讓 Android 模擬器載入本機 Vite 開發伺服器（正式部署後需改回正式網址）
+- 開發用：debug manifest 加上 usesCleartextTraffic，允許 debug build 的 WebView 載入 http 開發伺服器
+
+[Modified Time]: 1107224100
+
+[Modified Position]: lib/page/city_service/model/my_service_model.dart:192、android/app/src/debug/AndroidManifest.xml:7-8
+
+[Modified Description]:
+- 依使用者需求調整 EL-PG-14 手動新增藥品流程：按「加入這個藥」→ 顯示「已輸入」彈窗（藥名、顆數、時段、飯前飯後）→ 按「確認」→ 進入 EL-PG-07 確認藥單（原規格為回到 EL-PG-05）
+- 新增 MedicineAddedDialog 彈窗元件（自行設計，風格比照 EL-MD-01）
+- 手動建立的藥單標頭顯示「手動新增」，提醒框改為「這是手動輸入的藥…」
+- 修正藥名搜尋點選結果後清單未收合的問題
+
+[Modified Time]: 1107225000
+
+[Modified Position]: microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/inputs/DrugSearch.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/components/cards/PrescriptionHeader.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/views/shared/SlotDetail.vue、microservice/frontend/src/types.ts
+
+[Modified Description]:
+- 手動新增藥品改為可連續新增多個：「已輸入」彈窗新增「再加一個藥」按鈕（清空表單繼續輸入），彈窗列出目前已輸入的所有藥品
+- 手動新增頁顯示「已輸入 N 個藥，請繼續輸入下一個」
+- 確認藥單頁（手動藥單）新增「再新增一個藥」按鈕，新增的藥接在原本的手動藥單後面
+
+[Modified Time]: 1107225600
+
+[Modified Position]: microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，「我的藥單」每張藥單列改為可點擊，進入新增的「藥單詳情」頁（規格中 ID 待定，依「顯示此藥單所有藥品清單」自行設計）
+- 藥單詳情：藥單標頭、還剩天數／已吃完、唸給我聽＋語言切換、藥品卡列表（含服用時段）
+- 藥品卡新增 showSlots 選項以顯示服用時段
+
+[Modified Time]: 1107225800
+
+[Modified Position]: microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/MyPrescriptions.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/router/index.ts
+
+[Modified Description]:
+- 依使用者需求，「還剩幾天」改為以藥量計算：還剩幾天 = 剩下顆數 ÷ 每天吃幾顆（每天吃幾顆 = 一次幾顆 × 時段數；剩下顆數 = 總顆數 − 每天吃幾顆 × 看診後天數，假設按時服藥）；整張藥單取最晚吃完的藥
+- 藥品資料新增「總顆數 quantity」，移除藥單的固定「給藥天數 days」，藥單標頭天數改為由總顆數推算
+- 手動新增／修改藥品新增必填欄位「總共幾顆（藥袋上的數量）」，並即時提示每天吃幾顆、大約可吃幾天
+- 藥單詳情每個藥顯示「剩 X 顆，約 N 天」；QR Code 支援 quantity 欄位；舊版存檔自動換算總顆數
+
+[Modified Time]: 1107230500
+
+[Modified Position]: microservice/frontend/src/utils/supply.ts、microservice/frontend/src/types.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/shared/MedicineForm.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue
+
+[Modified Description]:
+- 依使用者需求，刪除所有藥單測試資料：預設藥單改為空陣列（首頁顯示「還沒有任何藥單」EL-PG-02）
+- 新增存檔資料版本 dataVersion（目前 4），舊存檔載入時清空已存的藥單、新增草稿與暫存手動藥品；回診預約、醫療卡、家屬等其他資料保留
+
+[Modified Time]: 1107231000
+
+[Modified Position]: microservice/frontend/src/data/mock.ts:24-25、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，首頁時間改為即時時間：useNow 預設每秒更新（問候區時間、下一次吃藥、時段狀態跟著現在時間變）
+- 回診預約：日期、時段不再需要先選完前面欄位，一開始就列出全部（日期為今天起 28 天、時段全部列出）；今天已過的時段、額滿、醫師當天沒看診以灰階顯示不可選；院區 → 科別 → 醫師仍依序相依；選了日期後醫師清單會標示當天沒看診的醫師（與原規格「五欄依序鎖定」不同）
+- 回診預約可多筆：appointment 改為 appointments 列表，首頁（含無藥首頁）、家屬首頁列出所有未到的回診（第一筆「下次回診」、其後「之後的回診」），每筆各自於回診前 1 小時提醒；預約成功頁顯示剛完成的那一筆；舊存檔自動轉換
+- 預約與用藥互相獨立：無藥首頁（EL-PG-02）有預約時也顯示回診卡（與原規格「不顯示下次回診卡」不同）
+
+[Modified Time]: 1107232000
+
+[Modified Position]: microservice/frontend/src/composables/useNow.ts、microservice/frontend/src/utils/booking.ts、microservice/frontend/src/views/shared/BookingForm.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/composables/useReminders.ts、microservice/frontend/src/components/cards/NextVisitCard.vue、microservice/frontend/src/views/elder/HomeWithMedicine.vue、microservice/frontend/src/views/elder/HomeEmpty.vue、microservice/frontend/src/views/family/FamilyHome.vue、microservice/frontend/src/views/elder/BookingSuccess.vue
+
+[Modified Description]:
+- 依使用者需求，清除藥單與回診測試資料：預設回診改為空列表（移除 11/14 仁愛院區心臟科林醫師範例）
+- 存檔資料版本升為 5，舊存檔載入時清空藥單、新增草稿、暫存手動藥品、回診預約、填到一半的預約與已發送提醒；醫療卡、家屬等資料保留
+- 另：模擬器時區原為 GMT 導致時間慢 8 小時，已用 adb 改為 Asia/Taipei（僅模擬器設定，非程式修改）
+
+[Modified Time]: 1107232200
+
+[Modified Position]: microservice/frontend/src/data/mock.ts:27-28、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，清除其餘測試資料：緊急醫療卡改為空白、查看紀錄與已綁定家屬清空、移除救護人員查看通知範例、邀請碼改為隨機產生
+- 緊急醫療卡第一次為空：完全沒填時顯示「還沒有填寫緊急醫療卡」（長者按鈕文字為「填寫醫療卡」，家屬顯示「長輩還沒有填寫」）
+- 緊急醫療卡只顯示有填寫的欄位（長者／家屬／救護人員三種畫面），目前用藥有藥時才顯示；救護人員版沒有電話的聯絡人不顯示撥號按鈕
+- 存檔資料版本升為 6，舊存檔載入時一併清空上述資料
+
+[Modified Time]: 1107233600
+
+[Modified Position]: microservice/frontend/src/utils/card.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/cards/EmergencyCardBody.vue、microservice/frontend/src/views/shared/EmergencyCardView.vue、microservice/frontend/src/views/elder/MyEmergencyCard.vue、microservice/frontend/src/views/rescue/RescueEmergencyCard.vue、microservice/frontend/src/views/family/RescueViewNotice.vue
+
+[Modified Description]:
+- 依使用者需求，讓拍藥袋／掃 QR Code 兩個相機頁一進入就能開啟相機鏡頭
+- 原因：網頁以 http://10.0.2.2 載入不是安全來源，瀏覽器不提供 getUserMedia；城市通 WebView 也未處理網頁的相機權限請求，App 未向使用者請求相機權限
+- TPWebView 新增 onPermissionRequest：Android 先以 permission_handler 請求系統相機／麥克風權限，同意後授權給網頁；iOS 交由 WKWebView 自行詢問；並開啟 allowsInlineMediaPlayback、關閉 mediaPlaybackRequiresUserGesture
+- pubspec 新增 permission_handler（MIT）
+- 開發用：elderlyCare destinationUrl 改為 http://localhost:5173/，搭配 adb reverse tcp:5173 tcp:5173（localhost 為安全來源，未 commit）
+
+[Modified Time]: 1107235000
+
+[Modified Position]: lib/util/tp_web_view.dart、pubspec.yaml、pubspec.lock、lib/page/city_service/model/my_service_model.dart:192
+
+[Modified Description]:
+- 建立 frontend 分支（由 main 開出），將前端實作與 App 相機權限修改合併為單一 commit 推上 GitHub
+- 一併納入規格文件 microservice/docs/front_specific/ 與 frontend.md，並合併規格撰寫期間的 logs 紀錄
+- 開發用設定（呷藥囉網址改 localhost、debug 允許 http）未納入
+
+[Modified Time]: 1107235800
+
+[Modified Position]: microservice/docs/front_specific/**、microservice/docs/frontend.md、logs/1107_communication
