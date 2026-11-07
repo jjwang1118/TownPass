@@ -34,11 +34,12 @@
 | 欄位 | 用途 |
 |---|---|
 | `items` | 大字顯示「1 號 → 2 顆」（`number`、`qty`） |
-| `speech_text` | 自動朗讀：「陳阿嬤，吃藥時間到囉～飯後吃：1 號 2 顆、3 號 1 顆」；不含英文字母，所以不唸藥名 |
+| `speech_text` | 自動朗讀：「陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 1 顆」；藥名規則見 [speech](../speech/README.md) |
+| `speech_text_en` | 英文朗讀稿（給外籍看護）：「Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; …」 |
 | `elder_title` | 救命卡上的稱呼；還沒建立救命卡時用台北通姓名 |
 | `status` | `pending` 等待回應、`acked` 已回應、`no_response` 已通知家人 |
 
-全螢幕、聲音、震動、閃光由 App 處理；國語朗讀用手機 TTS，台語由前端用預錄句子拼接。
+全螢幕、聲音、震動、閃光由 App 處理；國語朗讀用手機 TTS。英文、台語朗讀稿之後由 speech 模組加上。
 
 ## 推播
 

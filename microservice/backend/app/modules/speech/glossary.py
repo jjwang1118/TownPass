@@ -1,0 +1,131 @@
+"""英文朗讀稿用的中英對照表。
+
+執行時不呼叫翻譯 AI（比賽規定推論要在裝置端），所以用固定的對照表；查不到的詞就不念。
+要補詞彙直接加在這裡。
+"""
+
+# 科別（含聯醫門診資料 seed/data/tpech_clinics.json 出現的科別）
+DEPARTMENTS: dict[str, str] = {
+    "家醫科": "Family Medicine",
+    "家庭醫學科": "Family Medicine",
+    "內科": "Internal Medicine",
+    "一般內科": "Internal Medicine",
+    "外科": "General Surgery",
+    "一般外科": "General Surgery",
+    "心臟內科": "Cardiology",
+    "心臟科": "Cardiology",
+    "心臟血管內科": "Cardiology",
+    "新陳代謝科": "Endocrinology and Metabolism",
+    "內分泌科": "Endocrinology",
+    "神經內科": "Neurology",
+    "神經科": "Neurology",
+    "腸胃科": "Gastroenterology",
+    "胃腸科": "Gastroenterology",
+    "胃腸肝膽科": "Gastroenterology",
+    "肝膽腸胃科": "Gastroenterology",
+    "胸腔內科": "Pulmonology",
+    "腎臟科": "Nephrology",
+    "腎臟內科": "Nephrology",
+    "風濕免疫科": "Rheumatology",
+    "感染科": "Infectious Diseases",
+    "血液腫瘤科": "Hematology and Oncology",
+    "老年醫學科": "Geriatrics",
+    "骨科": "Orthopedics",
+    "復健科": "Rehabilitation",
+    "眼科": "Ophthalmology",
+    "耳鼻喉科": "Ear, Nose and Throat",
+    "皮膚科": "Dermatology",
+    "泌尿科": "Urology",
+    "婦產科": "Obstetrics and Gynecology",
+    "小兒科": "Pediatrics",
+    "兒科": "Pediatrics",
+    "精神科": "Psychiatry",
+    "身心科": "Psychiatry",
+    "牙科": "Dentistry",
+    "中醫科": "Traditional Chinese Medicine",
+    "急診": "Emergency",
+}
+
+# 用途：英文句子會念成「for ...」
+PURPOSES: dict[str, str] = {
+    "降血壓": "blood pressure",
+    "高血壓": "blood pressure",
+    "血壓": "blood pressure",
+    "降血糖": "blood sugar",
+    "糖尿病": "diabetes",
+    "血糖": "blood sugar",
+    "降血脂": "cholesterol",
+    "降膽固醇": "cholesterol",
+    "膽固醇": "cholesterol",
+    "止痛": "pain relief",
+    "退燒": "fever",
+    "消炎": "inflammation",
+    "消炎止痛": "pain and inflammation",
+    "胃藥": "the stomach",
+    "保護胃": "the stomach",
+    "胃": "the stomach",
+    "過敏": "allergies",
+    "抗過敏": "allergies",
+    "安眠": "sleep",
+    "助眠": "sleep",
+    "失眠": "sleep",
+    "利尿": "fluid retention",
+    "抗凝血": "blood thinning",
+    "心臟": "the heart",
+    "止咳": "cough",
+    "化痰": "phlegm",
+    "便秘": "constipation",
+    "軟便": "constipation",
+    "止瀉": "diarrhea",
+    "維生素": "vitamins",
+    "骨質疏鬆": "bone health",
+    "痛風": "gout",
+    "暈眩": "dizziness",
+    "頭暈": "dizziness",
+    "攝護腺": "the prostate",
+}
+
+# 稱呼：長的放前面，避免「外婆」被當成「婆」
+KINSHIP: list[tuple[str, str]] = [
+    ("阿嬤", "Grandma"),
+    ("阿媽", "Grandma"),
+    ("奶奶", "Grandma"),
+    ("外婆", "Grandma"),
+    ("阿婆", "Grandma"),
+    ("阿公", "Grandpa"),
+    ("爺爺", "Grandpa"),
+    ("外公", "Grandpa"),
+    ("阿伯", "Uncle"),
+    ("伯伯", "Uncle"),
+    ("伯父", "Uncle"),
+    ("叔叔", "Uncle"),
+    ("伯母", "Auntie"),
+    ("阿姨", "Auntie"),
+    ("媽媽", "Mom"),
+    ("爸爸", "Dad"),
+    ("先生", "Mr."),
+    ("太太", "Mrs."),
+    ("女士", "Ms."),
+    ("小姐", "Ms."),
+]
+
+# 常見姓氏的英文拼法（台灣護照常用拼法）；查不到就只念稱呼
+SURNAMES: dict[str, str] = {
+    "陳": "Chen", "林": "Lin", "黃": "Huang", "張": "Chang", "李": "Lee",
+    "王": "Wang", "吳": "Wu", "劉": "Liu", "蔡": "Tsai", "楊": "Yang",
+    "許": "Hsu", "鄭": "Cheng", "謝": "Hsieh", "郭": "Kuo", "洪": "Hung",
+    "曾": "Tseng", "邱": "Chiu", "廖": "Liao", "賴": "Lai", "周": "Chou",
+    "徐": "Hsu", "蘇": "Su", "葉": "Yeh", "莊": "Chuang", "呂": "Lu",
+    "江": "Chiang", "何": "Ho", "蕭": "Hsiao", "羅": "Lo", "高": "Kao",
+    "潘": "Pan", "簡": "Chien", "朱": "Chu", "鍾": "Chung", "彭": "Peng",
+    "游": "Yu", "詹": "Chan", "胡": "Hu", "施": "Shih", "沈": "Shen",
+    "余": "Yu", "趙": "Chao", "盧": "Lu", "梁": "Liang", "顏": "Yen",
+    "柯": "Ko", "孫": "Sun", "魏": "Wei", "翁": "Weng", "戴": "Tai",
+}
+
+# 飯前、飯後、睡前
+MEAL: dict[str, str] = {
+    "飯前": "before meals",
+    "飯後": "after meals",
+    "睡前": "at bedtime",
+}

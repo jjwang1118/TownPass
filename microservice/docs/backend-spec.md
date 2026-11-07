@@ -37,7 +37,7 @@
 
 ### 1.3 比賽規則對後端的限制
 
-- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料與國語朗讀稿文字（不含英文字母，交付規格「語音不唸英文字母」）。
+- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料與國語朗讀稿文字（由 `speech` 模組用模板產生；藥名有中文就只念中文，只有英文就照原文念，科別、用途、稱呼不唸英文字母）。
 - **開源免費**：所有套件需為 MIT、BSD、Apache-2.0 等可納入 AGPL 的授權，見 [§9](#9-技術選型)。
 - **可移轉、可維運**：附 Dockerfile，依 README 即可建置。
 
@@ -508,7 +508,7 @@ microservice/backend/
 
 | type | 對象 | 文字範例 |
 |---|---|---|
-| `medication_reminder` | 長輩 | 阿嬤，吃藥時間到囉～飯後吃：1 號 2 顆、3 號 1 顆 |
+| `medication_reminder` | 長輩 | 阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 1 顆 |
 | `medication_acked` | 家人（`notify_on_ack`） | 媽媽已回應 18:00 的吃藥提醒（按「好，我知道了」不代表已經吃藥，所以不寫「已經吃藥了」） |
 | `medication_no_response` | 家人 | 媽媽 18:00 的吃藥提醒沒有回應，要不要打給她？ |
 | `medication_nudge` | 長輩 | 陳小美提醒你吃藥喔（家人的台北通姓名） |
@@ -570,7 +570,7 @@ microservice/backend/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/elders/{elder_id}/medications?include_stopped=` | 藥品清單，依編號排序：大編號、藥名、一次幾顆、時段與時間、還剩幾天、「念給我聽」朗讀稿 `speech_text` |
+| GET | `/elders/{elder_id}/medications?include_stopped=` | 藥品清單，依編號排序：大編號、藥名、一次幾顆、時段與時間、還剩幾天、「念給我聽」朗讀稿 `speech_text`（國語）與 `speech_text_en`（英文，給外籍看護） |
 | POST | `/elders/{elder_id}/medications/qr-preview` | body 為 App 的 `qr_code_scan` 回覆；回確認畫面內容 `draft`、會提醒的時段、同成分警示（不寫入） |
 | POST | `/elders/{elder_id}/medications` | body 為長輩核對後的 `draft`；回編號、同成分警示與「請在藥袋上寫上大大的 N」 |
 | GET | `/elders/{elder_id}/medications/{id}` | 詳細頁 |
@@ -584,7 +584,7 @@ microservice/backend/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/reminders/{event_id}` | 提醒畫面資料：稱呼、時段、`items`、朗讀稿 `speech_text`、狀態 |
+| GET | `/reminders/{event_id}` | 提醒畫面資料：稱呼、時段、`items`、朗讀稿 `speech_text`（國語）與 `speech_text_en`（英文）、狀態 |
 | POST | `/reminders/{event_id}/ack` | 長輩按「好，我知道了」（只有長輩本人，家人不能代按） |
 | GET | `/elders/{elder_id}/reminders?date=` | 某天的提醒與回應狀態 |
 | POST | `/elders/{elder_id}/nudge` | 綁定的家人提醒長輩吃藥 |
@@ -752,7 +752,7 @@ Python 3.12。
 |---|---|---|
 | FCM 推播 | App | 加入 `firebase_messaging`；新增 Handler 回傳 FCM token；處理通知點擊的 deeplink |
 | 全螢幕提醒 | App | 聲音、震動、閃光、全螢幕顯示 |
-| 國台語朗讀 | 前端 | 國語用手機內建 TTS，台語用預錄句子拼接 |
+| 國台語朗讀 | 前端、App | 國語用 `microservice/frontend/tts/`（`speak(speech_text)`：App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App 已加 `tts_speak`、`tts_stop` handler（`lib/util/web_message_handler/tts_message_handler.dart`，`flutter_tts`，只用離線語音）；Android WebView 不支援 speechSynthesis，只能靠 App handler；英文稿 `speech_text_en` 要用 `speak(text, { lang: 'en-US' })` 朗讀，**前端模組與 App handler 目前只挑中文語音，需要補上英文（en-US）離線語音的選擇**；台語之後再定 |
 | 卡號 QR 與桌布 | 前端 | 依卡號產生 QR、敬老卡貼紙、手機桌布 |
 | 救護人員定位 | 前端 | 查詢前呼叫台北通 `location` 取得座標 |
 | 一鍵撥號 | 前端 | 呼叫台北通 `phone_call` |

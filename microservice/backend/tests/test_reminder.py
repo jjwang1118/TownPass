@@ -15,6 +15,7 @@ from app.core import clock
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.main import create_app
+from seed.load import load_licenses, sample_drug_codes
 from tests.conftest import FakePusher, LoginFn
 
 API = "/api/v1"
@@ -31,7 +32,12 @@ def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:
 
 
 @pytest.fixture
-async def ctx(api: httpx.AsyncClient, login: LoginFn, pushes: FakePusher) -> dict:
+async def ctx(
+    api: httpx.AsyncClient, login: LoginFn, pushes: FakePusher, sessionmaker: async_sessionmaker[AsyncSession]
+) -> dict:
+    async with sessionmaker() as session:
+        await load_licenses(session, only=sample_drug_codes())
+        await session.commit()
     elder_h, elder_id = await login("elder-1", "陳阿嬤", "elder")
     family_h, _ = await login("family-1", "陳小美", "family")
     stranger_h, _ = await login("family-2", "路人", "family")
@@ -77,7 +83,7 @@ async def test_remind_at_slot_time(
     freeze(monkeypatch, "2026-11-05 08:00")
     assert (await tick(api))["created"] == 1
     [message] = sent_to(pushes, "elder-phone")
-    assert message.body == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 1 顆、2 號 1 顆"
+    assert message.body == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠５毫克 1 顆、2 號 顧糖維膜衣錠 500 毫克 1 顆"
     assert message.data["type"] == "medication_reminder"
     assert message.data["deeplink"].endswith(f"/reminder/{message.data['event_id']}")
     assert sent_to(pushes, "daughter-phone") == []  # 家人不會每個時段都收到
@@ -90,10 +96,14 @@ async def test_remind_at_slot_time(
     assert [(i["number"], i["qty"]) for i in screen["items"]] == [(1, 1), (2, 1)]
     assert screen["label"] == "早餐飯後"
     assert screen["speech_text"] == message.body
+    assert screen["speech_text_en"] == (
+        "Grandma Chen, it's time for your medicine. "
+        "After meals: number 1, NORVASC TABLETS 5MG, 1 tablet; number 2, Glucophage Film-coated tablets 500mg, 1 tablet."
+    )
     assert screen["status"] == "pending"
 
 
-async def test_speech_uses_card_title_and_skips_latin(
+async def test_speech_uses_card_title_and_drug_name(
     api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await add(api, ctx, AMLODIPINE_10)  # 半顆
@@ -102,7 +112,8 @@ async def test_speech_uses_card_title_and_skips_latin(
 
     freeze(monkeypatch, "2026-11-05 08:00")
     await tick(api)
-    assert sent_to(pushes, "elder-phone")[0].body == "阿嬤，吃藥時間到囉～飯後吃：1 號 半顆"
+    # 這裡沒有匯入食藥署資料，查不到中文品名，所以照藥袋上的英文念
+    assert sent_to(pushes, "elder-phone")[0].body == '阿嬤，吃藥時間到囉～飯後吃：1 號 "華興"壓可平錠10毫克 (安脈狄平) 半顆'
 
 
 async def test_no_late_reminder_after_30_minutes(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:

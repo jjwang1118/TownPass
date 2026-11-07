@@ -24,7 +24,8 @@ class ReminderOut(BaseModel):
     label: str  # 例如「晚餐飯後」
     scheduled_at: dt.datetime
     items: list[DoseItem]
-    speech_text: str  # 國語朗讀稿，不含英文字母；台語由前端用預錄句子拼接
+    speech_text: str  # 國語朗讀稿；藥名有中文就念中文，只有英文就念原文
+    speech_text_en: str  # 英文朗讀稿（給外籍看護）；稱呼依對照表翻成英文，查不到就不念
     status: ReminderStatus
     attempts: int
     acked_at: dt.datetime | None

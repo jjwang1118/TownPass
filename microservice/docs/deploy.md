@@ -27,7 +27,7 @@
 |---|---|
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | 跑資料庫與後端 |
 | [uv](https://docs.astral.sh/uv/) | 執行設定指令、開發時跑後端 |
-| Android Studio | 模擬器、建置 App。系統映像檔選有 **Google Play** 的版本，推播才收得到 |
+| Android Studio | 模擬器、建置 App。系統映像檔選有 **Google Play** 的版本，推播才收得到，也才有朗讀用的 Google 語音引擎 |
 
 Android SDK 第一次建置可能出現「License for package NDK … not accepted」，到 Android Studio → **SDK Manager** 同意授權，或執行 `sdkmanager --licenses`。
 
@@ -66,7 +66,7 @@ docker compose --profile app up -d --build
 | 給誰用 | 網址 |
 |---|---|
 | 模擬器裡的 App、前端呼叫後端 | `http://10.0.2.2:8000/api/v1` |
-| 模擬器裡的服務網址（`my_service_model.dart` 的 `destinationUrl`） | `http://10.0.2.2:5173/` |
+| 模擬器裡的服務網址（`my_service_model.dart` 的 `destinationUrl`） | `http://10.0.2.2:5173/`（電腦上要有網頁伺服器開在 port 5173，目前用法見 §6「測試朗讀」） |
 | 電腦瀏覽器開前端 | `http://localhost:5173`（已在 `EXTRA_CORS_ORIGINS` 允許） |
 
 **App 已經設定好允許 http**：Android 9 以上預設只允許 https，所以在 `android/app/src/debug/` 加了 `network_security_config.xml`，**只在 debug 版**允許連 `10.0.2.2`、`localhost`。用 Android Studio 或 `fvm flutter run` 跑的就是 debug 版；release 版不受影響。
@@ -91,6 +91,57 @@ Android Studio 的 **Device Manager** 可以建立兩台模擬器同時開啟，
 4. App 端：在 Firebase 加入 Android App，取得 `google-services.json`，加上 `firebase_messaging` 與 `push_token` Handler（規格書 §2.1、§2.3）。
 
 > 服務帳戶金鑰等同密碼，不要 commit、不要傳到群組。
+
+## 6. 朗讀（念給我聽、吃藥提醒）
+
+朗讀用**手機內建的離線語音**：網頁呼叫 App 的 `tts_speak`，App 用 `flutter_tts` 念出來（Android WebView 不支援網頁朗讀，一定要經過 App）。說明見 `microservice/frontend/tts/README.md`。
+
+### 每台模擬器（或手機）都要做一次
+
+1. 模擬器的系統映像檔選有 **Google Play** 的版本（才有 Google 語音引擎）。
+2. 模擬器裡到 **設定 → 系統 → 語言 → 文字轉語音輸出**：
+   - 偏好的引擎選 **Google 語音服務**
+   - 按引擎旁的 ⚙ → **安裝語音資料** → 下載 **中文（台灣）**
+   - 回上一頁按「播放」，聽得到中文才算完成
+3. 實體 Android 手機一樣；Samsung 等手機預設是廠商自己的引擎，App 會在有 Google 語音引擎時優先使用。iOS 不用設定（需要 Mac 建置）。
+
+> App **只使用離線語音**（比賽規定推論要在裝置端），沒下載中文語音資料時會顯示「找不到離線的中文語音」，不會改用網路。
+
+### 拉下新程式後，App 一定要「完整重新安裝」
+
+只要 `pubspec.yaml`、`AndroidManifest.xml` 或 `lib/util/web_message_handler/` 有改動，**hot reload／hot restart 都不會生效**，要重新建置並安裝。以下指令在**專案根目錄**（`TownPass/`）執行：
+
+```bash
+git branch --show-current          # 確認是有朗讀功能的分支（pubspec.yaml 裡有 flutter_tts）
+fvm flutter pub get
+fvm flutter run -d emulator-5554   # 或 Android Studio 先按 ■ 停止，再按 ▶ 執行
+```
+
+或先建置再手動安裝（不需要 Android Studio）：
+
+```bash
+fvm flutter build apk --debug
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+安裝後**直接點模擬器主畫面的 Town Pass 圖示**開啟。確認裝的是新版：
+
+```bash
+adb shell dumpsys package com.example.townpass | findstr lastUpdateTime   # Mac 用 grep
+```
+
+> ⚠️ 模擬器顯示的是 **UTC 時間**，台灣時間要加 8 小時。時間沒更新代表沒裝到新版：常見原因是用了 hot reload、建置失敗但模擬器還留著舊版，或 Android Studio 開的是別的資料夾或分支。
+
+### 測試朗讀
+
+前端還沒接上時，可以用朗讀測試頁：
+
+1. **另外開一個終端機**，在 `microservice/frontend` 執行 `python -m http.server 5173`，**測試期間不要關**。電腦瀏覽器打開 <http://localhost:5173/tts/> 看得到測試頁才算成功。
+2. **暫時**把 `lib/page/city_service/model/my_service_model.dart` 中「呷藥囉」的 `destinationUrl` 改成 `http://10.0.2.2:5173/tts/`，重新安裝 App（**這個改動不要 commit**）。
+3. 開「服務 → 呷藥囉」，按「念給我聽」，應顯示「完成（使用：App 內建 TTS）」。第一次按可能要等 1–2 秒（引擎初始化）。
+4. 開**飛航模式**再按一次，確認離線也能念。
+
+看 App 端每一步的紀錄：Android Studio 的 Logcat 搜尋 `[tts]`，或執行 `adb logcat | findstr "[tts]"`（Mac 用 `grep`）。
 
 ---
 
@@ -126,13 +177,22 @@ uv run uvicorn app.main:app --reload       # 啟動後端（內建排程也會�
 | port 5432 或 8000 被佔用 | 是否同時開了 uv 跑的後端、或電腦上另外裝了 PostgreSQL |
 | 沒有收到提醒 | log 是否有 `[排程] 已啟動`；時段時間到了沒（或用 Demo 觸發）；推播內容是否出現在 log |
 | 建置 App 出現 NDK 授權錯誤 | Android Studio → SDK Manager 同意授權 |
+| App 裡打開「呷藥囉」是空白或顯示無法連線 | port 5173 的網頁伺服器有沒有開；電腦瀏覽器開 <http://localhost:5173/tts/> 是否正常；網址要用 `10.0.2.2` |
+| 啟動網頁伺服器時顯示 port 5173 已被使用 | 是否已經開了另一個伺服器（例如前端的開發伺服器），同一時間只能開一個 |
+| 朗讀顯示「App 沒有回應」 | App 是舊版：完整重新安裝並確認 `lastUpdateTime` 有更新（見 §6）；Logcat 按下時沒有 `[tts]` 紀錄也是同一個原因 |
+| 朗讀顯示「找不到離線的中文語音」 | 模擬器沒下載中文（台灣）語音資料（見 §6） |
+| 環境檢查顯示「speechSynthesis 不支援」「語音數量 0」 | Android WebView 本來就不支援，正常；朗讀靠 App |
+| 朗讀顯示「語音引擎初始化逾時」 | 模擬器的語音引擎異常：到系統設定試聽一次，或重新開機模擬器；把 Logcat 的 `[tts]` 紀錄給負責的人看 |
 
 ## Demo 前檢查清單
 
 - [ ] `docker compose --profile app up -d --build`，log 有 `[排程] 已啟動`
 - [ ] <http://localhost:8000/health> 正常
+- [ ] 前端網頁已開在 port 5173，電腦瀏覽器開得到（前端完成前用 §6 的 `python -m http.server 5173`）
 - [ ] `DEMO_MODE=true`
 - [ ] 兩台模擬器都裝好 debug 版 App、登入不同帳號
+- [ ] 拉下最新程式後 App 有**完整重新安裝**（`lastUpdateTime` 已更新）
+- [ ] 模擬器已下載**中文（台灣）語音資料**，開飛航模式按「念給我聽」聽得到
 - [ ] （有設定 Firebase 時）兩台模擬器都登記了推播
 - [ ] 救護人員帳號 EMT-001（可登入）、EMT-003（無權限）
 - [ ] 範例藥袋 QR（`seed/qr/`）放進模擬器的虛擬相機：模擬器 **Extended controls（⋯）→ Camera → Virtual scene**，把圖片設為牆面或桌面圖片，App 掃描時移動到圖片前即可

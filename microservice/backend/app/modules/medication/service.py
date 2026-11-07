@@ -27,6 +27,7 @@ from app.modules.medication.schemas import (
     TimeSlotsUpdate,
     WarningType,
 )
+from app.modules.speech import rules as speech
 
 # 往後找「下一次吃藥」最多找幾天
 _NEXT_DOSE_LOOKAHEAD_DAYS = 7
@@ -46,8 +47,9 @@ class MedicationService:
         await self.family.ensure_access(user_id, elder_id, Access.READ)
         slot_times = await self.slot_times(elder_id)
         medications = await self.repo.list_by_elder(elder_id, include_stopped=include_stopped)
+        names = await self._license_names(medications)
         await self.session.commit()
-        return [self._to_out(m, slot_times) for m in medications]
+        return [self._to_out(m, slot_times, names) for m in medications]
 
     async def preview_qr(self, user_id: UUID, elder_id: UUID, raw: str | None) -> QrPreviewOut:
         """解析藥袋 QR 給確認畫面，不寫入藥品。"""
@@ -84,9 +86,10 @@ class MedicationService:
                 created_by=user_id,
             )
         )
+        names = await self._license_names([medication])
         await self.session.commit()
         return MedicationCreated(
-            medication=self._to_out(medication, slot_times),
+            medication=self._to_out(medication, slot_times, names),
             warnings=warnings,
             message=f"請在藥袋上寫上大大的 {number}",
         )
@@ -95,8 +98,9 @@ class MedicationService:
         await self.family.ensure_access(user_id, elder_id, Access.READ)
         medication = await self._get(elder_id, medication_id)
         slot_times = await self.slot_times(elder_id)
+        names = await self._license_names([medication])
         await self.session.commit()
-        return self._to_out(medication, slot_times)
+        return self._to_out(medication, slot_times, names)
 
     async def update(
         self, user_id: UUID, elder_id: UUID, medication_id: UUID, body: MedicationUpdate
@@ -108,8 +112,9 @@ class MedicationService:
         for field, value in body.model_dump(exclude_none=True).items():
             setattr(medication, field, value)
         slot_times = await self.slot_times(elder_id)
+        names = await self._license_names([medication])
         await self.session.commit()
-        return self._to_out(medication, slot_times)
+        return self._to_out(medication, slot_times, names)
 
     async def stop(self, user_id: UUID, elder_id: UUID, medication_id: UUID, reason: StopReason) -> MedicationOut:
         """停用後不再提醒，編號釋放。重複停用不會出錯。"""
@@ -120,8 +125,9 @@ class MedicationService:
             medication.stopped_at = clock.now()
             medication.stop_reason = reason
         slot_times = await self.slot_times(elder_id)
+        names = await self._license_names([medication])
         await self.session.commit()
-        return self._to_out(medication, slot_times)
+        return self._to_out(medication, slot_times, names)
 
     # ---------- 時段 ----------
 
@@ -185,6 +191,12 @@ class MedicationService:
             for m in await self.repo.list_by_elder(elder_id)
             if rules.is_scheduled_on(m.start_date, m.days, day)
         ]
+
+    async def speech_names(self, elder_id: UUID) -> dict[int, tuple[str, str]]:
+        """進行中藥品的編號 →（中文稿要念的藥名, 英文稿要念的藥名），提醒朗讀用。"""
+        active = await self.repo.list_by_elder(elder_id)
+        names = await self._license_names(active)
+        return {m.number: self._drug_names(m, names) for m in active}
 
     async def doses_for_slot(self, elder_id: UUID, slot_key: SlotKey, day: dt.date) -> list[DoseItem]:
         """某天某時段要吃的藥（提醒用）。"""
@@ -286,9 +298,31 @@ class MedicationService:
     def _slot_items(keys: list[SlotKey], slot_times: dict[SlotKey, dt.time]) -> list[TimeSlotItem]:
         return [TimeSlotItem(slot_key=k, label=rules.SLOT_LABELS[k], time=slot_times[k]) for k in keys]
 
-    def _to_out(self, m: Medication, slot_times: dict[SlotKey, dt.time]) -> MedicationOut:
+    async def _license_names(self, medications: list[Medication]) -> dict[str, tuple[str, str | None]]:
+        """許可證字號 →（食藥署中文品名, 英文品名），朗讀藥名用。"""
+        return await self.repo.names_by_license(sorted({m.license_no for m in medications if m.license_no}))
+
+    @staticmethod
+    def _drug_names(m: Medication, names: dict[str, tuple[str, str | None]]) -> tuple[str, str]:
+        """（中文稿要念的藥名, 英文稿要念的藥名）。"""
+        name_zh, name_en = names.get(m.license_no or "", (None, None))
+        return speech.drug_name(m.name, name_zh), speech.drug_name_en(m.name, name_en)
+
+    def _to_out(
+        self, m: Medication, slot_times: dict[SlotKey, dt.time], names: dict[str, tuple[str, str | None]]
+    ) -> MedicationOut:
         slots = self._slot_items(rules.allocate_slots(m.frequency, m.meal_timing), slot_times)
         days_left = rules.days_left(m.start_date, m.days, clock.today_taipei())
+        drug_zh, drug_en = self._drug_names(m, names)
+        card = dict(
+            number=m.number,
+            department=m.department,
+            purpose=m.purpose,
+            dose_qty=m.dose_qty,
+            meal_label=rules.MEAL_TIMING_LABELS[m.meal_timing],
+            times=[s.time for s in slots],
+            days_left=days_left,
+        )
         return MedicationOut(
             **{field: getattr(m, field) for field in MedicationDraft.model_fields},
             id=m.id,
@@ -300,13 +334,6 @@ class MedicationService:
             days_left=days_left,
             status=m.status,
             stop_reason=m.stop_reason,
-            speech_text=rules.speech_text(
-                number=m.number,
-                department=m.department,
-                purpose=m.purpose,
-                dose_qty=m.dose_qty,
-                meal_timing=m.meal_timing,
-                times=[s.time for s in slots],
-                days_left=days_left,
-            ),
+            speech_text=speech.medication_card(drug=drug_zh, **card),
+            speech_text_en=speech.medication_card(drug=drug_en, lang=speech.Lang.EN, **card),
         )

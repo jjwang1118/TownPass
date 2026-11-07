@@ -243,3 +243,82 @@
 [Modified Time]: 1107225754
 
 [Modified Position]: microservice/backend/app/integrations/fda/importer.py:25, microservice/backend/seed/make_nhi_drugs.py, microservice/backend/seed/load.py:42, microservice/backend/seed/data/nhi_drugs.json.gz, microservice/backend/seed/data/rx_samples.json, microservice/backend/seed/qr/, microservice/backend/tests/test_rules.py:91, microservice/backend/tests/test_medication.py:40, microservice/backend/tests/test_emergency_card.py:40, microservice/docs/backend-spec.md:309, microservice/backend/app/integrations/fda/README.md, microservice/backend/seed/README.md
+
+[Modified Description]:
+- 合併遠端分支 origin/feature/backend-tts（朗讀稿、英文朗讀稿、App TTS handler、前端 tts 模組）
+- 解決衝突：tests/test_rules.py 兩邊測試都保留；logs/1107_communication 兩邊紀錄都保留
+- 合併後範例藥名已改為真實健保藥品，更新朗讀稿測試的預期值；test_reminder 改為匯入範例 3 筆藥品資料（英文稿需要健保英文品名）
+- 朗讀稿目前念健保中文品名，會念出藥廠與成分（例如「"華興"壓可平錠10毫克 (安脈狄平)」），待使用者決定是否整理
+- 共 118 個測試通過
+
+[Modified Time]: 1107233301
+
+[Modified Position]: microservice/backend/tests/test_rules.py:122, microservice/backend/tests/test_reminder.py:34, microservice/backend/tests/test_medication.py:147, logs/1107_communication
+
+---
+
+[Agent name]: 後端工程師
+
+[Modified Description]:
+- 新增 speech 模組（app/modules/speech/rules.py）：朗讀稿改用模板產生，預留 Lang（目前只有 zh），之後加英文、台語只要補模板
+- 藥名朗讀規則：有中文名就只念中文（先查食藥署許可證 drug_licenses.name_zh，再看藥袋藥名），只有英文就照原文念；科別、用途、稱呼仍不唸英文字母
+- 藥卡「念給我聽」與吃藥提醒都加上藥名；提醒建立時把要念的藥名存入 items[].speech_name（避免停用後編號重用念錯藥名）
+- 從 medication/rules.py、reminder/rules.py 移除舊朗讀函式；MedicationRepository 新增 zh_names_by_license、MedicationService 新增 speech_names
+- 更新測試（test_rules、test_medication、test_reminder），更新 speech／medication／reminder／modules README 與規格書 §1.3、推播範例
+- 純函式測試 38 個通過；本機 Docker 未啟動，72 個需資料庫的測試被略過、尚未實際跑過
+
+[Modified Time]: 1107203225
+
+[Modified Position]: microservice/backend/app/modules/speech/, microservice/backend/app/modules/medication/rules.py, microservice/backend/app/modules/medication/repository.py:83, microservice/backend/app/modules/medication/service.py, microservice/backend/app/modules/medication/schemas.py:109, microservice/backend/app/modules/reminder/rules.py, microservice/backend/app/modules/reminder/service.py, microservice/backend/app/modules/reminder/schemas.py:27, microservice/backend/tests/, microservice/docs/backend-spec.md:40
+
+[Modified Description]:
+- 新增前端朗讀模組 microservice/frontend/tts/（獨立模組，不依賴框架，不改 App）：speak(text) 依序嘗試 App 的 tts_speak handler → 網頁 speechSynthesis，都不行回傳 ok:false；台灣中文與離線語音優先、找不到中文不硬念、長句分段、語速 0.85、頁面隱藏時自動停止
+- 新增 tts.d.ts 型別宣告（前端為 Vue 3 + TypeScript）、測試頁 index.html（朗讀、停止、環境檢查）、README（使用方式、App handler 約定 tts_speak／tts_stop、模擬器測試步驟）
+- 規格書 §12 更新「國台語朗讀」列
+- 驗證：Node 模擬瀏覽器測試通過（分段、挑語音、無中文語音、WebView 靜默失敗、App 有／無 handler）；桌面 Chrome 開測試頁正常並選到 zh-TW 語音；尚未在 Android 模擬器的城市通 WebView 實測
+
+[Modified Time]: 1107212551
+
+[Modified Position]: microservice/frontend/tts/tts.js, microservice/frontend/tts/tts.d.ts, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md, microservice/docs/backend-spec.md:754
+
+[Modified Description]:
+- 實測 Android WebView 不支援 speechSynthesis，依比賽規則改用 App handler：新增 TtsSpeakMessageHandler（tts_speak）、TtsStopMessageHandler（tts_stop），以 flutter_tts（MIT）呼叫手機內建 TTS
+- 只用離線語音（略過 network_required 的語音，找不到回覆 no_offline_voice），Android 優先 Google 語音引擎，iOS 設定靜音模式可播放；WebView 建立時先初始化引擎；語速依 flutter_tts 換算（0.5 為正常）
+- 註冊兩個 handler；AndroidManifest 加 TTS_SERVICE queries；pubspec 加 flutter_tts ^4.2.5
+- 前端模組：等待 App 回覆改為 5 秒、逾時送 tts_stop；不使用粵語（zh-HK、yue）語音；更新 README 與規格書 §12
+- 驗證：flutter analyze 無問題；Node 模擬測試通過；尚未在模擬器建置與實測
+
+[Modified Time]: 1107220726
+
+[Modified Position]: lib/util/web_message_handler/tts_message_handler.dart, lib/util/web_message_handler/tp_web_message_listener.dart:4, lib/util/web_message_handler/tp_web_message_listener.dart:19, android/app/src/main/AndroidManifest.xml:72, pubspec.yaml:59, pubspec.lock, microservice/frontend/tts/tts.js, microservice/frontend/tts/README.md, microservice/docs/backend-spec.md:754
+
+[Modified Description]:
+- 修正「第二次按就失敗」：前端第一次沒收到 App 回覆後會記住並跳過 App；改為每次都重試 App，失敗原因改為 app_no_reply（與不在 App 內 not_in_app 分開），等待時間改為 12 秒
+- App handler 每一步加時間限制（初始化 3 秒、其他 1.5 秒），保證一定回覆；新增 engine_init_timeout、voice_list_timeout、speak_timeout；選好的語音快取起來；每一步以 [tts] 印在 logcat 方便除錯
+- 測試頁補上各失敗原因的中文說明；更新 README
+- 驗證：flutter analyze 無問題；Node 模擬測試通過；模擬器實測待使用者重新建置
+
+[Modified Time]: 1107224349
+
+[Modified Position]: lib/util/web_message_handler/tts_message_handler.dart, microservice/frontend/tts/tts.js, microservice/frontend/tts/index.html, microservice/frontend/tts/README.md
+
+[Modified Description]:
+- 操作手冊（deploy.md）新增 §6 朗讀：每台模擬器要選 Google Play 映像並下載中文（台灣）離線語音資料；拉下新程式後 App 必須完整重新安裝（hot reload 無效）與兩種安裝方式；以 lastUpdateTime 確認新版（注意模擬器為 UTC）；測試頁步驟、飛航模式測試、Logcat 查 [tts]
+- 疑難排解新增朗讀相關 4 項；Demo 前檢查清單新增重新安裝、語音資料兩項；需要安裝表註明 Google Play 映像也提供語音引擎
+- 原因：模擬器上的 App 一直是舊版（21:45 安裝），已由 Claude 建置新版 debug APK 並以 adb install -r 安裝到 emulator-5554
+
+[Modified Time]: 1107230539
+
+[Modified Position]: microservice/docs/deploy.md:30, microservice/docs/deploy.md:95, microservice/docs/deploy.md:疑難排解, microservice/docs/deploy.md:Demo 前檢查清單
+
+[Modified Description]:
+- 操作手冊（deploy.md）補 port 5173：§6 第 1 步註明另開終端機、測試期間不要關、用電腦瀏覽器確認；§3 網址表註明 5173 要有網頁伺服器；疑難排解新增「呷藥囉空白／無法連線」「5173 已被使用」；Demo 檢查清單新增前端伺服器一項
+- 英文朗讀稿（只改後端）：speech 模組新增 Lang.EN 與英文模板（藥卡、提醒、時間、顆數），新增 glossary.py 中英對照表（科別、用途、稱呼、姓氏、飯前飯後），查不到就不念；英文藥名用藥袋英文名或許可證英文品名，只有中文就不念
+- API：MedicationOut、ReminderOut 新增 speech_text_en；提醒快照新增 speech_name_en；MedicationRepository.zh_names_by_license 改為 names_by_license（中英文品名）
+- 修正 test_townpass_messages：自訂 handler 可放在同目錄其他檔案（前一個 commit 加 TTS handler 後此測試失敗）
+- 新增英文稿單元測試與整合測試預期；43 個測試通過；Docker 未啟動，72 個需資料庫的測試仍未實跑
+- 尚待前端與 App：speak(text, { lang: 'en-US' }) 目前只挑中文語音，需補英文離線語音選擇
+
+[Modified Time]: 1107232324
+
+[Modified Position]: microservice/docs/deploy.md, microservice/backend/app/modules/speech/rules.py, microservice/backend/app/modules/speech/glossary.py, microservice/backend/app/modules/speech/README.md, microservice/backend/app/modules/medication/repository.py:83, microservice/backend/app/modules/medication/service.py, microservice/backend/app/modules/medication/schemas.py:110, microservice/backend/app/modules/medication/README.md, microservice/backend/app/modules/reminder/service.py, microservice/backend/app/modules/reminder/schemas.py:28, microservice/backend/app/modules/reminder/README.md, microservice/backend/tests/, microservice/docs/backend-spec.md
