@@ -104,8 +104,9 @@ async def test_qr_preview_shows_confirm_screen(api: httpx.AsyncClient, ctx: dict
         28,
     )
     first = draft["items"][0]
+    # 有健保代號時藥名改用健保資料的名稱（和藥名搜尋相同）：QR 寫學名 Amlodipine，代號是脈優錠（Norvasc）
     assert (first["name"], first["license_no"], first["purpose"], first["quantity"]) == (
-        "Amlodipine 5 毫克",
+        "Norvasc 5 毫克",
         "B021571100",
         "降血壓",
         28,
@@ -360,6 +361,19 @@ async def test_ocr_preview_generic_name(api: httpx.AsyncClient, ctx: dict) -> No
     assert body["draft"]["items"][0]["license_no"] == "A047632100"
     assert body["draft"]["items"][0]["strength"] == "10 毫克"
     assert not {"items.0.name", "items.0.strength"} & {u["field"] for u in body["uncertain"]}
+    # 比對成功後藥名改用健保資料的名稱，格式和藥名搜尋相同
+    assert body["draft"]["items"][0]["name"] == "Amcopine 10 毫克"
+
+
+async def test_ocr_preview_official_name(api: httpx.AsyncClient, ctx: dict) -> None:
+    """拍藥袋、掃 QR、手動搜尋選到同一個藥，藥名都一樣；比對不到的藥保留藥袋上的原文。"""
+    body = (await preview_ocr(api, ctx, ["脈優錠 5 毫克", "每次1顆 早上 飯後", "神秘藥水 10 毫克", "每次1顆 晚上 飯後"])).json()
+    names = [i["name"] for i in body["draft"]["items"]]
+    assert names[0] == "Norvasc 5 毫克"
+    searched = (await api.get(f"{API}/drugs/search", params={"q": "Norvasc"}, headers=ctx["elder"])).json()
+    assert names[0] == f"{searched[0]['name']} {searched[0]['strengths'][0]['label']}"
+    assert names[1].startswith("神秘藥水")
+    assert body["draft"]["items"][1]["license_no"] is None
 
 
 async def test_ocr_preview_flags_guesses(api: httpx.AsyncClient, ctx: dict) -> None:
@@ -416,7 +430,7 @@ async def test_prescription_cards_and_today(api: httpx.AsyncClient, ctx: dict, m
     assert (a1["quantity"], a1["days_left"], a1["run_out_date"]) == (28, 23, "2026-12-02")
     # 念給我聽：藥名念健保中文品名
     assert a1["speech_text"] == "1 號藥，脈優錠５毫克，心臟內科開的，降血壓。一次 1 顆，飯後吃，早上 9 點。還剩 23 天。"
-    assert a1["speech_text_en"].startswith("Medicine number 1, Amlodipine 5 mg, from Cardiology, for blood pressure.")
+    assert a1["speech_text_en"].startswith("Medicine number 1, Norvasc 5 mg, from Cardiology, for blood pressure.")
 
     today = (await api.get(f"{ctx['base']}/today", headers=ctx["elder"])).json()
     assert today["date"] == "2026-11-10"
@@ -510,7 +524,7 @@ async def test_service_for_other_modules(
     async with sessionmaker() as session:
         service = MedicationService(session)
         doses = await service.list_active_doses(elder_id, dt.date(2026, 11, 7))
-        assert [(d.code, d.name) for d in doses][:2] == [("A1", "Amlodipine 5 毫克"), ("A2", "Aspirin 100 毫克")]
+        assert [(d.code, d.name) for d in doses][:2] == [("A1", "Norvasc 5 毫克"), ("A2", "Bokey 100 毫克")]
         assert await service.list_active_doses(elder_id, dt.date(2026, 12, 31)) == []
 
         noon = await service.slot_view(elder_id, SlotKey.NOON, dt.date(2026, 11, 7))

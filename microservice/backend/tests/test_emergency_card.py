@@ -107,7 +107,7 @@ async def test_my_card(api: httpx.AsyncClient, ctx: dict) -> None:
     assert (card["special"], card["language"]) == (["裝心律調節器"], "台語")
     # 目前用藥來自藥單（A1 等編號）
     first = card["current_medications"][0]
-    assert (first["code"], first["name"], first["purpose"]) == ("A1", "Amlodipine 5 毫克", "降血壓")
+    assert (first["code"], first["name"], first["purpose"]) == ("A1", "Norvasc 5 毫克", "降血壓")
     # 緊急聯絡人（一位）：一鍵撥號訊息照 App 的 phone_call 格式
     assert (card["contact"]["name"], card["contact"]["relation"]) == ("陳小華", "女兒")
     assert card["contact"]["call"] == {"name": "phone_call", "data": "0912345678"}

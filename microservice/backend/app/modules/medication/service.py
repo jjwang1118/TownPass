@@ -81,7 +81,9 @@ class MedicationService:
     async def preview_qr(self, user_id: UUID, elder_id: UUID, raw: str | None) -> PreviewOut:
         """掃藥袋 QR Code。"""
         await self.family.ensure_access(user_id, elder_id, Access.WRITE)
-        return await self._preview(elder_id, self._parse_qr(raw), [])
+        draft = self._parse_qr(raw)
+        draft = draft.model_copy(update={"items": await self._official_names(draft.items)})
+        return await self._preview(elder_id, draft, [])
 
     async def preview_photo(self, user_id: UUID, elder_id: UUID, body: PhotoIn) -> PreviewOut:
         """拍藥袋照片：手機辨識出欄位後送來，後端比對健保藥品資料、算出每個欄位的信心分數。"""
@@ -526,9 +528,27 @@ class MedicationService:
             doctor=body.doctor,
             visit_date=body.visit_date or clock.today_taipei(),
             days=body.days,
-            items=items,
+            items=await self._official_names(items),
         )
         return draft, uncertain
+
+    async def _official_names(self, items: list[DraftItem]) -> list[DraftItem]:
+        """有健保藥品代號（藥袋 QR 帶的、或辨識的藥名比對成功）時，藥名改用健保資料的名稱，
+        格式和手動「藥名搜尋」選到的相同：英文名稱＋劑量（例如 NORVASC TABLETS 5 毫克 → Norvasc 5 毫克），
+        三條新增路徑的藥名才會一致。劑量：藥袋上有寫就保留（辨識時和健保不同會標紅框），沒寫時用健保資料的劑量。"""
+        found = await self.repo.get_licenses(sorted({i.license_no for i in items if i.license_no}))
+        aligned = []
+        for item in items:
+            drug = found.get(item.license_no or "")
+            if drug is None:
+                aligned.append(item)
+                continue
+            strength = item.strength or drug.strength
+            name = rules.display_name(drug.product_en, drug.product_zh or drug.name_zh)
+            if strength:
+                name = f"{name} {strength}"
+            aligned.append(item.model_copy(update={"name": name, "strength": strength}))
+        return aligned
 
     async def _match_drug(self, name: str | None, license_no: str | None, strength: str | None) -> _Match:
         """辨識出的藥名（或藥袋上的健保碼）對到健保藥品資料；score 為相似度。"""
