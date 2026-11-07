@@ -1,11 +1,11 @@
 <script setup lang="ts">
-/** CM-SEG-01 語言切換（國語／台語）；切換不會立即朗讀 */
+/** CM-SEG-01 語言切換（國語／英文）；切換不會立即朗讀 */
 import type { Lang } from '@/types'
 
 const model = defineModel<Lang>({ required: true })
-const options: { value: Lang; label: string }[] = [
-  { value: 'zh', label: '國語' },
-  { value: 'nan', label: '台語' },
+const options: { value: Lang; label: string; lang: string }[] = [
+  { value: 'zh', label: '國語', lang: 'zh-TW' },
+  { value: 'en', label: 'English', lang: 'en' },
 ]
 </script>
 
@@ -17,6 +17,7 @@ const options: { value: Lang; label: string }[] = [
       type="button"
       role="radio"
       :aria-checked="model === opt.value"
+      :lang="opt.lang"
       class="option"
       :class="model === opt.value ? 'selected font-h3-semibold' : 'font-h3-regular'"
       @click="model = opt.value"

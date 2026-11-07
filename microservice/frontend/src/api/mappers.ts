@@ -57,6 +57,7 @@ export function toPrescription(p: PrescriptionOut): Prescription {
           meal: toMeal(m.meal_timing),
           quantity: m.quantity ?? (p.days ?? DEFAULT_DAYS) * dailyAmount({ amount: m.dose_qty, slots }),
           licenseNo: m.license_no ?? undefined,
+          speechEn: m.speech_text_en || undefined,
         }
       }),
   }

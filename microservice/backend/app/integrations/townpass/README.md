@@ -19,6 +19,7 @@
 | `LocationReply` | `location` | App → 後端 | geolocator `Position.toJson()`；失敗時 `data` 為 `[]`，轉成 `None` |
 | `QRCodeScanReply` | `qr_code_scan` | App → 後端 | 掃到的字串；取消時為 `null` |
 | `PushTokenReply` | `push_token` | App → 後端 | 自訂 Handler（App 端尚未實作） |
+| `OcrScanReply` | `ocr_scan` | 前端 → 後端 | 拍藥袋：前端在手機上用 tesseract.js 辨識出的文字 `{ lines: [...] }`（App 不需 handler；之後改由 App 原生 OCR 時沿用同一格式） |
 | `PhoneCallMessage` | `phone_call` | 後端 → App | App 組成 `tel://{data}`，所以只保留數字與 `+` |
 | `LaunchMapMessage` | `launch_map` | 後端 → App | `data` 為地圖網址 |
 | `NotifyMessage` | `notify` | 前端 → App | 內容不可包含「已訂閱」「已取消訂閱」，否則 App 會改動訂閱清單 |

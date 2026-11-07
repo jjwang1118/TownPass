@@ -73,7 +73,7 @@ onMounted(() => {
           :id="`med-${m.code}`"
           :medicine="m"
           @edit="router.push(`/elder/add/medicine/${i}`)"
-          @speak="speak(medicineSpeech(m, true), state.lang)"
+          @speak="speak(medicineSpeech(m, true, state.lang), state.lang)"
         />
         <CheckRow v-model="m.checked" :described-by="`med-${m.code}`">核對無誤</CheckRow>
       </div>

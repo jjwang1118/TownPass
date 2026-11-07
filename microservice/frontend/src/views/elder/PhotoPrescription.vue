@@ -1,176 +1,178 @@
 <script setup lang="ts">
 /**
- * EL-PG-05：拍照或相簿選圖 → 確認照片 → 裝置端 OCR → 後端預覽 → 藥單核對。
+ * EL-PG-05 長者：拍藥袋
+ * 拍照（或從相簿選照片）→ 手機上用 Tesseract 辨識藥袋上的字（services/bagOcr.ts，裝置端推論）
+ * → 後端 ocr-preview 整理成藥單、比對健保藥品資料，並併入 EL-PG-14 手動新增的藥品 → EL-PG-07 確認藥單
+ *
+ * 和 QR 頁一樣用 <input type="file"> 取得照片（不在網頁裡開相機預覽）：
+ * 在城市通 App 裡會開系統相機或相簿，一般瀏覽器可選電腦裡的照片測試。
  */
-import { onBeforeUnmount, ref, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
-import PhotoCamera from '@/components/cards/PhotoCamera.vue'
-import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
-import { createPrescriptionRecognizer, type OcrProgress } from '@/services/localPrescriptionOcr'
-import type { PhotoRecognitionIn } from '@/api/types'
-import { startDraftFromRecognition } from '@/store'
+import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
+import { ApiError } from '@/api/client'
+import { recognizeBagLines, releaseBagOcr, warmUpBagOcr } from '@/services/bagOcr'
+import { startDraftFromOcr } from '@/store'
 
 const router = useRouter()
-const selectedPhoto = shallowRef<File | null>(null)
-const recognized = shallowRef<PhotoRecognitionIn | null>(null)
-const busy = ref(false)
-const error = ref('')
-const comparing = ref(false)
-const progress = ref<OcrProgress>({ percent: 0, message: '' })
-let active = true
-const request = new AbortController()
 
-// 開發用：不啟動後端也能檢查裝置端 OCR 的原始文字與整理出的欄位（正式建置不顯示）。
-const isDev = import.meta.env.DEV
-const ocrText = ref('')
-const HEADER_FIELDS = [
-  ['hospital', '醫院'], ['department', '科別'], ['doctor', '醫師'], ['visit_date', '看診日'], ['days', '天數'],
-] as const
-const ITEM_FIELDS = [
-  ['name', '藥名'], ['strength', '劑量'], ['purpose', '適應症'], ['dose_qty', '每次幾顆'],
-  ['quantity', '總顆數'], ['frequency', '一天幾次'], ['meal_timing', '飯前飯後'],
-] as const
-const show = (value: unknown) => (value === null || value === undefined || value === '' ? '—' : String(value))
-const score = (confidence: Record<string, number>, field: string) =>
-  confidence[field] === undefined ? '' : `（${confidence[field].toFixed(2)}）`
+const cameraInput = ref<HTMLInputElement | null>(null)
+const albumInput = ref<HTMLInputElement | null>(null)
+const previewUrl = ref('')
+/** 'reading'：辨識照片上的字；'sending'：後端整理藥單 */
+const step = ref<'idle' | 'reading' | 'sending'>('idle')
+const percent = ref(0)
 
-const updateProgress = (next: OcrProgress) => {
-  if (active) progress.value = { ...next, percent: Math.max(progress.value.percent, next.percent) }
+interface Failure {
+  message: string
+  lines?: string[]
 }
-const ocrEngine = ref('')
-const updateText = (text: string, engine: string) => {
-  if (!active || !isDev) return
-  ocrText.value = text
-  ocrEngine.value = engine
-}
-let recognizer = createPrescriptionRecognizer(updateProgress, updateText)
+const failure = ref<Failure | null>(null)
 
-function selectPhoto(file: File | null) {
-  selectedPhoto.value = file
-  recognized.value = null
-  ocrText.value = ''
-  error.value = ''
-  progress.value = { percent: 0, message: '' }
+function pick(input: HTMLInputElement | null) {
+  if (step.value === 'idle') input?.click()
 }
 
-async function confirmPhoto() {
-  if (!selectedPhoto.value || busy.value) return
-  busy.value = true
-  comparing.value = false
-  error.value = ''
-  progress.value = { percent: 0, message: '正在讀取照片…' }
+async function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // 讓同一張照片可以再選一次
+  if (!file) return
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = URL.createObjectURL(file)
+  failure.value = null
+  percent.value = 0
+
+  let lines: string[] = []
+  step.value = 'reading'
   try {
-    // 後端連線失敗時保留已辨識的欄位，重試不必再跑一次 OCR。
-    if (!recognized.value) recognized.value = await recognizer.recognize(selectedPhoto.value)
-    if (!active) return
-    comparing.value = true
-    await startDraftFromRecognition(recognized.value, request.signal)
-    if (active && router.currentRoute.value.path === '/elder/add/photo') await router.push('/elder/add/review')
+    lines = await recognizeBagLines(file, (ratio) => (percent.value = Math.round(ratio * 100)))
+    if (lines.length === 0) {
+      failure.value = { message: '照片上看不到字。請把藥袋放平、靠近一點、光線充足，再拍一次。' }
+      return
+    }
+    step.value = 'sending'
+    await startDraftFromOcr(lines)
+    await router.push('/elder/add/review')
   } catch (e) {
-    if (active) {
-      error.value = e instanceof Error ? e.message : '照片辨識失敗，請重新選擇照片後再試一次。'
-      if (!recognized.value) {
-        recognizer.dispose()
-        recognizer = createPrescriptionRecognizer(updateProgress, updateText)
-      }
+    if (e instanceof ApiError && ['OCR_EMPTY', 'OCR_UNREADABLE'].includes(e.code)) {
+      failure.value = { message: `${e.message}。也可以改用掃 QR Code 或手動輸入。`, lines }
+    } else if (e instanceof ApiError) {
+      failure.value = { message: e.message, lines }
+    } else {
+      failure.value = { message: '照片無法辨識，請換一張照片再試一次。' }
     }
   } finally {
-    if (active) busy.value = false
+    step.value = 'idle'
   }
 }
 
+onMounted(warmUpBagOcr)
 onBeforeUnmount(() => {
-  active = false
-  request.abort()
-  recognizer.dispose()
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+  void releaseBagOcr()
 })
 </script>
 
 <template>
   <PageLayout title="拍藥袋" fallback="/elder/add">
-    <PhotoCamera :busy="busy" @select="selectPhoto" />
-    <div v-if="busy" class="recognizing" role="status" aria-live="polite">
-      <p class="font-h3-regular">{{ comparing ? '正在比對藥品資料…' : progress.message }}</p>
-      <progress :value="comparing ? undefined : progress.percent" max="100" aria-label="照片辨識進度" />
+    <div class="photo-area">
+      <img v-if="previewUrl" :src="previewUrl" alt="剛拍的藥袋照片" class="preview" />
+      <template v-else>
+        <p class="title font-h2-semibold">把藥袋放平，拍下有藥名和用法的那一面</p>
+        <p class="hint font-h3-regular">光線要充足，字要清楚、不要反光</p>
+      </template>
     </div>
-    <p v-if="error" class="photo-error font-h3-regular" role="alert">{{ error }}</p>
-    <PrimaryButton v-if="selectedPhoto" :disabled="busy" @click="confirmPhoto">
-      {{ busy ? '正在處理，請稍候…' : recognized ? '重新送出藥單' : '確認並辨識' }}
-    </PrimaryButton>
+
+    <p v-if="step !== 'idle'" class="reading font-h3-semibold" role="status" aria-live="polite">
+      {{ step === 'reading' ? `正在讀藥袋上的字…（${percent}%）` : '正在整理藥單，請稍候…' }}
+    </p>
+
+    <div v-if="failure" class="failed" role="alert">
+      <p class="title font-h3-semibold">辨識失敗</p>
+      <p class="font-h3-regular">{{ failure.message }}</p>
+      <p v-if="failure.lines?.length" class="lines font-h3-regular">讀到的字：{{ failure.lines.join(' ／ ') }}</p>
+    </div>
+
+    <PrimaryButton :disabled="step !== 'idle'" @click="pick(cameraInput)">拍藥袋照片</PrimaryButton>
+    <SecondaryButton @click="pick(albumInput)">從相簿選照片</SecondaryButton>
     <SecondaryButton @click="router.push('/elder/add/manual')">改用手動輸入</SecondaryButton>
-    <section v-if="isDev && (recognized || ocrText)" class="ocr-debug" aria-label="OCR 辨識結果（開發用）">
-      <h2 class="font-h3-semibold">OCR 辨識結果（開發用）{{ ocrEngine ? `：${ocrEngine}` : '' }}</h2>
-      <dl v-if="recognized">
-        <template v-for="[field, label] in HEADER_FIELDS" :key="field">
-          <dt>{{ label }}</dt>
-          <dd>{{ show(recognized[field]) }}{{ score(recognized.confidence, field) }}</dd>
-        </template>
-      </dl>
-      <div v-for="(item, index) in recognized?.items ?? []" :key="index" class="ocr-item">
-        <h3 class="font-h3-regular">第 {{ index + 1 }} 個藥</h3>
-        <dl>
-          <template v-for="[field, label] in ITEM_FIELDS" :key="field">
-            <dt>{{ label }}</dt>
-            <dd>{{ show(item[field]) }}{{ score(item.confidence, field) }}</dd>
-          </template>
-        </dl>
-      </div>
-      <details v-if="ocrText">
-        <summary>原始辨識文字</summary>
-        <pre>{{ ocrText }}</pre>
-      </details>
-    </section>
+
+    <input
+      ref="cameraInput"
+      class="sr-only"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      tabindex="-1"
+      aria-hidden="true"
+      @change="onFileChange"
+    />
+    <input
+      ref="albumInput"
+      class="sr-only"
+      type="file"
+      accept="image/*"
+      tabindex="-1"
+      aria-hidden="true"
+      @change="onFileChange"
+    />
   </PageLayout>
 </template>
 
 <style scoped>
-.recognizing {
+.photo-area {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  border-radius: 16px;
+  border: 3px dashed var(--color-primary-300);
+  background: var(--color-primary-50);
+  text-align: center;
+}
+.photo-area .title {
+  color: var(--color-primary-700);
+}
+.photo-area .hint {
   color: var(--text-second);
 }
-.recognizing progress {
+.preview {
   width: 100%;
-  accent-color: var(--color-primary-500);
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--background-color);
 }
-.photo-error {
+.reading {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-300);
+  color: var(--color-primary-700);
+}
+.failed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--alarm-red-500);
+  background: var(--background-color);
   color: var(--alarm-red-500);
 }
-.ocr-debug {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 2px dashed var(--color-grey-300);
-  border-radius: 12px;
-  font-size: 16px;
+.failed .title {
+  font-size: var(--font-title-size);
 }
-.ocr-debug dl {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 4px 12px;
-  margin: 0;
-}
-.ocr-debug dt {
+.failed .lines {
   color: var(--text-second);
-}
-.ocr-debug dd {
-  margin: 0;
   overflow-wrap: anywhere;
-}
-.ocr-debug summary {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-.ocr-debug pre {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 14px;
 }
 </style>

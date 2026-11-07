@@ -2,3 +2,5 @@ node_modules
 dist
 *.local
 .vite
+# 拍藥袋 OCR：npm run dev／build 時由 scripts/copy-tesseract.mjs 從 node_modules 複製
+public/tesseract/

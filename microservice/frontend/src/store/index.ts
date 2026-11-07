@@ -161,6 +161,7 @@ function load(): State {
     PERSISTED.forEach((key) => {
       if (saved[key] !== undefined) (base as unknown as Record<string, unknown>)[key] = saved[key]
     })
+    if (base.lang !== 'en') base.lang = 'zh' // 舊版存過的「台語」（nan）改回國語
   } catch {
     /* 讀取失敗時用預設值 */
   }
@@ -345,6 +346,17 @@ function setDraftFromPreview(preview: PreviewOut) {
 export async function startDraftFromQr(raw: string): Promise<void> {
   const preview = await call(() =>
     post<PreviewOut>(elderPath('/prescriptions/qr-preview'), { name: 'qr_code_scan', data: raw }, { role: 'elder' }),
+  )
+  setDraftFromPreview(preview)
+}
+
+/**
+ * EL-PG-05 拍藥袋：手機上用 Tesseract 辨識出的每一行文字（services/bagOcr.ts）送後端整理成藥單欄位、
+ * 比對健保藥品資料並打信心分數（規格書 §8.3），失敗時丟出 ApiError（OCR_EMPTY、OCR_UNREADABLE）
+ */
+export async function startDraftFromOcr(lines: string[]): Promise<void> {
+  const preview = await call(() =>
+    post<PreviewOut>(elderPath('/prescriptions/ocr-preview'), { name: 'ocr_scan', data: { lines } }, { role: 'elder' }),
   )
   setDraftFromPreview(preview)
 }

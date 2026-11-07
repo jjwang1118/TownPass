@@ -12,7 +12,7 @@ import { activeMedicines, state } from '@/store'
 import { useNow } from '@/composables/useNow'
 import { useTts } from '@/composables/useTts'
 import { groupByPrescription, medicinesInSlot } from '@/utils/schedule'
-import { medicineSpeech, slotSpeech } from '@/utils/speech'
+import { medicineSpeech, slotNameEn, slotSpeech } from '@/utils/speech'
 import type { SlotKey } from '@/types'
 
 const props = defineProps<{ titlePrefix?: string; notice: string; fallback: string }>()
@@ -27,13 +27,17 @@ const groups = computed(() => groupByPrescription(meds.value))
 const heading = computed(
   () => `${props.titlePrefix ? `${props.titlePrefix} ` : ''}${slot.value.name} ${slot.value.time} 要吃的藥`,
 )
+/** 朗讀用的標題：英文時念「Medicines for morning, 9 AM」 */
+const speechHeading = computed(() =>
+  state.lang === 'en' ? `Medicines for ${slotNameEn(slot.value.key)}` : heading.value,
+)
 </script>
 
 <template>
   <PageLayout title="用藥詳情" :fallback="fallback">
     <h2 class="page-heading">{{ heading }}</h2>
     <div class="read-row">
-      <ReadAloudButton @click="speak(slotSpeech(heading, meds), state.lang)" />
+      <ReadAloudButton @click="speak(slotSpeech(speechHeading, meds, state.lang), state.lang)" />
       <LanguageSwitch v-model="state.lang" />
     </div>
 
@@ -44,7 +48,7 @@ const heading = computed(
         :key="m.code"
         :medicine="m"
         :clickable="false"
-        @speak="speak(medicineSpeech(m), state.lang)"
+        @speak="speak(medicineSpeech(m, false, state.lang), state.lang)"
       />
     </template>
     <p v-if="meds.length === 0" class="page-desc">這個時段不用吃藥。</p>

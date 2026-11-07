@@ -36,7 +36,13 @@ function supplyNote(m: Medicine): string {
   return `剩 ${left} 顆，約 ${medicineDaysLeft(m, rx.value.visitDate, now)} 天`
 }
 
-const speechTitle =computed(() => (rx.value ? `藥單 ${rx.value.code}，${statusText.value}` : ''))
+const speechTitle = computed(() => {
+  if (!rx.value) return ''
+  if (state.lang !== 'en') return `藥單 ${rx.value.code}，${statusText.value}`
+  const left = daysLeft(rx.value, now)
+  const status = finished.value ? 'all finished' : left === 1 ? '1 day left' : `${left} days left`
+  return `Prescription ${rx.value.code}, ${status}`
+})
 
 onMounted(() => {
   if (!rx.value) router.replace('/elder/prescriptions')
@@ -56,7 +62,7 @@ onMounted(() => {
       <p class="status font-h3-semibold" :class="{ finished }">{{ statusText }}</p>
 
       <div class="read-row">
-        <ReadAloudButton @click="speak(slotSpeech(speechTitle, rx.medicines), state.lang)" />
+        <ReadAloudButton @click="speak(slotSpeech(speechTitle, rx.medicines, state.lang), state.lang)" />
         <LanguageSwitch v-model="state.lang" />
       </div>
 
@@ -68,7 +74,7 @@ onMounted(() => {
         show-slots
         :note="supplyNote(m)"
         :clickable="false"
-        @speak="speak(medicineSpeech(m, true), state.lang)"
+        @speak="speak(medicineSpeech(m, true, state.lang), state.lang)"
       />
 
       <InfoNotice>請以藥袋和藥師說明為準。</InfoNotice>

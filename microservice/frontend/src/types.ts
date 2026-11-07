@@ -5,7 +5,7 @@ export type MealTiming = '飯前' | '飯後'
 
 export type SlotStatus = 'past' | 'now' | 'later'
 
-export type Lang = 'zh' | 'nan' // 國語／台語
+export type Lang = 'zh' | 'en' // 國語／英文（給外籍看護）
 
 export interface Medicine {
   /** 藥單徽章，例：A1 */
@@ -25,6 +25,8 @@ export interface Medicine {
   id?: string
   /** 健保藥品代號：藥名搜尋選到、或 QR Code 帶入時才有，用來比對同成分 */
   licenseNo?: string
+  /** 後端的英文朗讀稿（加入藥單後才有，給外籍看護） */
+  speechEn?: string
 }
 
 export interface Prescription {

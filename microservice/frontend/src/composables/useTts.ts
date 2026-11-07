@@ -1,44 +1,36 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Lang } from '@/types'
+import { speak as ttsSpeak, stop as ttsStop } from '../../tts/tts.js'
 
 /**
- * 文字轉語音。目前使用瀏覽器 Web Speech API：
- * - 國語：zh-TW
- * - 台語：優先找 nan-TW 語音；裝置沒有台語語音時退回 zh-TW
- * 正式版若改由 App 端擴充 TTS（自訂 TPWebMessageHandler），只需替換 speak() 實作。
+ * 文字轉語音：使用 tts/tts.js（見 tts/README.md）。
+ * - 在城市通 App 裡：App 的 tts_speak handler（手機內建離線語音；Android WebView 沒有 speechSynthesis，只能靠這個）
+ * - 一般瀏覽器：網頁 speechSynthesis
+ * - 國語念 zh-TW，英文念 en-US（給外籍看護）
  */
-function pickVoice(lang: Lang): SpeechSynthesisVoice | undefined {
-  const voices = window.speechSynthesis?.getVoices() ?? []
-  if (lang === 'nan') {
-    const nan = voices.find((v) => v.lang.toLowerCase().startsWith('nan'))
-    if (nan) return nan
-  }
-  return (
-    voices.find((v) => v.lang === 'zh-TW') ??
-    voices.find((v) => v.lang.toLowerCase().startsWith('zh-hant')) ??
-    voices.find((v) => v.lang.toLowerCase().startsWith('zh'))
-  )
-}
+const VOICE_LANG: Record<Lang, string> = { zh: 'zh-TW', en: 'en-US' }
 
-export function speak(text: string, lang: Lang = 'zh'): void {
-  const synth = window.speechSynthesis
-  if (!synth || !text) return
-  synth.cancel()
-  const utter = new SpeechSynthesisUtterance(text)
-  const voice = pickVoice(lang)
-  if (voice) utter.voice = voice
-  utter.lang = voice?.lang ?? 'zh-TW'
-  utter.rate = 0.85 // 長者使用，語速放慢
-  synth.speak(utter)
+const speaking = ref(false)
+
+export async function speak(text: string, lang: Lang = 'zh'): Promise<boolean> {
+  if (!text) return false
+  speaking.value = true
+  try {
+    const result = await ttsSpeak(text, { lang: VOICE_LANG[lang] ?? 'zh-TW' })
+    if (!result.ok) console.warn('[tts] 無法朗讀', result.reason)
+    return result.ok
+  } finally {
+    speaking.value = false
+  }
 }
 
 export function stopSpeaking(): void {
-  window.speechSynthesis?.cancel()
+  ttsStop()
+  speaking.value = false
 }
 
 /** 頁面用：離開頁面或 App 進入背景時停止朗讀 */
 export function useTts() {
-  const speaking = ref(false)
   const onHidden = () => {
     if (document.visibilityState === 'hidden') stopSpeaking()
   }

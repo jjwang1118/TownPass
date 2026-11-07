@@ -181,3 +181,85 @@
 [Modified Time]: 1108050716
 
 [Modified Position]: microservice/frontend/src/views/elder/PrescriptionAdded.vue（新增）、microservice/frontend/src/router/index.ts:19、microservice/frontend/src/views/elder/ConfirmPrescription.vue:3、microservice/frontend/src/views/elder/ConfirmPrescription.vue:21-23、microservice/frontend/src/views/shared/PrescriptionReview.vue:13-14、microservice/frontend/src/views/shared/PrescriptionReview.vue:38-47、microservice/frontend/src/views/shared/PrescriptionReview.vue:67、microservice/frontend/src/views/elder/MyPrescriptions.vue:10、microservice/frontend/src/views/elder/MyPrescriptions.vue:18-19、microservice/frontend/src/utils/supply.ts:56-70、microservice/frontend/src/utils/prescriptionText.ts:131-134、microservice/frontend/tests/prescriptionText.test.mjs:49-58、microservice/docs/front_specific/interfaces/EL-PG-19.md（新增）、microservice/docs/front_specific/interfaces/EL-PG-08.md:15
+
+---
+
+[Agent name]: 後端工程師、前端工程師（使用者要求前後端一起完成拍藥袋流程）
+
+[Modified Description]:
+- 從 origin/feature/integrate-frontend（d085dae）開 feature/ocr-text，接續組員「拍照辨識」的做法：新增「裝置端 OCR 只出文字」的輸入，後端整理成 PhotoIn 後交給既有的 preview_photo（比對健保資料、信心分數、uncertain），不新增資料表、不需 migration、source 沿用 photo
+- 使用者本機 lib/page/city_service/model/my_service_model.dart 的修改（10.0.2.2:5173/tts/）改用組員版本，原修改以 git stash 備份
+
+[Modified Time]: 1108020137
+
+[Modified Position]: lib/page/city_service/model/my_service_model.dart:192
+
+[Modified Description]:
+- 新增自訂訊息 ocr_scan：CustomMessageName.OCR_SCAN、OcrScanData（lines，最多 200 行、每行 200 字）、OcrScanReply；只傳文字，不傳照片
+- 新增 POST /elders/{id}/prescriptions/ocr-preview（OcrPreviewIn）；service.preview_ocr 整理文字後呼叫 preview_photo；錯誤碼 OCR_EMPTY、OCR_UNREADABLE
+
+[Modified Time]: 1108020137
+
+[Modified Position]: microservice/backend/app/integrations/townpass/messages.py:49, microservice/backend/app/integrations/townpass/messages.py:163, microservice/backend/app/modules/medication/schemas.py:92, microservice/backend/app/modules/medication/service.py:92, microservice/backend/app/modules/medication/router.py:64
+
+[Modified Description]:
+- 新增 ocr_text.py（純函式、固定規則，不跑模型）：依藥名行把藥單分成多個藥；藥名與劑量（統一為健保格式「5 毫克」）、時段（早上中午晚上睡前、早晚、三餐、沿用 rules.FREQUENCY_CODE_SLOTS 的頻率代碼）、飯前飯後、一次幾顆（含半顆）、總顆數、用途；院區、科別、醫師、看診日（民國年、排除有效期限）、天數
+- 信心分數：有標籤的欄位不填；只靠對照表或寫法猜的給 0.6、沒標籤的日期給 0.7（低於門檻，畫面紅框）
+- 新增 seed/data/ocr_samples.json（和 rx_samples 三張藥單對應，藥袋印商品名）
+
+[Modified Time]: 1108020137
+
+[Modified Position]: microservice/backend/app/modules/medication/ocr_text.py, microservice/backend/seed/data/ocr_samples.json
+
+[Modified Description]:
+- 新增 tests/test_ocr_text.py（53 個，不需資料庫）與 test_medication.py「路徑 3-1」（和掃 QR 得到相同健保碼、劑量、時段、總顆數；學名靠主成分比對；猜的欄位列入 uncertain；同成分警示；錯誤碼；權限）
+- 驗證：後端 189 個測試通過（含資料庫）
+- 發現：健保資料的原廠藥（脈優錠、顧糖維等）沒有主成分英文名，藥袋只印學名（Amlodipine、Metformin）時比對不到原廠藥，可能對到其他同成分藥或對不到；藥袋多印商品名，影響有限
+- 更新規格書 §2.3、§7.2、§8.3（新增「另一種輸入：裝置端 OCR 只出文字」），medication、townpass integration README
+
+[Modified Time]: 1108020137
+
+[Modified Position]: microservice/backend/tests/test_ocr_text.py, microservice/backend/tests/test_medication.py:325, microservice/docs/backend-spec.md:96, microservice/docs/backend-spec.md:588, microservice/docs/backend-spec.md:715, microservice/backend/app/modules/medication/README.md, microservice/backend/app/integrations/townpass/README.md
+
+[Modified Description]:
+- 依入門指引確認競賽規則：Google ML Kit 閉源、PaddleOCR 屬百度（大陸廠牌）皆不符合；改用 Tesseract（Apache-2.0）
+- 使用者決定 OCR 在網頁裡做（不修改 App）：新增 tesseract.js 7.0.0（Apache-2.0）與繁中、英文字庫 @tesseract.js-data/chi_tra、eng 1.0.0（4.0.0_best_int）
+- scripts/copy-tesseract.mjs：npm run dev／build 前把 worker、WebAssembly 核心、字庫複製到 public/tesseract/（加入 .gitignore），隨前端部署、不向 CDN 下載
+- services/bagOcr.ts：手機上辨識藥袋照片（SINGLE_BLOCK 版面模式、保留大空白、照片長邊縮到 2000 像素），進頁面先載入、離開時釋放
+- store.startDraftFromOcr：送 POST /prescriptions/ocr-preview
+- 拍藥袋頁（EL-PG-05）：「拍藥袋照片」「從相簿選照片」（input type=file，和掃 QR 頁相同，不需 App handler）、辨識進度、失敗原因與讀到的字；取代原本送模擬資料的流程
+
+[Modified Time]: 1108023926
+
+[Modified Position]: microservice/frontend/package.json:5, microservice/frontend/package-lock.json, microservice/frontend/.gitignore, microservice/frontend/scripts/copy-tesseract.mjs, microservice/frontend/src/services/bagOcr.ts, microservice/frontend/src/store/index.ts:351, microservice/frontend/src/views/elder/PhotoPrescription.vue
+
+[Modified Description]:
+- 實測：把三張範例藥單畫成圖片，用同一套 tesseract.js 辨識；版面模式 AUTO 只對 18/41 行，SINGLE_BLOCK 對 38/41 行，因此改用 SINGLE_BLOCK
+- 實際辨識結果加入 seed/data/ocr_samples.json 的 tesseract_lines，parser 測試同時跑原文與 Tesseract 結果（含「：」變「 : 」、頭暈→頭量等雜訊）
+- 真瀏覽器（Chrome）端到端：拍藥袋頁上傳藥袋照片 → 辨識 → ocr-preview → 確認藥單頁顯示 A1 脈優錠、A2 伯基腸溶微粒膠囊、A3 Lipitor；擋掉所有非 localhost 連線仍成功（不依賴外網）
+- 驗證：後端 192 個測試通過；前端 vue-tsc、npm run build 通過；尚未在 App 實機實測
+- 更新 frontend.md（新增「拍藥袋 OCR」與模型揭露表）、規格書 §2.3、§7.2、§8.3、§12、messages 與 README 的 ocr_scan 說明（改為前端產生，App 不需 handler）
+
+[Modified Time]: 1108023926
+
+[Modified Position]: microservice/backend/seed/data/ocr_samples.json, microservice/backend/tests/test_ocr_text.py:20, microservice/docs/frontend.md:148, microservice/docs/backend-spec.md:96, microservice/backend/app/integrations/townpass/messages.py:49, microservice/backend/app/modules/medication/router.py:67, microservice/backend/app/modules/medication/schemas.py:93
+
+[Modified Description]:
+- 朗讀接上 tts/tts.js（使用者的 TTS 模組）：前端 useTts 原本只用網頁 speechSynthesis（Android WebView 不支援），改為呼叫 tts.js，先走 App 的 tts_speak handler，不行再用網頁朗讀；介面 speak(text, lang) 不變
+- 帶入使用者 feature/backend-tts 的 b0582ce（App handler 與 tts.js 支援英文語音，依 lang 挑語音），只套用到工作目錄，未 commit
+- 朗讀語言改為國語／English（暫不做台語：手機內建語音沒有台語）；Lang 型別 'zh' | 'en'，舊版存的 nan 讀取時改回國語
+- 英文朗讀稿：已加入的藥用後端 speech_text_en（英文藥名、科別、用途）；確認藥單頁的草稿由前端組英文（Medicine A1, Lipitor 10mg. Take 1 tablet after meals.），含中文的藥名不念；首頁、藥單詳情、時段詳情的標題也有英文
+- 驗證：vue-tsc、npm run build 通過；朗讀稿實際輸出已檢查；尚未在 App 內實測出聲（電腦沒有 flutter 指令，Dart 檔未 analyze）
+
+[Modified Time]: 1108054104
+
+[Modified Position]: microservice/frontend/src/composables/useTts.ts:11, microservice/frontend/src/utils/speech.ts:33, microservice/frontend/src/types.ts:8, microservice/frontend/src/types.ts:29, microservice/frontend/src/api/types.ts:30, microservice/frontend/src/api/mappers.ts:60, microservice/frontend/src/store/index.ts:163, microservice/frontend/src/components/segments/LanguageSwitch.vue:6, microservice/frontend/src/views/elder/HomeWithMedicine.vue:41, microservice/frontend/src/views/elder/PrescriptionDetail.vue:39, microservice/frontend/src/views/shared/SlotDetail.vue:31, microservice/frontend/src/views/shared/PrescriptionReview.vue:63, lib/util/web_message_handler/tts_message_handler.dart:69, microservice/frontend/tts/tts.js:145
+
+[Modified Description]:
+- 開 feature/integrate-ocr（從 origin/feature/integrate-frontend）合併 feature/ocr-text；使用者決定拍藥袋用 Tesseract（PaddleOCR 屬百度，競賽禁用）
+- 衝突處理：PhotoPrescription.vue 用 Tesseract 版本；store 同時保留組員的 startDraftFromRecognition 與 startDraftFromOcr；package.json 兩邊套件都保留（組員的 localPrescriptionOcr.ts 仍在，未刪除、目前沒有頁面使用）；frontend.md 拍藥袋說明改為實際使用的 Tesseract＋ocr-preview；紀錄兩邊都保留
+- 驗證：vue-tsc、npm test 13 個、npm run build 通過（PaddleOCR 模型未被打包）；後端 192 個測試通過；Chrome 端到端拍藥袋 → 確認藥單頁成功
+
+[Modified Time]: 1108060229
+
+[Modified Position]: microservice/frontend/src/views/elder/PhotoPrescription.vue, microservice/frontend/src/store/index.ts:353, microservice/frontend/package.json:16, microservice/frontend/package-lock.json, microservice/docs/frontend.md:148, logs/1108_communication

@@ -12,6 +12,7 @@ from app.modules.medication.schemas import (
     MedicationStop,
     MedicationUpdate,
     NextDoseOut,
+    OcrPreviewIn,
     PhotoIn,
     PrescriptionCreate,
     PrescriptionCreated,
@@ -59,6 +60,13 @@ async def preview_qr(elder_id: UUID, body: QrPreviewIn, user_id: CurrentUserId, 
 async def preview_photo(elder_id: UUID, body: PhotoIn, user_id: CurrentUserId, service: Service) -> PreviewOut:
     """拍藥袋照片：body 為 App 裝置端模型整理出的欄位。回傳比對結果與每個欄位的信心分數。不寫入。"""
     return await service.preview_photo(user_id, elder_id, body)
+
+
+@elder.post("/prescriptions/ocr-preview", response_model=PreviewOut)
+async def preview_ocr(elder_id: UUID, body: OcrPreviewIn, user_id: CurrentUserId, service: Service) -> PreviewOut:
+    """拍藥袋（OCR 文字）：body 為 { name: 'ocr_scan', data: { lines } }（前端在手機上用 tesseract.js 辨識）。後端用規則整理成拍照辨識的欄位，
+    之後和 photo-preview 相同（比對健保資料、信心分數）。不寫入。"""
+    return await service.preview_ocr(user_id, elder_id, body.data)
 
 
 @elder.post("/prescriptions/preview", response_model=PreviewOut)

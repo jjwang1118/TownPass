@@ -138,18 +138,24 @@ function normLang(lang) {
 }
 
 /**
- * 挑語音：台灣中文優先、離線語音優先；找不到國語語音就回傳 null（不用英文語音硬念）。
- * 粵語（zh-HK、yue）不使用：念出來長輩聽不懂。
+ * 挑語音：語言完全相同優先、離線語音優先；找不到該語言就回傳 null（不用別的語言硬念）。
+ * - 中文（zh-*）：台灣中文優先；粵語（zh-HK、yue）不使用，念出來長輩聽不懂
+ * - 其他語言（例如 en-US）：相同語言優先，其次同語系（en-GB、en-AU…）
  */
 export function pickVoice(voices, lang = DEFAULT_LANG) {
   const target = normLang(lang);
+  const base = target.split('-')[0];
+  const chinese = base === 'zh' || base === 'cmn';
   const score = (v) => {
     const l = normLang(v.lang);
     let s = 0;
     if (l === target) s = 100;
-    else if (l === 'cmn-hant-tw' || l === 'zh-hant-tw') s = 90;
-    else if (l.startsWith('zh-hk') || l.startsWith('yue')) return -1;
-    else if (l.startsWith('zh') || l.startsWith('cmn')) s = 40;
+    else if (chinese) {
+      if (l === 'cmn-hant-tw' || l === 'zh-hant-tw') s = 90;
+      else if (l.startsWith('zh-hk') || l.startsWith('yue')) return -1;
+      else if (l.startsWith('zh') || l.startsWith('cmn')) s = 40;
+      else return -1;
+    } else if (l.split('-')[0] === base) s = 50;
     else return -1;
     if (v.localService) s += 5; // 離線語音
     return s;
@@ -194,7 +200,7 @@ async function speakWithWeb(text, { lang, rate }) {
   const synth = webSpeech();
   if (!synth) return { ok: false, reason: 'no_web_speech' };
   const voice = pickVoice(await loadVoices(), lang);
-  if (!voice) return { ok: false, reason: 'no_chinese_voice' };
+  if (!voice) return { ok: false, reason: normLang(lang).startsWith('zh') ? 'no_chinese_voice' : 'no_voice_for_language' };
   synth.cancel(); // 清掉上一段
   const chunks = splitText(text);
   let anyStarted = false;

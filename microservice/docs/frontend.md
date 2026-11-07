@@ -145,7 +145,32 @@ ID 格式：`{使用者}-{類型}-{流水號}`，介面與元件共用此規則�
 - **連不到後端**時畫面上方顯示紅色提示與「重新連線」按鈕。
 - **救護人員查詢**：不使用身分證字號，改輸入救命卡卡號（長者的緊急醫療卡頁會顯示卡號），App 內也可以掃卡片 QR Code。
 - **緊急醫療卡**：依 UI 只有一位緊急聯絡人，不收集常去醫院與病歷號。
-- **拍藥袋**：拍照或從相簿選圖後，按「確認並辨識」，由 Tesseract.js 在裝置端辨識繁體中文與英文，再將欄位送到後端 `photo-preview` 比對；照片不會上傳。第一次使用需連網下載辨識引擎與語言資料，後續會快取。第一版欄位解析支援有藥名／商品名標籤或給藥途徑表格列的印刷藥袋，解析結果一律保守標示待核對；看不清楚的欄位留空，由確認頁補填。後端連線失敗可直接重送已辨識欄位，不必重新拍照或辨識。
+- **拍藥袋**：手機上用 Tesseract 辨識藥袋照片上的字，送後端 `ocr-preview` 整理成藥單，見下一節。
 
 本機測試：後端 `docker compose --profile app up -d --build`（或 `uv run uvicorn app.main:app --reload`），前端 `npm install && npm run dev`，瀏覽器開 <http://localhost:5173>。
+
+## 拍藥袋 OCR
+
+```
+拍藥袋頁（EL-PG-05）拍照或選照片 ─▶ src/services/bagOcr.ts：tesseract.js 在手機上辨識每一行字
+  ─▶ store.startDraftFromOcr(lines)：POST …/prescriptions/ocr-preview { name: 'ocr_scan', data: { lines } }
+  ─▶ 後端用規則整理成藥單、比對健保藥品資料、打信心分數 ─▶ 確認藥單（EL-PG-07，看錯的欄位紅框）
+```
+
+- **推論在裝置端、不連外網**：tesseract.js 以 WebAssembly 在 WebView（或瀏覽器）裡執行；worker、核心、字庫由 `scripts/copy-tesseract.mjs` 在 `npm run dev`／`npm run build` 前從 `node_modules` 複製到 `public/tesseract/`（已加入 .gitignore），和前端一起部署，不向 CDN 下載。關閉網路仍可辨識（照片也不會上傳，只送辨識出的文字）。
+- **不需要修改 App**：照片用 `<input type="file">` 取得（「拍藥袋照片」開相機、「從相簿選照片」開相簿），和掃 QR 頁相同。
+- **設定**：繁中＋英文、只用 LSTM、版面模式 `SINGLE_BLOCK`（藥袋是一行一行的字；實測比自動版面分析準，自動模式常漏掉每行第一個字）、保留大空白；照片長邊先縮到 2000 像素。
+- **資源釋放**：進入拍藥袋頁先在背景載入引擎，離開時 `releaseBagOcr()` 釋放（WebView 注意事項）。
+- **大小**：手機只下載一份核心（約 3.8 MB，依是否支援 SIMD 自動挑）與兩個字庫（約 4.5 MB），之後由瀏覽器快取。
+- **測試**：電腦瀏覽器開拍藥袋頁，用「從相簿選照片」選藥袋照片即可；模擬器的相機是假畫面，實拍請用實機。
+
+### 模型與套件揭露（競賽須知：模型名稱、版本、量化格式、推論框架、來源）
+
+| 項目 | 內容 |
+| --- | --- |
+| 模型 | Tesseract OCR LSTM 辨識模型：繁體中文 `chi_tra`、英文 `eng` |
+| 版本 | tessdata `4.0.0_best_int`（npm `@tesseract.js-data/chi_tra@1.0.0`、`@tesseract.js-data/eng@1.0.0`） |
+| 量化格式 | 整數量化（best_int，由 tessdata_best 轉換），gzip 壓縮的 `.traineddata` |
+| 推論框架 | tesseract.js 7.0.0（Tesseract 5 編譯成 WebAssembly，tesseract.js-core 6.1.2），在手機的 WebView 執行 |
+| 來源與授權 | tesseract.js、tesseract.js-core：Apache-2.0；字庫資料來自 tesseract-ocr/tessdata（Apache-2.0），npm 包裝為 MIT。Tesseract 原由 HP 開發、Google 開源，現由社群維護，非大陸廠牌 |
 

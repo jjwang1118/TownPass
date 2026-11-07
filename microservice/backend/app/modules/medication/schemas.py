@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, model_validator
 
-from app.integrations.townpass.messages import QRCodeScanReply
+from app.integrations.townpass.messages import OcrScanReply, QRCodeScanReply
 from app.modules.medication import rules
 from app.modules.medication.models import (
     Frequency,
@@ -87,6 +87,10 @@ class RxQrPayloadV1(BaseModel):
 
 class QrPreviewIn(QRCodeScanReply):
     """App 對 { name: 'qr_code_scan' } 的回覆，前端原封不動送來。"""
+
+
+class OcrPreviewIn(OcrScanReply):
+    """拍藥袋：{ name: 'ocr_scan', data: { lines } }，lines 為手機上 OCR 辨識出的每一行文字（前端 tesseract.js）。"""
 
 
 # ---------- 拍照辨識（手機上的模型整理出欄位，後端比對健保資料並打分數） ----------
