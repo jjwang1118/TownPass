@@ -104,11 +104,11 @@ def test_reminder_speech() -> None:
     assert text == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 半顆"
 
 
-def test_speech_only_supports_zh_for_now() -> None:
+def test_speech_unsupported_lang() -> None:
     import pytest
 
     with pytest.raises(ValueError):
-        speech.speak_time(dt.time(8, 0), speech.Lang("en"))
+        speech.speak_time(dt.time(8, 0), speech.Lang("nan"))  # 台語還沒做
 
 
 def test_same_ingredient() -> None:
@@ -116,3 +116,75 @@ def test_same_ingredient() -> None:
     assert med_rules.same_ingredient("A", ["Amlodipine "], "B", ["amlodipine"])
     assert not med_rules.same_ingredient("A", ["metformin"], "B", ["amlodipine"])
     assert not med_rules.same_ingredient(None, [], None, [])
+
+
+# ---------- 英文朗讀稿 ----------
+
+
+def test_english_drug_name() -> None:
+    # 藥袋上的英文名優先，其次是許可證英文品名；只有中文就不念
+    assert speech.drug_name_en("Amlodipine 5mg", "Norvasc") == "Amlodipine 5mg"
+    assert speech.drug_name_en("脈優錠", "Norvasc 5mg") == "Norvasc 5mg"
+    assert speech.drug_name_en("脈優錠 Norvasc 5mg") == "Norvasc 5mg"
+    assert speech.drug_name_en("脈優錠") == ""
+
+
+def test_english_glossary() -> None:
+    assert speech.department_en("家醫科") == "Family Medicine"
+    assert speech.department_en("ENT 耳鼻喉科") == "Ear, Nose and Throat"
+    assert speech.department_en("不存在科") == ""
+    assert speech.purpose_en("降血壓") == "blood pressure"
+    assert speech.purpose_en("不明用途") == ""
+    assert speech.title_en("陳阿嬤") == "Grandma Chen"
+    assert speech.title_en("王先生") == "Mr. Wang"
+    assert speech.title_en("阿公") == "Grandpa"
+    assert speech.title_en("林媽媽") == "Mom"
+    assert speech.title_en("路人") == ""
+
+
+def test_english_time_and_qty() -> None:
+    from decimal import Decimal
+
+    en = speech.Lang.EN
+    assert speech.speak_time(dt.time(8, 0), en) == "8 AM"
+    assert speech.speak_time(dt.time(12, 0), en) == "12 PM"
+    assert speech.speak_time(dt.time(13, 30), en) == "1:30 PM"
+    assert speech.speak_time(dt.time(0, 0), en) == "12 AM"
+    assert speech.qty_text(Decimal("1"), en) == "1 tablet"
+    assert speech.qty_text(Decimal("2"), en) == "2 tablets"
+    assert speech.qty_text(Decimal("0.5"), en) == "half a tablet"
+    assert speech.qty_text(Decimal("1.5"), en) == "1 and a half tablets"
+
+
+def test_english_medication_card() -> None:
+    from decimal import Decimal
+
+    text = speech.medication_card(
+        number=1,
+        drug="Amlodipine 5mg",
+        department="家醫科",
+        purpose="降血壓",
+        dose_qty=Decimal("1"),
+        meal_label="飯後",
+        times=[dt.time(18, 0), dt.time(8, 0)],
+        days_left=19,
+        lang=speech.Lang.EN,
+    )
+    assert text == (
+        "Medicine number 1, Amlodipine 5mg, from Family Medicine, for blood pressure. "
+        "Take 1 tablet after meals, at 8 AM and 6 PM. 19 days left."
+    )
+
+
+def test_english_reminder() -> None:
+    from decimal import Decimal
+
+    text = speech.reminder(
+        title="陳阿嬤",
+        meal_word="飯後",
+        items=[(1, "Amlodipine 5mg", Decimal("2")), (3, "", Decimal("0.5"))],
+        lang=speech.Lang.EN,
+    )
+    assert text == (
+        "Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; number 3, half a tablet."
+    )

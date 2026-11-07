@@ -149,6 +149,11 @@ async def test_medication_card(api: httpx.AsyncClient, ctx: dict, monkeypatch: p
         "1 號藥，Amlodipine 5 毫克錠（範例），家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。"
     )
     assert "Amlodipine 10 毫克錠（範例）" in cards[1]["speech_text"]
+    # 英文稿（給外籍看護）：藥名用藥袋上的英文，科別、用途翻成英文
+    assert card["speech_text_en"] == (
+        "Medicine number 1, Amlodipine 5mg, from Family Medicine, for blood pressure. "
+        "Take 1 tablet after meals, at 8 AM. 19 days left."
+    )
     assert "半顆" in cards[1]["speech_text"]
 
 

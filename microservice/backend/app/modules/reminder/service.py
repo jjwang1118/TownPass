@@ -118,7 +118,13 @@ class ReminderService:
             scheduled_date=day,
             scheduled_at=at,
             items=[
-                {"number": d.number, "name": d.name, "speech_name": names.get(d.number, d.name), "qty": str(d.qty)}
+                {
+                    "number": d.number,
+                    "name": d.name,
+                    "speech_name": names.get(d.number, (d.name, ""))[0],
+                    "speech_name_en": names.get(d.number, ("", speech.drug_name_en(d.name)))[1],
+                    "qty": str(d.qty),
+                }
                 for d in doses
             ],
             now=now,
@@ -270,12 +276,19 @@ class ReminderService:
             logger.exception("推播失敗 type=%s users=%s", type, user_ids)
 
     @staticmethod
-    def _speech(title: str, event: ReminderEvent) -> str:
-        """朗讀藥名用建立提醒時的快照（編號停用後會被重用）；舊資料沒有 speech_name 時由藥名推得。"""
-        items = [
-            (i["number"], i.get("speech_name") or speech.drug_name(i["name"]), Decimal(i["qty"])) for i in event.items
-        ]
-        return speech.reminder(title=title, meal_word=rules.MEAL_WORD[event.slot_key], items=items)
+    def _speech(title: str, event: ReminderEvent, lang: speech.Lang = speech.Lang.ZH) -> str:
+        """朗讀藥名用建立提醒時的快照（編號停用後會被重用）；舊資料沒有快照時由藥名推得。"""
+        if lang is speech.Lang.EN:
+            items = [
+                (i["number"], i.get("speech_name_en", speech.drug_name_en(i["name"])), Decimal(i["qty"]))
+                for i in event.items
+            ]
+        else:
+            items = [
+                (i["number"], i.get("speech_name") or speech.drug_name(i["name"]), Decimal(i["qty"]))
+                for i in event.items
+            ]
+        return speech.reminder(title=title, meal_word=rules.MEAL_WORD[event.slot_key], items=items, lang=lang)
 
     async def _to_out(self, event: ReminderEvent) -> ReminderOut:
         title, _ = await self._elder_title(event.elder_id)
@@ -294,6 +307,7 @@ class ReminderService:
             scheduled_at=event.scheduled_at,
             items=[DoseItem(number=i["number"], name=i["name"], qty=Decimal(i["qty"])) for i in event.items],
             speech_text=self._speech(title, event),
+            speech_text_en=self._speech(title, event, speech.Lang.EN),
             status=status,
             attempts=event.attempts,
             acked_at=event.acked_at,

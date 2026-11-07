@@ -90,6 +90,10 @@ async def test_remind_at_slot_time(
     assert [(i["number"], i["qty"]) for i in screen["items"]] == [(1, 1), (2, 1)]
     assert screen["label"] == "早餐飯後"
     assert screen["speech_text"] == message.body
+    assert screen["speech_text_en"] == (
+        "Grandma Chen, it's time for your medicine. "
+        "After meals: number 1, Amlodipine 5mg, 1 tablet; number 2, Metformin 500mg, 1 tablet."
+    )
     assert screen["status"] == "pending"
 
 

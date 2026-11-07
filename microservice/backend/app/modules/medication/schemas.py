@@ -107,6 +107,7 @@ class MedicationOut(MedicationDraft):
     status: MedicationStatus
     stop_reason: StopReason | None
     speech_text: str  # 「念給我聽」的國語朗讀稿；藥名有中文就念中文，只有英文就念原文
+    speech_text_en: str  # 英文朗讀稿（給外籍看護）；科別、用途、稱呼依對照表翻成英文，查不到就不念
 
 
 class MedicationCreated(BaseModel):

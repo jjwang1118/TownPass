@@ -43,6 +43,7 @@ App qr_code_scan ─▶ POST qr-preview ─▶ 確認畫面（核對藥名、劑
 | `slots` | 時段、標籤與實際時間，例如 `早餐飯後 08:00` |
 | `days_left`、`run_out_date` | 還剩幾天、吃完日 |
 | `speech_text` | 「念給我聽」國語朗讀稿，例如「1 號藥，脈優錠，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。」 |
+| `speech_text_en` | 英文朗讀稿（給外籍看護），例如「Medicine number 1, Amlodipine 5mg, from Family Medicine, for blood pressure. Take 1 tablet after meals, at 8 AM. 19 days left.」 |
 
 朗讀稿由 [speech](../speech/README.md) 模組產生：藥名有中文就只念中文（先查食藥署許可證的中文品名），只有英文就照原文念；科別、用途仍不唸英文字母。
 
