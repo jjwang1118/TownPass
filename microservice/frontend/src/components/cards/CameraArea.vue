@@ -15,9 +15,15 @@ defineExpose({ video, ready })
   <section class="camera-area">
     <video ref="video" class="video" :class="{ on: ready }" playsinline muted aria-hidden="true" />
     <div class="overlay">
-      <div class="frame" :style="{ height: `${frameHeight}px` }" aria-hidden="true" />
-      <p class="hint font-h3-semibold">{{ error || hint }}</p>
-      <slot />
+      <div class="center">
+        <div class="frame" :style="{ height: `${frameHeight}px` }" aria-hidden="true" />
+        <p class="hint font-h3-semibold">{{ error || hint }}</p>
+        <slot />
+      </div>
+      <!-- 拍照按鈕等操作放在相機區最下方 -->
+      <div v-if="$slots.bottom" class="bottom">
+        <slot name="bottom" />
+      </div>
     </div>
   </section>
 </template>
@@ -31,6 +37,8 @@ defineExpose({ video, ready })
   border-radius: 16px;
   overflow: hidden;
   background: var(--color-grey-900);
+  display: flex;
+  flex-direction: column;
 }
 .video {
   position: absolute;
@@ -45,14 +53,27 @@ defineExpose({ video, ready })
 }
 .overlay {
   position: relative;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 16px 32px;
+}
+.center {
+  flex: 1 1 auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 24px;
-  padding: 24px 16px;
+}
+.bottom {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
 }
 .frame {
   width: 260px;

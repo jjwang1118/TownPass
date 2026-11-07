@@ -336,3 +336,11 @@
 [Modified Time]: 1107235800
 
 [Modified Position]: microservice/docs/front_specific/**、microservice/docs/frontend.md、logs/1107_communication
+
+[Modified Description]:
+- 依使用者需求，拍藥袋相機區的拍照按鈕（圓圈）移到相機區最下方；對準框與提示文字置中於上方區域，兩者不重疊
+- CameraArea 新增 bottom 插槽放置操作按鈕，相機區改為 flex 版面讓覆蓋層撐滿高度
+
+[Modified Time]: 1108000800
+
+[Modified Position]: microservice/frontend/src/components/cards/CameraArea.vue、microservice/frontend/src/components/cards/PhotoCamera.vue

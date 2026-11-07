@@ -7,7 +7,9 @@ const emit = defineEmits<{ capture: [] }>()
 
 <template>
   <CameraArea hint="把藥袋放平，對準框框" :frame-height="300">
-    <button type="button" class="shutter" aria-label="拍照" @click="emit('capture')" />
+    <template #bottom>
+      <button type="button" class="shutter" aria-label="拍照" @click="emit('capture')" />
+    </template>
   </CameraArea>
 </template>
 
