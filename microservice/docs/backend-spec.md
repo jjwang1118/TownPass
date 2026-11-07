@@ -805,7 +805,7 @@ Python 3.12。
 |---|---|---|
 | FCM 推播 | App | 加入 `firebase_messaging`；新增 Handler 回傳 FCM token；處理通知點擊的 deeplink |
 | 全螢幕提醒 | App | 聲音、震動、閃光、全螢幕顯示 |
-| 國台語朗讀 | 前端、App | 國語用 `microservice/frontend/tts/`（`speak(speech_text)`：App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App 已加 `tts_speak`、`tts_stop` handler（`lib/util/web_message_handler/tts_message_handler.dart`，`flutter_tts`，只用離線語音）；Android WebView 不支援 speechSynthesis，只能靠 App handler；英文稿 `speech_text_en` 要用 `speak(text, { lang: 'en-US' })` 朗讀，**前端模組與 App handler 目前只挑中文語音，需要補上英文（en-US）離線語音的選擇**；台語之後再定 |
+| 國台語朗讀 | 前端、App | ✅ 國語、英文：前端 `src/composables/useTts.ts` 呼叫 `microservice/frontend/tts/tts.js`（App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App handler 在 `lib/util/web_message_handler/tts_message_handler.dart`（`flutter_tts`，只用離線語音），國語挑 `zh-TW`、英文挑 `en-US`（其次同語系）離線語音；Android WebView 不支援 speechSynthesis，只能靠 App handler。畫面上的語言切換為「國語／English」：已加入的藥念後端 `speech_text_en`，確認藥單頁的草稿由前端組英文（`src/utils/speech.ts`）。台語之後再定（手機內建語音沒有台語） |
 | 拍藥袋（OCR 文字，已完成） | 前端 | 拍藥袋頁用 `<input type="file">` 取得照片，tesseract.js 在手機上辨識後送 `ocr-preview`；引擎與字庫隨前端部署、不連外網；模型揭露見 frontend.md「拍藥袋 OCR」 |
 | 拍照辨識（模型出欄位，未實作） | App | 拍照走台北通原生 handler（WebView 直接開相機可能失敗）；用裝置端模型（例如 Gemma 4 E2B）把照片整理成 [§8.3](#83-拍照辨識的輸入) 的欄位，再由前端送到 `photo-preview`；README 要揭露模型名稱、版本、量化格式、推論框架與來源 |
 | 救護人員查詢 | 前端 | ✅ UI R02 的「身分證字號」已改為救命卡卡號輸入，App 內可掃卡片 QR |

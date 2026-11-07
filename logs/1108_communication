@@ -263,3 +263,12 @@
 [Modified Time]: 1108060229
 
 [Modified Position]: microservice/frontend/src/views/elder/PhotoPrescription.vue, microservice/frontend/src/store/index.ts:353, microservice/frontend/package.json:16, microservice/frontend/package-lock.json, microservice/docs/frontend.md:148, logs/1108_communication
+
+[Modified Description]:
+- 檢查遠端所有分支：worktree-frontend-impl 的內容已由 frontend 的 c78a13e 完整包含；feature/backend-tts 的 b0582ce 程式已在；只缺 9b20e00（文件）
+- 帶入 9b20e00：deploy.md 英文測試步驟、1107 紀錄（接在使用者 1107 的對話區塊後）
+- 規格書 §12 朗讀列改為實際做法（國語／English 切換、App 與網頁都挑英文離線語音、台語之後再定）；元件規格 CM-SEG-01、CM-BTN-01 的語言改為國語／English
+
+[Modified Time]: 1108061804
+
+[Modified Position]: microservice/docs/deploy.md, logs/1107_communication:326, microservice/docs/backend-spec.md:808, microservice/docs/front_specific/components/SEG/CM-SEG-01.md:12, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
