@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.modules.responder.rate_limit import lookup_limiter
-from seed.load import load_licenses, load_responders
+from seed.load import load_licenses, load_responders, sample_drug_codes
 from tests.conftest import FakePusher, LoginFn
 
 API = "/api/v1"
@@ -37,7 +37,7 @@ def _reset_rate_limit() -> None:
 @pytest.fixture
 async def ctx(api: httpx.AsyncClient, login: LoginFn, sessionmaker: async_sessionmaker[AsyncSession]) -> dict:
     async with sessionmaker() as session:
-        await load_licenses(session)
+        await load_licenses(session, only=sample_drug_codes())
         await load_responders(session)
         await session.commit()
     elder_h, elder_id = await login("elder-1", "陳阿嬤", "elder")
@@ -100,7 +100,7 @@ async def test_my_card(api: httpx.AsyncClient, ctx: dict) -> None:
     assert card["chronic_conditions"] == ["高血壓", "糖尿病"]  # 去除重複
     assert [a["name"] for a in card["allergies"]] == ["盤尼西林", "海鮮"]
     # 正在吃的藥從藥區自動帶入
-    assert [(m["number"], m["name"]) for m in card["current_medications"]] == [(1, "Amlodipine 5mg")]
+    assert [(m["number"], m["name"]) for m in card["current_medications"]] == [(1, "脈優錠 5 毫克")]
     # 緊急聯絡人：一鍵撥號訊息照 App 的 phone_call 格式
     assert card["contacts"][0]["call"] == {"name": "phone_call", "data": "0912345678"}
     assert card["has_consent"] is True

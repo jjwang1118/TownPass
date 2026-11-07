@@ -12,7 +12,7 @@ backend/
 │   ├── main.py           建立 FastAPI、掛載所有模組
 │   ├── models.py         匯入所有 ORM 模型（給 Alembic 用）
 │   ├── core/             共用基礎：設定、資料庫、認證、加密、錯誤
-│   ├── integrations/     外部系統：城市通 App、北市聯醫、消防局、食藥署、FCM
+│   ├── integrations/     外部系統：城市通 App、北市聯醫、消防局、健保用藥品項、FCM
 │   └── modules/          功能模組：auth、family、medication、reminder…
 ├── alembic/              資料表變更（migration）
 │   └── versions/         每一次變更一個檔案

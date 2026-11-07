@@ -1,5 +1,6 @@
 import datetime as dt
 
+from app.integrations.fda.importer import from_nhi
 from app.modules.emergency_card import rules as card_rules
 from app.modules.medication import rules as med_rules
 from app.modules.medication.models import Frequency, MealTiming, SlotKey
@@ -85,3 +86,15 @@ def test_same_ingredient() -> None:
     assert med_rules.same_ingredient("A", ["Amlodipine "], "B", ["amlodipine"])
     assert not med_rules.same_ingredient("A", ["metformin"], "B", ["amlodipine"])
     assert not med_rules.same_ingredient(None, [], None, [])
+
+
+def test_from_nhi_uses_full_atc_only() -> None:
+    item = {"藥品代號": "B021571100", "中文品名": "脈優錠５毫克", "英文品名": "NORVASC TABLETS 5MG", "ATC代碼": "C08CA01"}
+    assert from_nhi(item) == {
+        "license_no": "B021571100",
+        "name_zh": "脈優錠５毫克",
+        "name_en": "NORVASC TABLETS 5MG",
+        "ingredients": ["C08CA01"],
+    }
+    # 3～5 碼只是藥物類別（R05X 感冒複方），不拿來比對同成分
+    assert from_nhi({**item, "ATC代碼": "R05X"})["ingredients"] == []

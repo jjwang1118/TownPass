@@ -7,6 +7,7 @@
 
 import asyncio
 import datetime as dt
+import gzip
 import json
 import uuid
 from pathlib import Path
@@ -22,6 +23,7 @@ from app.core.security import hash_password
 from app.integrations.fda.importer import import_licenses
 from app.modules.appointment import rules as appointment_rules
 from app.modules.appointment.models import Appointment, ClinicSession, Department, Doctor, Hospital, Period, SessionStatus
+from app.modules.medication.models import DrugLicense
 from app.modules.responder.models import Responder
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -37,8 +39,18 @@ def seed_id(*parts: str) -> uuid.UUID:
     return uuid.uuid5(_SEED_NAMESPACE, "/".join(parts))
 
 
-async def load_licenses(session: AsyncSession) -> int:
-    return await import_licenses(session, read("drug_licenses.json"))
+def sample_drug_codes() -> set[str]:
+    """範例藥袋 QR 用到的健保藥品代號。"""
+    return {s["payload"]["lic"] for s in read("rx_samples.json")}
+
+
+async def load_licenses(session: AsyncSession, only: set[str] | None = None) -> int:
+    """健保用藥品項（seed.make_nhi_drugs 產生）。only：只匯入這些藥品代號（測試用，避免每次匯入 4.5 萬筆）。"""
+    rows = json.loads(gzip.decompress((DATA_DIR / "nhi_drugs.json.gz").read_bytes()))["rows"]
+    if only is not None:
+        rows = [r for r in rows if r["license_no"] in only]
+    await session.execute(delete(DrugLicense).where(DrugLicense.license_no.like("DEMO-%")))  # 舊版的模擬資料
+    return await import_licenses(session, rows)
 
 
 async def load_responders(session: AsyncSession) -> int:
@@ -157,7 +169,7 @@ async def main() -> None:
         clinics = await load_clinics(session)
         await session.commit()
     await engine.dispose()
-    print(f"食藥署許可證（範例）：{licenses} 筆")
+    print(f"健保用藥品項：{licenses} 筆")
     print(f"消防局名冊（模擬）：{responders} 筆")
     print(f"聯醫門診（模擬）：新增 {clinics} 個門診（明天起 2 週）")
 

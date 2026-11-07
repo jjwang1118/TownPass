@@ -228,3 +228,18 @@
 - 更新 appointment、seed README 與規格書 §5.2
 [Modified Time]: 1107203627
 [Modified Position]: microservice/backend/seed/data/tpech_clinics.json, microservice/backend/seed/load.py, microservice/backend/tests/test_appointment.py, microservice/backend/app/modules/appointment/README.md, microservice/backend/seed/README.md, microservice/docs/backend-spec.md:424
+
+[Modified Description]:
+- 同成分比對改用真實藥品資料：健保署「健保用藥品項查詢檔」（115 年 11 月）45,224 筆，取代食藥署 DEMO- 範例 3 筆
+- 新增 seed/make_nhi_drugs.py：用程式讀取 resent_docs/健保用藥品名_英文a-z.json，轉成 seed/data/nhi_drugs.json.gz（約 1.2 MB）；英文版較完整（中文版少了 36 筆沒有中文品名的品項）
+- 對照方式（不改資料表、不需 migration）：license_no 存健保藥品代號（10 碼）；ingredients 只在 ATC 為 7 碼（同一種化學成分）時存入，3～5 碼的藥物類別不比對以免誤報；共 42,757 筆可比對
+- importer.py 新增 from_nhi()；import_licenses() 改為每批 5000 筆寫入（PostgreSQL 參數上限）
+- seed.load 改匯入健保資料（約 3 秒），並刪除舊的 DEMO- 資料；load_licenses() 可用 only 只匯入指定代號（測試用）；移除 seed/data/drug_licenses.json
+- 範例藥袋改為真實藥品並重新產生 QR：脈優錠 5 毫克 B021571100、顧糖維膜衣錠 500 毫克 B025635100、壓可平錠 10 毫克 A047632100（和 1 號不同牌子、同成分 C08CA01）
+- 限制：複方藥（例如易安穩 C09DB01）不會和單方比對到
+- 測試改為只匯入範例 3 筆，更新藥名，新增 ATC 規則測試；共 110 個測試通過；本機開發資料庫已完整匯入並抽查
+- 更新規格書 §4.3、§5.2、§8.1、§11.1 與 backend、app、integrations、fda、medication、seed README
+
+[Modified Time]: 1107225754
+
+[Modified Position]: microservice/backend/app/integrations/fda/importer.py:25, microservice/backend/seed/make_nhi_drugs.py, microservice/backend/seed/load.py:42, microservice/backend/seed/data/nhi_drugs.json.gz, microservice/backend/seed/data/rx_samples.json, microservice/backend/seed/qr/, microservice/backend/tests/test_rules.py:91, microservice/backend/tests/test_medication.py:40, microservice/backend/tests/test_emergency_card.py:40, microservice/docs/backend-spec.md:309, microservice/backend/app/integrations/fda/README.md, microservice/backend/seed/README.md

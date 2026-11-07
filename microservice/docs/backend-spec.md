@@ -205,7 +205,7 @@ microservice/backend/
         ├── townpass/            # 城市通 App 的 { name, data } 訊息格式（§2.3）
         ├── tpech/               # 北市聯醫：院區、門診（模擬）
         ├── fire_dept/           # 消防局人員名冊（模擬）
-        ├── fda/                 # 食藥署藥品許可證（匯入的開放資料）
+        ├── fda/                 # 藥品資料（匯入健保用藥品項）
         └── fcm/                 # Firebase Cloud Messaging
 ```
 
@@ -279,7 +279,7 @@ microservice/backend/
 | elder_id | uuid FK users | |
 | number | int | 藥袋上的大編號 |
 | name | text | 藥名 |
-| license_no | text NULL | 許可證字號，用於同成分檢查 |
+| license_no | text NULL | 健保藥品代號（藥袋 QR 的 `lic`），用於同成分檢查 |
 | purpose | text | 用途 |
 | dose_qty | numeric(3,1) | 一次幾顆，支援半顆 |
 | frequency | enum `QD` / `BID` / `TID` / `QID` / `HS` | 一天 1～4 次、睡前 |
@@ -306,13 +306,13 @@ microservice/backend/
 | slot_key | enum | PK 之一，見下表 |
 | time | time | 可修改 |
 
-**`drug_licenses`**：從食藥署開放資料匯入，只讀。
+**`drug_licenses`**：從健保署「健保用藥品項查詢檔」匯入（約 4.5 萬筆），只讀。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| license_no | text PK | 許可證字號 |
+| license_no | text PK | 健保藥品代號（10 碼） |
 | name_zh / name_en | text | 中、英文品名 |
-| ingredients | text[] | 主成分（正規化後） |
+| ingredients | text[] | ATC 代碼，只有 7 碼（同一種化學成分）時才放；3～5 碼的藥物類別不放 |
 
 #### 提醒
 
@@ -648,7 +648,7 @@ microservice/backend/
   "dr": "林醫師",
   "date": "2026-11-07",
   "days": 28,
-  "lic": "衛署藥製字第012345號",
+  "lic": "B021571100",
   "name": "脈優錠 5 毫克",
   "use": "降血壓",
   "qty": 1,
@@ -660,7 +660,8 @@ microservice/backend/
 - `v`：格式版本，不支援的版本回 `400 QR_INVALID`；不是藥袋 QR 或缺欄位也回 `400 QR_INVALID`。
 - `qty`：一次幾顆，可以是 `0.5`。API 回應中的顆數一律是 JSON 數字。
 - QR 本身含完整資料，掃描不需查詢醫院系統。前端可離線顯示確認畫面，加入清單時才呼叫後端。
-- 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`，和長輩其他 `active` 藥品比對。有重疊時回 `warnings: [{"type":"same_ingredient","with_number":2}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
+- `lic`：健保藥品代號（10 碼）。
+- 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`（ATC 7 碼），和長輩其他 `active` 藥品比對。有重疊時回 `warnings: [{"type":"same_ingredient","with_number":2}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
 
 ### 8.2 救命卡卡號
 
@@ -731,7 +732,7 @@ Python 3.12。
 - 消防局名冊 3 筆：`EMT-001`、`EMT-002` 在職且有救護權限；`EMT-003` 已離職，示範被擋。
 - 聯醫院區、科別、醫師、未來 2 週門診（含一個額滿、一個停診）。✅ 院區名稱與地址依北市聯醫公開資訊，科別、醫師、門診為模擬資料；門診從執行匯入的隔天起產生 2 週，Demo 前一天要再執行一次。
 - 範例藥袋 QR 3 張，其中 2 張成分相同，示範同成分警示。✅ `seed/qr/`
-- 食藥署許可證資料：只匯入範例藥品需要的幾筆，許可證字號用 `DEMO-` 開頭，明確標示為模擬資料。✅
+- 藥品資料：匯入健保用藥品項全部 4.5 萬筆（真實資料）；範例藥袋用真實藥品代號（脈優錠、顧糖維、壓可平錠）。✅
 
 ### 11.2 展示用 API（僅 `DEMO_MODE`，正式版移除）
 

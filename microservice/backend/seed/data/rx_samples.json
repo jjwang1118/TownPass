@@ -2,16 +2,16 @@
   {
     "file": "rx_1_amlodipine_5mg",
     "note": "家醫科，降血壓，一天一次飯後",
-    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院仁愛院區", "dept": "家醫科", "dr": "林醫師", "date": "2026-11-01", "days": 28, "lic": "DEMO-0001", "name": "Amlodipine 5mg", "use": "降血壓", "qty": 1, "freq": "QD", "meal": "after"}
+    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院仁愛院區", "dept": "家醫科", "dr": "林醫師", "date": "2026-11-01", "days": 28, "lic": "B021571100", "name": "脈優錠 5 毫克", "use": "降血壓", "qty": 1, "freq": "QD", "meal": "after"}
   },
   {
     "file": "rx_2_metformin_500mg",
     "note": "新陳代謝科，降血糖，一天兩次飯後",
-    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院仁愛院區", "dept": "新陳代謝科", "dr": "陳醫師", "date": "2026-11-01", "days": 28, "lic": "DEMO-0002", "name": "Metformin 500mg", "use": "降血糖", "qty": 1, "freq": "BID", "meal": "after"}
+    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院仁愛院區", "dept": "新陳代謝科", "dr": "陳醫師", "date": "2026-11-01", "days": 28, "lic": "B025635100", "name": "顧糖維膜衣錠 500 毫克", "use": "降血糖", "qty": 1, "freq": "BID", "meal": "after"}
   },
   {
     "file": "rx_3_amlodipine_10mg",
-    "note": "心臟內科，和 1 號同成分（Amlodipine），示範同成分警示",
-    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院中興院區", "dept": "心臟內科", "dr": "王醫師", "date": "2026-11-03", "days": 14, "lic": "DEMO-0003", "name": "Amlodipine 10mg", "use": "降血壓", "qty": 0.5, "freq": "QD", "meal": "after"}
+    "note": "心臟內科，和 1 號不同牌子但同成分（Amlodipine，ATC C08CA01），示範同成分警示",
+    "payload": {"v": 1, "t": "rx", "hosp": "臺北市立聯合醫院中興院區", "dept": "心臟內科", "dr": "王醫師", "date": "2026-11-03", "days": 14, "lic": "A047632100", "name": "壓可平錠 10 毫克", "use": "降血壓", "qty": 0.5, "freq": "QD", "meal": "after"}
   }
 ]

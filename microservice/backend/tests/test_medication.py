@@ -11,9 +11,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import clock
-from app.integrations.fda.importer import import_licenses
 from app.modules.medication.models import SlotKey
 from app.modules.medication.service import MedicationService
+from seed.load import load_licenses, sample_drug_codes
 from tests.conftest import LoginFn
 
 API = "/api/v1"
@@ -37,7 +37,7 @@ def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:
 @pytest.fixture
 async def ctx(api: httpx.AsyncClient, login: LoginFn, sessionmaker: async_sessionmaker[AsyncSession]) -> dict:
     async with sessionmaker() as session:
-        await import_licenses(session, json.loads((SEED / "drug_licenses.json").read_text(encoding="utf-8")))
+        await load_licenses(session, only=sample_drug_codes())
         await session.commit()
     elder_h, elder_id = await login("elder-1", "陳阿嬤", "elder")
     family_h, family_id = await login("family-1", "陳小美", "family")
@@ -72,7 +72,7 @@ async def test_preview_shows_confirm_screen(api: httpx.AsyncClient, ctx: dict) -
     assert resp.status_code == 200, resp.text
     body = resp.json()
     # 確認畫面核對藥名、劑量、頻率
-    assert body["draft"]["name"] == "Metformin 500mg"
+    assert body["draft"]["name"] == "顧糖維膜衣錠 500 毫克"
     assert body["draft"]["dose_qty"] == 1
     assert body["frequency_label"] == "一天兩次"
     assert body["meal_timing_label"] == "飯後"
@@ -140,7 +140,7 @@ async def test_medication_card(api: httpx.AsyncClient, ctx: dict, monkeypatch: p
     assert [c["number"] for c in cards] == [1, 2]
     card = cards[0]
     # 大編號、藥名、一次幾顆、時段與時間、還剩幾天
-    assert (card["number"], card["name"], card["dose_qty"]) == (1, "Amlodipine 5mg", 1)
+    assert (card["number"], card["name"], card["dose_qty"]) == (1, "脈優錠 5 毫克", 1)
     assert [(s["label"], s["time"]) for s in card["slots"]] == [("早餐飯後", "08:00:00")]
     assert card["run_out_date"] == "2026-11-28"
     assert card["days_left"] == 19  # 11/10～11/28
@@ -286,7 +286,7 @@ async def test_service_for_other_modules(
     async with sessionmaker() as session:
         service = MedicationService(session)
         doses = await service.list_active_doses(elder_id, dt.date(2026, 11, 5))
-        assert [(d.number, d.name) for d in doses] == [(1, "Amlodipine 5mg"), (2, "Metformin 500mg")]
+        assert [(d.number, d.name) for d in doses] == [(1, "脈優錠 5 毫克"), (2, "顧糖維膜衣錠 500 毫克")]
         assert await service.list_active_doses(elder_id, dt.date(2026, 12, 31)) == []
 
         dinner = await service.doses_for_slot(elder_id, SlotKey.DINNER_AFTER, dt.date(2026, 11, 5))

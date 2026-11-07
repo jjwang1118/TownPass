@@ -32,7 +32,7 @@ App qr_code_scan ─▶ POST qr-preview ─▶ 確認畫面（核對藥名、劑
 ```
 
 - **編號**：進行中藥品沒用到的最小正整數。停用後編號釋放。同時新增時用 PostgreSQL advisory lock 避免重複。
-- **同成分警示**：同一張許可證，或主成分（`drug_licenses`）重疊時，回 `warnings`：「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
+- **同成分警示**：同一個健保藥品代號，或 ATC 7 碼（`drug_licenses.ingredients`）相同時，回 `warnings`：「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
 
 ## 藥卡內容（MedicationOut）
 
@@ -66,7 +66,7 @@ App qr_code_scan ─▶ POST qr-preview ─▶ 確認畫面（核對藥名、劑
 
 - `medications`：進行中的藥，`(elder_id, number)` 不可重複；停用時記錄 `stop_reason`
 - `time_slots`：每位長輩 7 筆
-- `drug_licenses`：食藥署資料，只讀（`seed/` 匯入範例）
+- `drug_licenses`：健保用藥品項，只讀（`seed/` 匯入全部 4.5 萬筆，見 `integrations/fda/`）
 
 ## 提供給其他模組（呼叫端自行檢查權限）
 

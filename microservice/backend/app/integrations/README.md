@@ -7,7 +7,7 @@
 | [townpass/](townpass/) | 城市通 App 的 `{ name, data }` 訊息 | 前端轉送 App 的回覆 | ✅ 完成 |
 | [tpech/](tpech/) | 北市聯醫掛號系統 | 讀資料庫的模擬門診 | 只有介面 |
 | [fire_dept/](fire_dept/) | 消防局人員名冊 | 讀 `responders` 表 | 只有介面 |
-| [fda/](fda/) | 食藥署藥品許可證開放資料 | 匯入少量範例 | ✅ 完成 |
+| [fda/](fda/) | 藥品資料（健保用藥品項），用於同成分檢查 | 匯入全部 4.5 萬筆 | ✅ 完成 |
 | [fcm/](fcm/) | Firebase Cloud Messaging 推播 | 沒有憑證時只寫 log | ✅ 完成 |
 
 ## 新增外部系統
