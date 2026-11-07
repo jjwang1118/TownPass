@@ -49,7 +49,7 @@ def test_schema_compiles_for_postgresql() -> None:
         str(CreateTable(table).compile(dialect=dialect))
         for index in table.indexes:
             str(CreateIndex(index).compile(dialect=dialect))
-    assert len(metadata.tables) == 20
+    assert len(metadata.tables) == 21
 
 
 def test_timezone_works_without_system_tz_database() -> None:

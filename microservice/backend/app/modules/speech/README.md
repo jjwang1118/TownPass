@@ -32,7 +32,8 @@
 | 函式 | 用在哪裡 | 國語 | 英文 |
 |---|---|---|---|
 | `medication_card()` | 藥卡「念給我聽」 | 1 號藥，脈優錠，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。 | Medicine number 1, Amlodipine 5mg, from Family Medicine, for blood pressure. Take 1 tablet after meals, at 8 AM. 19 days left. |
-| `reminder()` | 吃藥提醒推播與提醒畫面 | 陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 1 顆 | Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; number 3, Metformin 500mg, 1 tablet. |
+| `slot()` | 時段「唸給我聽」與點開吃藥提醒（UI E02、E03） | 中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆（依藥單分組、不念英文字母與藥名；沒有科別時念「另一包藥」） | 12 PM medicine: Endocrinology and Metabolism, number 1, 1 tablet; number 2, 1 tablet. |
+| `reminder()` | 目前未使用（舊版吃藥提醒） | 陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 1 顆 | Grandma Chen, it's time for your medicine. After meals: … |
 | `drug_name()`、`drug_name_en()` | 決定要念的藥名 | 見下方 | 見下方 |
 | `department_en()`、`purpose_en()`、`title_en()` | 英文稿的科別、用途、稱呼 | — | 家醫科 → Family Medicine；降血壓 → blood pressure；陳阿嬤 → Grandma Chen |
 | `speak_time()`、`qty_text()` | 時間、顆數的念法 | 早上 7 點半、1 顆半 | 7:30 AM、1 and a half tablets |

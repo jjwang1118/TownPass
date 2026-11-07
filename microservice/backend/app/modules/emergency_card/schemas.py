@@ -5,11 +5,14 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, field_validator
 
 from app.integrations.townpass.messages import PhoneCallMessage
-from app.modules.emergency_card.models import AccessMethod, ConsentType, Gender
+from app.modules.emergency_card.models import (
+    AccessMethod,
+    BloodType,
+    ConsentType,
+    Gender,
+)
 from app.modules.emergency_card.rules import DISCLAIMER
 from app.modules.medication.schemas import DoseItem
-
-MAX_CONTACTS = 2
 
 
 class AllergyType(StrEnum):
@@ -31,23 +34,6 @@ class ConsentOut(BaseModel):
     granted_at: dt.datetime
 
 
-class CardUpdate(BaseModel):
-    title: str = Field(min_length=1, max_length=20, examples=["陳阿嬤"])
-    birth_year: int | None = Field(default=None, ge=1900, le=2100)
-    gender: Gender | None = None
-    chronic_conditions: list[str] = Field(default=[], max_length=20)
-    allergies: list[Allergy] = Field(default=[], max_length=20)
-    hospital: str = Field(default="臺北市立聯合醫院", min_length=1, max_length=64)
-
-    @field_validator("chronic_conditions")
-    @classmethod
-    def _clean(cls, items: list[str]) -> list[str]:
-        cleaned = [i.strip() for i in items if i.strip()]
-        if any(len(i) > 32 for i in cleaned):
-            raise ValueError("每個項目最多 32 字")
-        return list(dict.fromkeys(cleaned))  # 去除重複，保留順序
-
-
 class ContactIn(BaseModel):
     name: str = Field(min_length=1, max_length=32)
     relation: str = Field(min_length=1, max_length=20)
@@ -60,8 +46,24 @@ class ContactIn(BaseModel):
         return PhoneCallMessage.to(value).data
 
 
-class ContactsUpdate(BaseModel):
-    contacts: list[ContactIn] = Field(max_length=MAX_CONTACTS)
+class CardUpdate(BaseModel):
+    """UI E14：姓名、出生年月日、一位緊急聯絡人必填。目前用藥由藥單自動帶入，不能手動編輯。"""
+
+    name: str = Field(min_length=1, max_length=32, examples=["王美玉"])
+    birth_date: dt.date = Field(examples=["1948-05-12"])
+    gender: Gender | None = None
+    blood_type: BloodType = BloodType.UNKNOWN
+    chronic_conditions: list[str] = Field(default=[], max_length=20)
+    allergies: list[Allergy] = Field(default=[], max_length=20)  # 藥物過敏、食物過敏
+    contact: ContactIn
+
+    @field_validator("chronic_conditions")
+    @classmethod
+    def _clean(cls, items: list[str]) -> list[str]:
+        cleaned = [i.strip() for i in items if i.strip()]
+        if any(len(i) > 32 for i in cleaned):
+            raise ValueError("每個項目最多 32 字")
+        return list(dict.fromkeys(cleaned))  # 去除重複，保留順序
 
 
 class ContactOut(BaseModel):
@@ -74,6 +76,7 @@ class ContactOut(BaseModel):
 class AccessLogOut(BaseModel):
     responder_name: str
     responder_unit: str
+    responder_staff_no: str | None  # 人員編號
     method: AccessMethod  # 掃 QR 或輸入卡號
     latitude: Decimal | None
     longitude: Decimal | None
@@ -86,16 +89,17 @@ class CardCodeOut(BaseModel):
 
 
 class CardOut(BaseModel):
-    """長輩、家人檢視。"""
+    """長輩、家人檢視（UI E13、F06）。"""
 
-    title: str
-    birth_year: int | None
+    name: str
+    birth_date: dt.date | None
+    age: int | None  # 例如 78
     gender: Gender | None
-    current_medications: list[DoseItem]  # 由藥區自動帶入
-    chronic_conditions: list[str]
-    allergies: list[Allergy]
-    contacts: list[ContactOut]
-    hospital: str
+    blood_type: BloodType
+    contact: ContactOut | None  # 緊急聯絡人（一位）
+    chronic_conditions: list[str]  # 本人填寫
+    allergies: list[Allergy]  # 本人填寫
+    current_medications: list[DoseItem]  # 來自藥單，例如 A1
     code: CardCodeOut | None  # 撤回同意後為 null
     has_consent: bool
     access_logs: list[AccessLogOut]  # 新的在前
@@ -103,16 +107,16 @@ class CardOut(BaseModel):
 
 
 class ResponderCardOut(BaseModel):
-    """救護人員檢視，欄位順序即顯示順序：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人。"""
+    """救護人員檢視（UI R03）：只回傳必要欄位，不含常去醫院與病歷號。"""
 
-    title: str
-    birth_year: int | None
+    name: str
+    age: int | None
     gender: Gender | None
+    blood_type: BloodType
+    contact: ContactOut | None  # 「撥打 陳小華（女兒）」
+    chronic_conditions: list[str]
     allergies: list[Allergy]
     current_medications: list[DoseItem]
-    chronic_conditions: list[str]
-    contacts: list[ContactOut]
-    hospital: str
     disclaimer: str = DISCLAIMER
     close_at: dt.datetime  # 畫面自動關閉並清除資料的時間（查詢後 30 分鐘）
 

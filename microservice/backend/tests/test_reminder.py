@@ -1,7 +1,4 @@
-"""吃藥提醒：功能規格 1-5、1-6、3-1。需要 PostgreSQL。
-
-用固定時間模擬排程：08:00 提醒 → 08:10、08:20 再提醒 → 08:30 通知家人沒有回應。
-"""
+"""吃藥提醒：固定四個時段（09:00、12:00、18:00、22:00），長輩與家屬同時收到（UI E09、F04）。需要 PostgreSQL。"""
 
 import datetime as dt
 import json
@@ -20,10 +17,7 @@ from tests.conftest import FakePusher, LoginFn
 
 API = "/api/v1"
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
-AMLODIPINE_5, METFORMIN, AMLODIPINE_10 = (
-    s["payload"] for s in json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))
-)
-ELDER_PHONE = "0932166777"  # assets/mock_data/account.json 的 phoneNo
+RX_A, RX_B, RX_C = (s["payload"] for s in json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8")))
 
 
 def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:
@@ -54,8 +48,8 @@ async def ctx(
 
 async def add(api: httpx.AsyncClient, ctx: dict, payload: dict) -> dict:
     qr = {"name": "qr_code_scan", "data": json.dumps(payload, ensure_ascii=False)}
-    draft = (await api.post(f"{ctx['base']}/medications/qr-preview", json=qr, headers=ctx["elder"])).json()["draft"]
-    return (await api.post(f"{ctx['base']}/medications", json=draft, headers=ctx["elder"])).json()["medication"]
+    draft = (await api.post(f"{ctx['base']}/prescriptions/qr-preview", json=qr, headers=ctx["elder"])).json()["draft"]
+    return (await api.post(f"{ctx['base']}/prescriptions", json=draft, headers=ctx["elder"])).json()["prescription"]
 
 
 async def tick(api: httpx.AsyncClient) -> dict:
@@ -68,200 +62,120 @@ def sent_to(pushes: FakePusher, token: str) -> list:
     return [message for tokens, message in pushes.sent if token in tokens]
 
 
-# ---------- 1-5 吃藥提醒畫面 ----------
-
-
-async def test_remind_at_slot_time(
+async def test_elder_and_family_notified_at_the_same_time(
     api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await add(api, ctx, AMLODIPINE_5)  # 1 號：早餐飯後
-    await add(api, ctx, METFORMIN)  # 2 號：早餐飯後、晚餐飯後
+    await add(api, ctx, RX_A)  # A1、A2 早上，A3 睡前
+    await add(api, ctx, RX_B)  # B1 早中晚，B2 中午
 
-    freeze(monkeypatch, "2026-11-05 07:59")
+    freeze(monkeypatch, "2026-11-07 11:59")
     assert (await tick(api))["created"] == 0
+    freeze(monkeypatch, "2026-11-07 12:00")
+    assert await tick(api) == {"created": 1, "refill": 0, "appointment": 0}
 
-    freeze(monkeypatch, "2026-11-05 08:00")
-    assert (await tick(api))["created"] == 1
-    [message] = sent_to(pushes, "elder-phone")
-    assert message.body == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠５毫克 1 顆、2 號 顧糖維膜衣錠 500 毫克 1 顆"
-    assert message.data["type"] == "medication_reminder"
-    assert message.data["deeplink"].endswith(f"/reminder/{message.data['event_id']}")
-    assert sent_to(pushes, "daughter-phone") == []  # 家人不會每個時段都收到
+    # UI E09：長輩
+    [elder] = sent_to(pushes, "elder-phone")
+    assert (elder.title, elder.body) == ("中午 12:00 該吃藥了", "B1、B2 各 1 顆，點開可以聽語音")
+    assert elder.data["type"] == "medication_reminder"
+    assert elder.data["deeplink"].endswith(f"/reminder/{elder.data['event_id']}")
+    # UI F04：家屬同時間收到（還沒建立救命卡時用台北通姓名）
+    [family] = sent_to(pushes, "daughter-phone")
+    assert (family.title, family.body) == ("陳阿嬤 中午 12:00 該吃藥了", "B1、B2 各 1 顆，記得關心他")
+    assert family.data["type"] == "family_medication_reminder"
+    assert sent_to(pushes, "stranger-phone") == []
 
-    # 同一分鐘再跑一次不會重複
-    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0}
+    # 同一分鐘再跑一次不會重複；也不會再提醒
+    for at in ("12:00", "12:10", "12:20", "12:30"):
+        freeze(monkeypatch, f"2026-11-07 {at}")
+        assert (await tick(api))["created"] == 0
+    assert len(pushes.sent) == 2
 
-    # 提醒畫面：大字顯示「1 號 → 1 顆」，並朗讀
-    screen = (await api.get(f"{API}/reminders/{message.data['event_id']}", headers=ctx["elder"])).json()
-    assert [(i["number"], i["qty"]) for i in screen["items"]] == [(1, 1), (2, 1)]
-    assert screen["label"] == "早餐飯後"
-    assert screen["speech_text"] == message.body
-    assert screen["speech_text_en"] == (
-        "Grandma Chen, it's time for your medicine. "
-        "After meals: number 1, NORVASC TABLETS 5MG, 1 tablet; number 2, Glucophage Film-coated tablets 500mg, 1 tablet."
-    )
-    assert screen["status"] == "pending"
+    # 點開推播：時段用藥詳情，依藥單分組，朗讀不念英文字母
+    screen = (await api.get(f"{API}/reminders/{elder.data['event_id']}", headers=ctx["family"])).json()
+    assert (screen["label"], screen["elder_name"]) == ("中午", "陳阿嬤")
+    assert [i["code"] for i in screen["items"]] == ["B1", "B2"]
+    assert [g["letter"] for g in screen["groups"]] == ["B"]
+    assert screen["speech_text"] == "中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆"
 
 
-async def test_speech_uses_card_title_and_drug_name(
+async def test_family_message_uses_card_name(
     api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await add(api, ctx, AMLODIPINE_10)  # 半顆
     await api.post(f"{ctx['base']}/consents", json={}, headers=ctx["elder"])
-    await api.put(f"{ctx['base']}/emergency-card", json={"title": "阿嬤", "gender": "female"}, headers=ctx["elder"])
+    card = {
+        "name": "王美玉",
+        "birth_date": "1948-05-12",
+        "gender": "female",
+        "contact": {"name": "陳小華", "relation": "女兒", "phone": "0912345678"},
+    }
+    assert (await api.put(f"{ctx['base']}/emergency-card", json=card, headers=ctx["elder"])).status_code == 200
+    await add(api, ctx, RX_A)
 
-    freeze(monkeypatch, "2026-11-05 08:00")
+    freeze(monkeypatch, "2026-11-07 09:00")
     await tick(api)
-    # 這裡沒有匯入食藥署資料，查不到中文品名，所以照藥袋上的英文念
-    assert sent_to(pushes, "elder-phone")[0].body == '阿嬤，吃藥時間到囉～飯後吃：1 號 "華興"壓可平錠10毫克 (安脈狄平) 半顆'
+    [family] = sent_to(pushes, "daughter-phone")
+    assert (family.title, family.body) == ("王美玉 早上 09:00 該吃藥了", "A1、A2 各 1 顆，記得關心她")
 
 
 async def test_no_late_reminder_after_30_minutes(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
-    await add(api, ctx, AMLODIPINE_5)
-    freeze(monkeypatch, "2026-11-05 08:30")  # 排程延誤 30 分鐘
+    await add(api, ctx, RX_A)
+    freeze(monkeypatch, "2026-11-07 09:31")
     assert (await tick(api))["created"] == 0
 
 
-async def test_no_duplicate_after_time_change(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
-    await add(api, ctx, AMLODIPINE_5)
-    freeze(monkeypatch, "2026-11-05 08:00")
-    assert (await tick(api))["created"] == 1
-    slot = {"slots": [{"slot_key": "breakfast_after", "time": "08:15"}]}
-    await api.put(f"{ctx['base']}/time-slots", json=slot, headers=ctx["elder"])
-    freeze(monkeypatch, "2026-11-05 08:15")
+async def test_stopped_or_finished_not_reminded(
+    api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prescription = await add(api, ctx, RX_A)
+    for med in prescription["medications"][:2]:  # 停用 A1、A2（早上），只剩 A3（睡前）
+        await api.post(f"{ctx['base']}/medications/{med['id']}/stop", json={"reason": "finished"}, headers=ctx["elder"])
+
+    freeze(monkeypatch, "2026-11-07 09:00")
     assert (await tick(api))["created"] == 0
-    # 隔天照新的時間提醒
-    freeze(monkeypatch, "2026-11-06 08:15")
+    freeze(monkeypatch, "2026-11-07 22:00")
     assert (await tick(api))["created"] == 1
+    assert sent_to(pushes, "elder-phone")[0].body == "A3 1 顆，點開可以聽語音"
+
+    # 移到「已吃完」的藥單不再提醒
+    await api.post(f"{ctx['base']}/prescriptions/{prescription['id']}/finish", headers=ctx["elder"])
+    freeze(monkeypatch, "2026-11-08 22:00")
+    assert (await tick(api))["created"] == 0
 
 
-async def test_stopped_or_finished_medication_not_reminded(
-    api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    med = await add(api, ctx, AMLODIPINE_5)  # 11/01～11/28
-    freeze(monkeypatch, "2026-11-29 08:00")
-    assert (await tick(api))["created"] == 0  # 已吃完
-    freeze(monkeypatch, "2026-11-05 08:00")
-    await api.post(f"{ctx['base']}/medications/{med['id']}/stop", json={"reason": "doctor_advised"}, headers=ctx["elder"])
-    assert (await tick(api))["created"] == 0  # 已停用
-
-
-# ---------- 1-6 沒回應：再提醒 3 次後通知家人 ----------
-
-
-async def test_no_response_flow(
-    api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    await add(api, ctx, AMLODIPINE_5)
-    await api.post(f"{ctx['base']}/consents", json={}, headers=ctx["elder"])
-    await api.put(f"{ctx['base']}/emergency-card", json={"title": "陳阿嬤", "gender": "female"}, headers=ctx["elder"])
-
-    timeline = [
-        ("08:00", {"created": 1}),
-        ("08:09", {}),
-        ("08:10", {"repushed": 1}),  # 第 2 次
-        ("08:20", {"repushed": 1}),  # 第 3 次
-        ("08:29", {}),
-        ("08:30", {"escalated": 1}),  # 通知家人
-        ("08:40", {}),  # 之後不再推播
-    ]
-    for hhmm, expected in timeline:
-        freeze(monkeypatch, f"2026-11-05 {hhmm}")
-        assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0, **expected}, hhmm
-
-    assert len(sent_to(pushes, "elder-phone")) == 3
-    [message] = sent_to(pushes, "daughter-phone")
-    assert message.body == "媽媽 08:00 的吃藥提醒沒有回應，要不要打給她？"
-    assert message.data["type"] == "medication_no_response"
-    assert json.loads(message.data["call"]) == {"name": "phone_call", "data": ELDER_PHONE}
-    assert sent_to(pushes, "stranger-phone") == []
-
-    screen = (await api.get(f"{API}/reminders/{message.data['event_id']}", headers=ctx["family"])).json()
-    assert (screen["status"], screen["attempts"]) == ("no_response", 3)
-
-
-async def test_ack(api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch) -> None:
-    await add(api, ctx, AMLODIPINE_5)
-    freeze(monkeypatch, "2026-11-05 08:00")
-    await tick(api)
-    event_id = sent_to(pushes, "elder-phone")[0].data["event_id"]
-    url = f"{API}/reminders/{event_id}/ack"
-
-    # 只有長輩本人可以按「好，我知道了」
-    assert (await api.post(url, headers=ctx["family"])).json()["error"]["code"] == "ELDER_ONLY"
-
-    freeze(monkeypatch, "2026-11-05 08:03")
-    assert (await api.post(url, headers=ctx["elder"])).json()["status"] == "acked"
-    [message] = sent_to(pushes, "daughter-phone")
-    assert message.body == "媽媽已回應 08:00 的吃藥提醒"
-    assert message.data["type"] == "medication_acked"
-
-    # 重複按不會重複通知；回應後不再提醒
-    await api.post(url, headers=ctx["elder"])
-    assert len(sent_to(pushes, "daughter-phone")) == 1
-    freeze(monkeypatch, "2026-11-05 08:30")
-    assert await tick(api) == {"created": 0, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0}
-
-
-async def test_ack_notification_can_be_turned_off(
-    api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    await api.patch(f"{API}/family/bindings/{ctx['binding_id']}", json={"notify_on_ack": False}, headers=ctx["family"])
-    await add(api, ctx, AMLODIPINE_5)
-    freeze(monkeypatch, "2026-11-05 08:00")
-    await tick(api)
-    event_id = sent_to(pushes, "elder-phone")[0].data["event_id"]
-    await api.post(f"{API}/reminders/{event_id}/ack", headers=ctx["elder"])
-    assert sent_to(pushes, "daughter-phone") == []
-
-
-async def test_reminder_access_and_daily_list(
-    api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    await add(api, ctx, METFORMIN)
-    for hhmm in ("08:00", "18:00"):
-        freeze(monkeypatch, f"2026-11-05 {hhmm}")
+async def test_reminder_access_and_daily_list(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    await add(api, ctx, RX_B)
+    for at in ("09:00", "12:00", "18:00"):
+        freeze(monkeypatch, f"2026-11-07 {at}")
         await tick(api)
-    event_id = sent_to(pushes, "elder-phone")[0].data["event_id"]
 
-    assert (await api.get(f"{API}/reminders/{event_id}", headers=ctx["family"])).status_code == 200
-    assert (await api.get(f"{API}/reminders/{event_id}", headers=ctx["stranger"])).json()["error"]["code"] == "NOT_BOUND"
-
-    day = (await api.get(f"{ctx['base']}/reminders?date=2026-11-05", headers=ctx["family"])).json()
-    assert [r["label"] for r in day] == ["早餐飯後", "晚餐飯後"]
-    assert (await api.get(f"{ctx['base']}/reminders?date=2026-11-06", headers=ctx["family"])).json() == []
+    listed = (await api.get(f"{ctx['base']}/reminders?date=2026-11-07", headers=ctx["family"])).json()
+    assert [r["label"] for r in listed] == ["早上", "中午", "晚上"]
+    resp = await api.get(f"{API}/reminders/{listed[0]['id']}", headers=ctx["stranger"])
+    assert resp.json()["error"]["code"] == "NOT_BOUND"
 
 
 async def test_nudge(api: httpx.AsyncClient, ctx: dict, pushes: FakePusher) -> None:
-    url = f"{ctx['base']}/nudge"
-    assert (await api.post(url, headers=ctx["family"])).status_code == 204
-    [message] = sent_to(pushes, "elder-phone")
-    assert message.body == "陳小美提醒你吃藥喔"
-    assert message.data["type"] == "medication_nudge"
-
-    assert (await api.post(url, headers=ctx["elder"])).json()["error"]["code"] == "FAMILY_ONLY"
-    assert (await api.post(url, headers=ctx["stranger"])).json()["error"]["code"] == "NOT_BOUND"
-
-
-# ---------- 3-1 回診提醒 ----------
+    assert (await api.post(f"{ctx['base']}/nudge", headers=ctx["family"])).status_code == 204
+    assert sent_to(pushes, "elder-phone")[0].body == "陳小美提醒你吃藥喔"
+    resp = await api.post(f"{ctx['base']}/nudge", headers=ctx["elder"])
+    assert resp.json()["error"]["code"] == "FAMILY_ONLY"
 
 
 async def test_refill_reminder(
     api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await add(api, ctx, AMLODIPINE_10)  # 11/03 起 14 天，11/16 吃完 → 11/09 提醒
+    await add(api, ctx, RX_A)  # 11/05 起 28 天，12/02 吃完
 
-    freeze(monkeypatch, "2026-11-09 08:59")
+    freeze(monkeypatch, "2026-11-25 08:59")
     assert (await tick(api))["refill"] == 0
-    freeze(monkeypatch, "2026-11-09 09:00")
+    freeze(monkeypatch, "2026-11-25 09:00")
     assert (await tick(api))["refill"] == 1
-    text = "1 號的藥再 7 天就吃完囉，要記得回診或領慢箋"
-    assert [m.body for m in sent_to(pushes, "elder-phone") if m.data["type"] == "refill_reminder"] == [text]
-    assert [m.body for m in sent_to(pushes, "daughter-phone")] == [text]  # 家人端也收到
-
-    freeze(monkeypatch, "2026-11-09 15:00")
-    assert (await tick(api))["refill"] == 0  # 同一天不重複
-    freeze(monkeypatch, "2026-11-10 09:00")
+    text = "藥單 A（仁愛院區 心臟內科）再 7 天就吃完囉，要記得回診或領慢箋"
+    refill = [m for m in sent_to(pushes, "elder-phone") if m.data["type"] == "refill_reminder"]
+    assert [m.body for m in refill] == [text]
+    assert any(m.body == text for m in sent_to(pushes, "daughter-phone"))
+    # 同一個吃完日只發一次
+    freeze(monkeypatch, "2026-11-25 10:00")
     assert (await tick(api))["refill"] == 0
 
 
@@ -292,21 +206,22 @@ async def demo_api(
 
 
 async def test_demo_triggers(
-    api: httpx.AsyncClient, ctx: dict, demo_api: httpx.AsyncClient, pushes: FakePusher
+    api: httpx.AsyncClient, ctx: dict, demo_api: httpx.AsyncClient, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await add(api, ctx, AMLODIPINE_5)
+    freeze(monkeypatch, "2026-11-07 15:00")
+    await add(api, ctx, RX_A)
     query = f"?elder_id={ctx['elder_id']}"
 
-    resp = await demo_api.post(f"{API}/demo/trigger/reminder{query}", headers=ctx["family"])
-    assert resp.status_code == 200, resp.text
-    assert sent_to(pushes, "elder-phone")[0].body.startswith("陳阿嬤，吃藥時間到囉～")
-
-    resp = await demo_api.post(f"{API}/demo/trigger/no-response{query}", headers=ctx["family"])
-    assert resp.json()["status"] == "no_response"
-    assert "沒有回應" in sent_to(pushes, "daughter-phone")[0].body
+    # 今天第一個有藥的時段（早上），長輩與家屬同時收到；再按一次會再推播
+    for _ in range(2):
+        resp = await demo_api.post(f"{API}/demo/trigger/reminder{query}", headers=ctx["family"])
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["label"] == "早上"
+    assert [m.title for m in sent_to(pushes, "elder-phone")] == ["早上 09:00 該吃藥了"] * 2
+    assert len(sent_to(pushes, "daughter-phone")) == 2
 
     resp = await demo_api.post(f"{API}/demo/trigger/refill{query}", headers=ctx["family"])
-    assert resp.json() == {"numbers": [1]}
+    assert resp.json() == {"letters": ["A"]}
 
     # 一般模式沒有 demo API
     assert (await api.post(f"{API}/demo/trigger/refill{query}", headers=ctx["family"])).status_code == 404

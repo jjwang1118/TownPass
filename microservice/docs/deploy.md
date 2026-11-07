@@ -194,5 +194,5 @@ uv run uvicorn app.main:app --reload       # 啟動後端（內建排程也會�
 - [ ] 拉下最新程式後 App 有**完整重新安裝**（`lastUpdateTime` 已更新）
 - [ ] 模擬器已下載**中文（台灣）語音資料**，開飛航模式按「念給我聽」聽得到
 - [ ] （有設定 Firebase 時）兩台模擬器都登記了推播
-- [ ] 救護人員帳號 EMT-001（可登入）、EMT-003（無權限）
+- [ ] 救護人員帳號：大安分隊 A12345（可登入）、信義分隊 A34567（無權限），密碼見 `seed/README.md`
 - [ ] 範例藥袋 QR（`seed/qr/`）放進模擬器的虛擬相機：模擬器 **Extended controls（⋯）→ Camera → Virtual scene**，把圖片設為牆面或桌面圖片，App 掃描時移動到圖片前即可

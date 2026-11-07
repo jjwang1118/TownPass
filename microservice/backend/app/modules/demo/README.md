@@ -10,16 +10,14 @@ Demo 時不用等到真正的時間，立即觸發提醒與通知。**只在 `DE
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/demo/trigger/reminder?elder_id=` | 立即提醒今天第一個有藥的時段；今天已提醒過就重新開始（次數歸零） |
-| POST | `/demo/trigger/no-response?elder_id=` | 把最近一筆未回應的提醒當作 3 次沒回應，立即通知家人（沒有未回應的提醒時先觸發一筆） |
-| POST | `/demo/trigger/refill?elder_id=` | 立即發回診提醒，提醒最快吃完的那幾號藥 |
+| POST | `/demo/trigger/reminder?elder_id=` | 立即提醒今天第一個有藥的時段，長輩與家屬同時收到；今天已提醒過就再推播一次 |
+| POST | `/demo/trigger/refill?elder_id=` | 立即發回診提醒，提醒最快吃完的那幾張藥單；回 `{"letters": ["A"]}` |
 
 只有 `router.py`，實際邏輯在 `reminder` 模組的 `demo_trigger_*` 方法。
 
 ## Demo 建議順序
 
-1. 長輩掃範例藥袋 QR 加入藥品（`seed/qr/`）
+1. 長輩掃範例藥袋 QR 加入藥單 A、B（`seed/qr/`）；再掃藥單 C 示範同成分警示
 2. 家人用邀請碼綁定，並在手機登記推播
-3. `trigger/reminder`：長輩手機跳出吃藥提醒
-4. `trigger/no-response`：家人收到「媽媽 08:00 的吃藥提醒沒有回應，要不要打給她？」
-5. `trigger/refill`：長輩和家人收到回診提醒
+3. `trigger/reminder`：長輩手機跳出「早上 09:00 該吃藥了」，女兒手機同時收到「王美玉 早上 09:00 該吃藥了」
+4. `trigger/refill`：長輩和家人收到回診提醒

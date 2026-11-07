@@ -11,7 +11,7 @@ from app.modules.appointment.schemas import (
     DepartmentOut,
     DoctorOut,
     HospitalOut,
-    ReminderToggle,
+    SlotOut,
 )
 from app.modules.appointment.service import AppointmentService
 
@@ -23,12 +23,12 @@ def get_service(session: SessionDep) -> AppointmentService:
 
 
 Service = Annotated[AppointmentService, Depends(get_service)]
-OptionalElder = Annotated[UUID | None, Query(description="帶入時，上次看的科別、醫師會排第一並標記")]
+OptionalElder = Annotated[UUID | None, Query(description="帶入時，最近藥單的科別、醫師會排第一並標記")]
 
 
 @router.get("/hospitals", response_model=list[HospitalOut])
 async def list_hospitals(_: CurrentUserId, service: Service) -> list[HospitalOut]:
-    """步驟 1：選院區（限臺北市立聯合醫院）。"""
+    """選院區（限臺北市立聯合醫院，9 個院址）。"""
     return await service.list_hospitals()
 
 
@@ -36,7 +36,7 @@ async def list_hospitals(_: CurrentUserId, service: Service) -> list[HospitalOut
 async def list_departments(
     hospital_id: UUID, user_id: CurrentUserId, service: Service, elder_id: OptionalElder = None
 ) -> list[DepartmentOut]:
-    """步驟 2：選科別。"""
+    """選科別：從藥單帶入的科別排第一（from_letter）。"""
     return await service.list_departments(user_id, hospital_id, elder_id)
 
 
@@ -44,14 +44,20 @@ async def list_departments(
 async def list_doctors(
     department_id: UUID, user_id: CurrentUserId, service: Service, elder_id: OptionalElder = None
 ) -> list[DoctorOut]:
-    """步驟 3：選醫師。"""
+    """選醫師：門診時間；額滿為灰色不可選。"""
     return await service.list_doctors(user_id, department_id, elder_id)
 
 
 @router.get("/doctors/{doctor_id}/sessions", response_model=list[ClinicDayOut])
 async def list_clinic_days(doctor_id: UUID, _: CurrentUserId, service: Service) -> list[ClinicDayOut]:
-    """步驟 4、5：未來 2 週有門診的日子，每天的上午、下午、晚上時段。"""
+    """選日期：明天起 2 週這位醫師的門診日（例如 11/14（五）上午門診）。"""
     return await service.list_clinic_days(doctor_id)
+
+
+@router.get("/sessions/{session_id}/slots", response_model=list[SlotOut])
+async def list_slots(session_id: UUID, _: CurrentUserId, service: Service) -> list[SlotOut]:
+    """選時段：每個看診時間（例如上午 09:30）的剩餘名額。"""
+    return await service.list_slots(session_id)
 
 
 @router.post(
@@ -60,7 +66,7 @@ async def list_clinic_days(doctor_id: UUID, _: CurrentUserId, service: Service) 
 async def book(
     elder_id: UUID, body: AppointmentCreate, user_id: CurrentUserId, service: Service
 ) -> AppointmentOut:
-    """步驟 6：確認預約；回傳完成頁內容。"""
+    """確認預約：body 為選好的看診時間；回傳預約成功頁內容（看診號碼）。"""
     return await service.book(user_id, elder_id, body)
 
 
@@ -75,11 +81,3 @@ async def cancel(
     elder_id: UUID, appointment_id: UUID, user_id: CurrentUserId, service: Service
 ) -> AppointmentOut:
     return await service.cancel(user_id, elder_id, appointment_id)
-
-
-@router.put("/elders/{elder_id}/appointments/{appointment_id}/reminder", response_model=AppointmentOut)
-async def set_reminder(
-    elder_id: UUID, appointment_id: UUID, body: ReminderToggle, user_id: CurrentUserId, service: Service
-) -> AppointmentOut:
-    """完成頁「加入提醒」：前一天 18:00、當天 08:00 推播長輩與家人。"""
-    return await service.set_reminder(user_id, elder_id, appointment_id, body.enabled)

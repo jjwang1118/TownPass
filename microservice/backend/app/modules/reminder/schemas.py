@@ -1,33 +1,23 @@
 import datetime as dt
-from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel
 
 from app.modules.medication.models import SlotKey
-from app.modules.medication.schemas import DoseItem
-
-
-class ReminderStatus(StrEnum):
-    PENDING = "pending"  # 等待長輩回應
-    ACKED = "acked"  # 長輩按了「好，我知道了」
-    NO_RESPONSE = "no_response"  # 3 次沒回應，已通知家人
+from app.modules.medication.schemas import DoseItem, SlotGroup
 
 
 class ReminderOut(BaseModel):
-    """提醒畫面（功能規格 1-5）。前端依 items 大字顯示「1 號 → 2 顆」，並朗讀 speech_text。"""
+    """吃藥提醒（點開推播後的時段用藥詳情）。前端依 groups 顯示，並朗讀 speech_text。"""
 
     id: UUID
     elder_id: UUID
-    elder_title: str  # 例如「陳阿嬤」
+    elder_name: str
     slot_key: SlotKey
-    label: str  # 例如「晚餐飯後」
+    label: str  # 早上、中午、晚上、睡前
     scheduled_at: dt.datetime
     items: list[DoseItem]
-    speech_text: str  # 國語朗讀稿；藥名有中文就念中文，只有英文就念原文
-    speech_text_en: str  # 英文朗讀稿（給外籍看護）；稱呼依對照表翻成英文，查不到就不念
-    status: ReminderStatus
-    attempts: int
-    acked_at: dt.datetime | None
-    escalated_at: dt.datetime | None
-
+    groups: list[SlotGroup]  # 依藥單分組
+    speech_text: str  # 「中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆」
+    speech_text_en: str
+    pushed_at: dt.datetime  # 推播長輩與家屬的時間

@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, SmallInteger, String, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, SmallInteger, String, Time, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, CreatedAt, UUIDPrimaryKey, enum_column
@@ -51,7 +51,7 @@ class Doctor(UUIDPrimaryKey, Base):
 
 
 class ClinicSession(UUIDPrimaryKey, Base):
-    """門診。額滿或停診時前端顯示灰色不可選。"""
+    """門診（某位醫師某天的上午、下午或晚上）。停診或每個時間都額滿時，前端顯示灰色不可選。"""
 
     __tablename__ = "clinic_sessions"
     __table_args__ = (UniqueConstraint("doctor_id", "date", "period"),)
@@ -59,10 +59,20 @@ class ClinicSession(UUIDPrimaryKey, Base):
     doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
     date: Mapped[dt.date]
     period: Mapped[Period] = mapped_column(enum_column(Period))
-    capacity: Mapped[int] = mapped_column(SmallInteger)
-    booked_count: Mapped[int] = mapped_column(SmallInteger, default=0)  # 目前有效預約數，取消會減少
     issued_count: Mapped[int] = mapped_column(SmallInteger, default=0)  # 已發出的看診號碼，只增不減
     status: Mapped[SessionStatus] = mapped_column(enum_column(SessionStatus), default=SessionStatus.OPEN)
+
+
+class ClinicSlot(UUIDPrimaryKey, Base):
+    """門診裡的看診時間（例如上午 09:30），各自有名額（UI E10g）。"""
+
+    __tablename__ = "clinic_slots"
+    __table_args__ = (UniqueConstraint("session_id", "time"),)
+
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinic_sessions.id", ondelete="CASCADE"), index=True)
+    time: Mapped[dt.time] = mapped_column(Time)
+    capacity: Mapped[int] = mapped_column(SmallInteger)
+    booked_count: Mapped[int] = mapped_column(SmallInteger, default=0)  # 目前有效預約數，取消會減少
 
 
 class Appointment(UUIDPrimaryKey, CreatedAt, Base):
@@ -80,12 +90,11 @@ class Appointment(UUIDPrimaryKey, CreatedAt, Base):
 
     elder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinic_sessions.id"), index=True)
+    slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinic_slots.id"), index=True)
     visit_no: Mapped[int] = mapped_column(SmallInteger)  # 看診號碼
     status: Mapped[AppointmentStatus] = mapped_column(
         enum_column(AppointmentStatus), default=AppointmentStatus.BOOKED
     )
     cancelled_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
-    # 完成頁「加入提醒」：前一天 18:00、當天 08:00 推播長輩與家人
-    reminder_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    # 回診前一天 18:00 自動推播長輩與家屬（UI E12、E16、F08）
     reminded_day_before_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
-    reminded_same_day_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))

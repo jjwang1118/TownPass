@@ -29,12 +29,12 @@
     [[0, "morning"], [1, "evening"], [2, "morning"], [4, "morning"]],
     [[1, "afternoon"], [3, "afternoon"], [5, "morning"]]
   ],
-  "capacity": 30,
+  "slot_capacity": 8,
   "demo": {
     "hospital": "臺北市立聯合醫院仁愛院區",
     "department": "家醫科",
     "doctor": "林醫師",
-    "full": "第 1 個門診額滿",
+    "full": "第 1 個門診每個看診時間都額滿",
     "suspended": "第 2 個門診停診"
   }
 }

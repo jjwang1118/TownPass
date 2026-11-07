@@ -22,7 +22,17 @@ from app.core.db import SessionLocal, engine
 from app.core.security import hash_password
 from app.integrations.fda.importer import import_licenses
 from app.modules.appointment import rules as appointment_rules
-from app.modules.appointment.models import Appointment, ClinicSession, Department, Doctor, Hospital, Period, SessionStatus
+from app.modules.appointment.models import (
+    Appointment,
+    ClinicSession,
+    ClinicSlot,
+    Department,
+    Doctor,
+    Hospital,
+    Period,
+    SessionStatus,
+)
+from app.modules.emergency_card.models import CardAccessLog
 from app.modules.medication.models import DrugLicense
 from app.modules.responder.models import Responder
 
@@ -41,7 +51,7 @@ def seed_id(*parts: str) -> uuid.UUID:
 
 def sample_drug_codes() -> set[str]:
     """範例藥袋 QR 用到的健保藥品代號。"""
-    return {s["payload"]["lic"] for s in read("rx_samples.json")}
+    return {item["lic"] for s in read("rx_samples.json") for item in s["payload"]["items"] if item.get("lic")}
 
 
 async def load_licenses(session: AsyncSession, only: set[str] | None = None) -> int:
@@ -54,7 +64,7 @@ async def load_licenses(session: AsyncSession, only: set[str] | None = None) -> 
 
 
 async def load_responders(session: AsyncSession) -> int:
-    """模擬消防局名冊。密碼以 argon2 雜湊後存入。"""
+    """模擬消防局名冊。密碼以 argon2 雜湊後存入。名冊已移除、也沒有查看紀錄的帳號會刪除。"""
     rows = [
         {**{k: v for k, v in r.items() if k != "password"}, "password_hash": hash_password(r["password"])}
         for r in read("responders.json")
@@ -65,17 +75,25 @@ async def load_responders(session: AsyncSession) -> int:
         set_={col: stmt.excluded[col] for col in rows[0] if col != "account"},
     )
     await session.execute(stmt)
+    await session.execute(
+        delete(Responder).where(
+            Responder.account.not_in([r["account"] for r in rows]),
+            Responder.id.not_in(select(CardAccessLog.responder_id)),
+        )
+    )
     return len(rows)
 
 
 async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> int:
-    """聯醫 7 院區（9 個院址）、各院址的科別與醫師，以及明天起 2 週的門診（模擬）。回傳新增的門診數。
+    """聯醫 7 院區（9 個院址）、各院址的科別與醫師，以及明天起 2 週的門診與看診時間（模擬）。回傳新增的門診數。
 
-    Demo 用：仁愛院區家醫科林醫師的第 1 個門診額滿、第 2 個門診停診。
+    每個看診時間有自己的名額，部分時間預先填入模擬的預約數（號碼接續發）。
+    Demo 用：仁愛院區家醫科林醫師的第 1 個門診每個時間都額滿、第 2 個門診停診。
     """
     data = read("tpech_clinics.json")
     today = today or clock.today_taipei()
     start, end = appointment_rules.booking_window(today)
+    capacity = data["slot_capacity"]
 
     hospitals, departments, doctors, sessions = [], [], [], []
     for hospital in data["hospitals"]:
@@ -88,7 +106,13 @@ async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> i
                 doctor_id = seed_id(hospital["name"], department_name, doctor_name)
                 doctors.append({"id": doctor_id, "department_id": department_id, "name": doctor_name})
                 schedule = data["weekly_schedules"][index % len(data["weekly_schedules"])]
-                sessions += _sessions_for(doctor_id, schedule, start, end, data["capacity"])
+                sessions += _sessions_for(doctor_id, schedule, start, end)
+
+    slots = []
+    for s in sessions:
+        session_slots = _slots_for(s, capacity)
+        s["issued_count"] = sum(slot["booked_count"] for slot in session_slots)
+        slots += session_slots
 
     demo = data["demo"]
     demo_doctor = seed_id(demo["hospital"], demo["department"], demo["doctor"])
@@ -97,7 +121,10 @@ async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> i
         key=lambda s: (s["date"], list(Period).index(s["period"])),
     )
     if len(demo_sessions) >= 2:
-        demo_sessions[0].update(booked_count=data["capacity"], issued_count=data["capacity"])
+        full = [slot for slot in slots if slot["session_id"] == demo_sessions[0]["id"]]
+        for slot in full:
+            slot["booked_count"] = capacity
+        demo_sessions[0]["issued_count"] = capacity * len(full)
         demo_sessions[1].update(status=SessionStatus.SUSPENDED)
 
     await _upsert(session, Hospital, hospitals, update=["name", "address"])
@@ -110,12 +137,15 @@ async def load_clinics(session: AsyncSession, today: dt.date | None = None) -> i
         .on_conflict_do_nothing(index_elements=["doctor_id", "date", "period"])
         .returning(ClinicSession.id)
     )
-    return len(result.all())
+    created = set(result.scalars().all())
+    # 只替新建立的門診加入看診時間；已經存在的門診（可能已有預約）不動
+    new_slots = [slot for slot in slots if slot["session_id"] in created]
+    if new_slots:
+        await session.execute(insert(ClinicSlot).values(new_slots))
+    return len(created)
 
 
-def _sessions_for(
-    doctor_id: uuid.UUID, schedule: list[list], start: dt.date, end: dt.date, capacity: int
-) -> list[dict[str, Any]]:
+def _sessions_for(doctor_id: uuid.UUID, schedule: list[list], start: dt.date, end: dt.date) -> list[dict[str, Any]]:
     rows = []
     day = start
     while day <= end:
@@ -127,13 +157,28 @@ def _sessions_for(
                         "doctor_id": doctor_id,
                         "date": day,
                         "period": Period(period),
-                        "capacity": capacity,
-                        "booked_count": 0,
                         "issued_count": 0,
                         "status": SessionStatus.OPEN,
                     }
                 )
         day += dt.timedelta(days=1)
+    return rows
+
+
+def _slots_for(clinic: dict[str, Any], capacity: int) -> list[dict[str, Any]]:
+    """門診的看診時間；預先填入的預約數由醫師、日期、時間決定（每次匯入結果相同），約 1/9 額滿。"""
+    rows = []
+    for at in appointment_rules.SLOT_TIMES[clinic["period"]]:
+        key = seed_id(str(clinic["doctor_id"]), clinic["date"].isoformat(), at.isoformat())
+        rows.append(
+            {
+                "id": uuid.uuid4(),
+                "session_id": clinic["id"],
+                "time": at,
+                "capacity": capacity,
+                "booked_count": min(key.int % (capacity + 1), capacity),
+            }
+        )
     return rows
 
 
@@ -171,7 +216,7 @@ async def main() -> None:
     await engine.dispose()
     print(f"健保用藥品項：{licenses} 筆")
     print(f"消防局名冊（模擬）：{responders} 筆")
-    print(f"聯醫門診（模擬）：新增 {clinics} 個門診（明天起 2 週）")
+    print(f"聯醫門診（模擬）：新增 {clinics} 個門診與看診時間（明天起 2 週）")
 
 
 if __name__ == "__main__":

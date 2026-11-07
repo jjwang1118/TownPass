@@ -21,14 +21,14 @@
 |---|---|---|---|
 | [auth/](auth/) | 台北通登入、選擇身分 | 3 | ✅ 完成 |
 | [family/](family/) | 邀請碼、綁定、**權限檢查** | 6 | ✅ 完成 |
-| [medication/](medication/) | 藥品、掃 QR 新增、時段 | 9 | ✅ 完成 |
-| [reminder/](reminder/) | 吃藥提醒、回應、通知家人、回診提醒 | 4 | ✅ 完成 |
-| [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 7 | ✅ 完成 |
-| [responder/](responder/) | 救護人員登入、查詢救命卡 | 2 | ✅ 完成 |
-| [appointment/](appointment/) | 院區、門診、預約、預約提醒 | 8 | ✅ 完成 |
+| [medication/](medication/) | 藥單（拍照比對、掃 QR、手動）、藥名搜尋、今天四個時段 | 14 | ✅ 完成 |
+| [reminder/](reminder/) | 吃藥提醒（長輩與家屬同時）、回診提醒 | 3 | ✅ 完成 |
+| [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 6 | ✅ 完成 |
+| [responder/](responder/) | 分隊清單、救護人員登入、查詢救命卡 | 3 | ✅ 完成 |
+| [appointment/](appointment/) | 院區、門診、看診時間與名額、預約、前一天提醒 | 8 | ✅ 完成 |
 | [notification/](notification/) | 推播 token、發送推播 | 2 | ✅ 完成 |
 | [internal/](internal/) | 排程入口 `/internal/tick` | 1 | ✅ 完成 |
-| [demo/](demo/) | 展示用觸發（只在 `DEMO_MODE`） | 3 | ✅ 完成 |
+| [demo/](demo/) | 展示用觸發（只在 `DEMO_MODE`） | 2 | ✅ 完成 |
 | [speech/](speech/) | 朗讀稿模板（只有 `rules.py`，被 medication、reminder 使用） | 0 | 🚧 只有國語 |
 
 ## 模組之間
@@ -39,9 +39,9 @@
 family ─────────────▶ auth（身分、姓名）
 medication ─────────▶ family（權限）
 reminder ───────────▶ medication、family、emergency_card、auth、notification
-emergency_card ─────▶ medication、family、notification
+emergency_card ─────▶ medication、family、auth、notification
 responder ──────────▶ emergency_card
-appointment ────────▶ medication（上次的科別、醫師）、family、notification
+appointment ────────▶ medication（藥單的科別、醫師）、family、emergency_card、auth、notification
 internal ───────────▶ reminder、appointment
 ```
 

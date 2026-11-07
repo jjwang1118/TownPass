@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.core.deps import ResponderClaims, SessionDep
 from app.modules.emergency_card.schemas import ResponderCardOut
-from app.modules.responder.schemas import LoginIn, LookupIn, ResponderTokenOut
+from app.modules.responder.schemas import LoginIn, LookupIn, ResponderTokenOut, UnitsOut
 from app.modules.responder.service import ResponderService
 
 router = APIRouter(prefix="/responder", tags=["responder"])
@@ -15,6 +15,12 @@ def get_service(session: SessionDep) -> ResponderService:
 
 
 Service = Annotated[ResponderService, Depends(get_service)]
+
+
+@router.get("/units", response_model=UnitsOut)
+async def units() -> UnitsOut:
+    """所屬單位清單（不需登入）。"""
+    return ResponderService.units()
 
 
 @router.post("/login", response_model=ResponderTokenOut)

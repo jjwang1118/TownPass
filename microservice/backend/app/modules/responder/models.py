@@ -12,11 +12,11 @@ class EmploymentStatus(StrEnum):
 
 
 class Responder(UUIDPrimaryKey, Base):
-    """模擬消防局人員名冊（EMT-001～003）。正式版改由 integrations/fire_dept 查詢。"""
+    """模擬消防局人員名冊（A12345 等 3 筆）。正式版改由 integrations/fire_dept 查詢。"""
 
     __tablename__ = "responders"
 
-    account: Mapped[str] = mapped_column(String(32), unique=True)
+    account: Mapped[str] = mapped_column(String(32), unique=True)  # 人員編號，例如 A12345
     password_hash: Mapped[str] = mapped_column(String(256))
     name: Mapped[str] = mapped_column(String(32))
     unit: Mapped[str] = mapped_column(String(32))  # 所屬分隊

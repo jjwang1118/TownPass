@@ -7,8 +7,16 @@ from app.integrations.townpass.messages import LocationReply, QRCodeScanReply
 
 
 class LoginIn(BaseModel):
-    account: str = Field(examples=["EMT-001"])
+    """UI R01：所屬單位（下拉選單）、人員編號、密碼皆必填。"""
+
+    unit: str = Field(examples=["大安分隊"])
+    staff_no: str = Field(examples=["A12345"])
     password: str
+
+
+class UnitsOut(BaseModel):
+    agency: str  # 臺北市政府消防局
+    units: list[str]  # 各分隊（範例名稱）
 
 
 class ResponderTokenOut(BaseModel):
@@ -17,6 +25,7 @@ class ResponderTokenOut(BaseModel):
     expires_at: dt.datetime  # 12 小時（一個勤務班）
     name: str
     unit: str
+    staff_no: str
     title: str
 
 

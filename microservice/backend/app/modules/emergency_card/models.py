@@ -17,6 +17,14 @@ class Gender(StrEnum):
     OTHER = "other"
 
 
+class BloodType(StrEnum):
+    A = "A"
+    B = "B"
+    O = "O"
+    AB = "AB"
+    UNKNOWN = "unknown"  # 不知道
+
+
 class AccessMethod(StrEnum):
     QR = "qr"
     MANUAL = "manual"
@@ -30,18 +38,18 @@ class EmergencyCard(UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "emergency_cards"
 
     elder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), unique=True)
-    title: Mapped[str] = mapped_column(String(20))  # 稱呼，例如「陳阿嬤」；吃藥提醒語音也用
-    birth_year: Mapped[int | None]
+    name: Mapped[str] = mapped_column(EncryptedText)  # 姓名；吃藥提醒推播給家屬時也用
+    birth_date: Mapped[dt.date | None]  # API 必填；舊資料（只有出生年）為 null
     gender: Mapped[Gender | None] = mapped_column(enum_column(Gender))
+    blood_type: Mapped[BloodType] = mapped_column(enum_column(BloodType), default=BloodType.UNKNOWN)
     # 個資法第 6 條特種個資：加密儲存
     chronic_conditions: Mapped[list[str] | None] = mapped_column(EncryptedJSON)
     allergies: Mapped[list[dict[str, Any]] | None] = mapped_column(EncryptedJSON)
-    hospital: Mapped[str] = mapped_column(String(64), default="臺北市立聯合醫院")
     updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
 class EmergencyContact(UUIDPrimaryKey, Base):
-    """每張卡最多 2 位（service 檢查）。"""
+    """每張卡 1 位（UI E14：只能填一位，不提供新增第二位）。"""
 
     __tablename__ = "emergency_contacts"
 
@@ -80,6 +88,7 @@ class CardAccessLog(UUIDPrimaryKey, Base):
     # 查看當下的姓名與分隊（之後離職或調動，紀錄也不變）
     responder_name: Mapped[str] = mapped_column(String(32))
     responder_unit: Mapped[str] = mapped_column(String(32))
+    responder_staff_no: Mapped[str | None] = mapped_column(String(32))  # 人員編號
     code_used: Mapped[str] = mapped_column(String(16))
     method: Mapped[AccessMethod] = mapped_column(enum_column(AccessMethod))
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))

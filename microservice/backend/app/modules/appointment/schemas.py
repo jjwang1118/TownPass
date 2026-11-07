@@ -8,7 +8,7 @@ from app.modules.appointment.models import AppointmentStatus, Period, SessionSta
 
 
 class HospitalOut(BaseModel):
-    """步驟 1：選院區。"""
+    """選院區（E10d）：9 個院址附地址。"""
 
     id: UUID
     name: str
@@ -17,61 +17,67 @@ class HospitalOut(BaseModel):
 
 
 class DepartmentOut(BaseModel):
-    """步驟 2：選科別。上次看的科別排第一。"""
+    """選科別（E10e）。從藥單帶入的科別排第一。"""
 
     id: UUID
     name: str
     last_visited: bool
+    from_letter: str | None  # 例如 A：前端顯示「藥單 A 的科別」
 
 
 class DoctorOut(BaseModel):
-    """步驟 3：選醫師。預設選取上次看診的醫師。"""
+    """選醫師（E10b）：門診時間；2 週內都額滿時灰色不可選。"""
 
     id: UUID
     name: str
-    last_visited: bool
-
-
-class SessionOut(BaseModel):
-    """步驟 5：選時段。"""
-
-    session_id: UUID
-    period: Period
-    label: str  # 上午、下午、晚上
-    status: SessionStatus
-    available: bool  # 開診且未額滿；false 時前端顯示灰色不可選
+    last_visited: bool  # 藥單上的醫師，前端預設選取
+    schedule: str  # 週一、週五 上午
+    available: bool
+    note: str | None  # 已額滿
 
 
 class ClinicDayOut(BaseModel):
-    """步驟 4：選日期。只列出這位醫師有門診的日子。"""
+    """選日期（E10f）：只列這位醫師的門診；額滿、停診為灰色不可選。"""
 
+    session_id: UUID
     date: dt.date
-    label: str  # 11/12（星期三）
-    available: bool  # 這天至少有一個時段可以預約
-    sessions: list[SessionOut]
+    label: str  # 11/14（五）
+    period: Period
+    period_label: str  # 上午門診
+    status: SessionStatus
+    available: bool
+    note: str | None  # 已額滿、停診
+
+
+class SlotOut(BaseModel):
+    """選時段（E10g）：每個看診時間的剩餘名額；額滿為灰色不可選。"""
+
+    slot_id: UUID
+    time: dt.time
+    label: str  # 上午 09:30
+    remaining: int
+    available: bool
+    note: str  # 還有 3 個名額、已額滿
 
 
 class AppointmentCreate(BaseModel):
-    """步驟 6：確認預約。"""
+    """確認預約（E11）。"""
 
-    session_id: UUID
-
-
-class ReminderToggle(BaseModel):
-    enabled: bool
+    slot_id: UUID
 
 
 class AppointmentOut(BaseModel):
-    """完成頁與我的預約。"""
+    """預約成功（E12）與我的預約。"""
 
     id: UUID
     hospital: HospitalOut
     department: str
     doctor: str
     date: dt.date
-    date_label: str
+    date_label: str  # 11/14（五）
+    time: dt.time
+    time_label: str  # 上午 09:30
     period: Period
-    period_label: str
     visit_no: int  # 看診號碼
     status: AppointmentStatus
-    reminder_enabled: bool  # 已「加入提醒」
+    message: str  # 回診前一天，您和家屬都會收到提醒。

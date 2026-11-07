@@ -10,9 +10,8 @@ class DeviceRegisterIn(PushTokenReply):
 class PushType(StrEnum):
     """推播 data.type（規格書 §6.2）。"""
 
-    MEDICATION_REMINDER = "medication_reminder"
-    MEDICATION_ACKED = "medication_acked"
-    MEDICATION_NO_RESPONSE = "medication_no_response"
+    MEDICATION_REMINDER = "medication_reminder"  # 長輩：該吃藥了
+    FAMILY_MEDICATION_REMINDER = "family_medication_reminder"  # 家屬：和長輩同時間收到
     MEDICATION_NUDGE = "medication_nudge"
     CARD_ACCESSED = "card_accessed"
     REFILL_REMINDER = "refill_reminder"

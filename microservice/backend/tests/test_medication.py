@@ -1,8 +1,11 @@
-"""medication 模組：功能規格「一、藥」1-1～1-4。需要 PostgreSQL。"""
+"""藥單與藥品：新增藥單的三條路徑（掃 QR、拍照辨識、手動）、字母配發、今天四個時段。需要 PostgreSQL。"""
 
+import asyncio
 import datetime as dt
+import gzip
 import json
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import httpx
@@ -10,6 +13,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import clock
+from app.integrations.fda.importer import import_licenses
 from app.modules.medication.models import SlotKey
 from app.modules.medication.service import MedicationService
 from seed.load import load_licenses, sample_drug_codes
@@ -18,7 +22,7 @@ from tests.conftest import LoginFn
 API = "/api/v1"
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
 SAMPLES = [s["payload"] for s in json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))]
-AMLODIPINE_5, METFORMIN, AMLODIPINE_10 = SAMPLES
+RX_A, RX_B, RX_C = SAMPLES  # A：心臟內科 3 個藥；B：新陳代謝科 2 個藥；C：和 A1 同成分
 
 
 def qr_reply(payload: dict | str | None) -> dict:
@@ -31,6 +35,14 @@ def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:
     """把現在時間固定在台北時間 taipei（例如 '2026-11-05 10:00'）。"""
     at = dt.datetime.fromisoformat(taipei).replace(tzinfo=clock.TAIPEI).astimezone(dt.UTC)
     monkeypatch.setattr(clock, "now", lambda: at)
+
+
+async def import_drugs(sessionmaker: async_sessionmaker[AsyncSession], keep: Callable[[dict], bool]) -> None:
+    """從健保用藥品項匯入符合條件的品項（避免每個測試匯入 4.5 萬筆）。"""
+    rows = json.loads(gzip.decompress((SEED / "nhi_drugs.json.gz").read_bytes()))["rows"]
+    async with sessionmaker() as session:
+        await import_licenses(session, [r for r in rows if keep(r)])
+        await session.commit()
 
 
 @pytest.fixture
@@ -46,15 +58,25 @@ async def ctx(api: httpx.AsyncClient, login: LoginFn, sessionmaker: async_sessio
 
 
 async def preview(api: httpx.AsyncClient, ctx: dict, payload, who: str = "elder") -> httpx.Response:
-    return await api.post(f"{ctx['base']}/medications/qr-preview", json=qr_reply(payload), headers=ctx[who])
+    return await api.post(f"{ctx['base']}/prescriptions/qr-preview", json=qr_reply(payload), headers=ctx[who])
 
 
 async def add(api: httpx.AsyncClient, ctx: dict, payload: dict, who: str = "elder") -> httpx.Response:
-    """模擬完整流程：掃 QR 預覽 → 長輩核對 → 把 draft 原樣送回加入。"""
+    """模擬完整流程：掃 QR 預覽 → 逐項核對 → 把 draft 原樣送回加入。"""
     resp = await preview(api, ctx, payload, who)
     if resp.status_code != 200:
         return resp
-    return await api.post(f"{ctx['base']}/medications", json=resp.json()["draft"], headers=ctx[who])
+    return await api.post(f"{ctx['base']}/prescriptions", json=resp.json()["draft"], headers=ctx[who])
+
+
+def manual_draft(**item) -> dict:
+    """手動新增（E06m）：只有藥名、一次幾顆、時段、飯前飯後，院區科別可之後補填。"""
+    return {
+        "source": "manual",
+        "visit_date": "2026-11-07",
+        "days": 7,
+        "items": [{"name": "Aspirin", "dose_qty": 1, "slots": ["morning"], "meal_timing": "after", **item}],
+    }
 
 
 async def bind_family(api: httpx.AsyncClient, ctx: dict) -> str:
@@ -63,22 +85,40 @@ async def bind_family(api: httpx.AsyncClient, ctx: dict) -> str:
     return resp.json()["id"]
 
 
-# ---------- 1-2 新增藥品：掃藥袋 QR ----------
+# ---------- 路徑 1：掃藥袋 QR Code ----------
 
 
-async def test_preview_shows_confirm_screen(api: httpx.AsyncClient, ctx: dict) -> None:
-    resp = await preview(api, ctx, METFORMIN)
+async def test_qr_preview_shows_confirm_screen(api: httpx.AsyncClient, ctx: dict) -> None:
+    resp = await preview(api, ctx, RX_A)
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 確認畫面核對藥名、劑量、頻率
-    assert body["draft"]["name"] == "顧糖維膜衣錠 500 毫克"
-    assert body["draft"]["dose_qty"] == 1
-    assert body["frequency_label"] == "一天兩次"
-    assert body["meal_timing_label"] == "飯後"
-    assert [(s["label"], s["time"]) for s in body["slots"]] == [("早餐飯後", "08:00:00"), ("晚餐飯後", "18:00:00")]
-    assert body["warnings"] == []
+    # E06：配好的字母、每個藥的編號
+    assert body["letter"] == "A"
+    assert [i["code"] for i in body["items"]] == ["A1", "A2", "A3"]
+    draft = body["draft"]
+    assert (draft["source"], draft["hospital"], draft["department"], draft["days"]) == (
+        "qr",
+        "臺北市立聯合醫院仁愛院區",
+        "心臟內科",
+        28,
+    )
+    assert (draft["items"][0]["name"], draft["items"][0]["strength"], draft["items"][0]["purpose"]) == (
+        "Amlodipine",
+        "5 毫克",
+        "降血壓",
+    )
+    assert [(s["label"], s["time"]) for s in body["items"][2]["slots"]] == [("睡前", "22:00:00")]
+    assert body["items"][0]["meal_timing_label"] == "飯後"
+    # 加入完成頁的四個時段
+    assert [(r["label"], r["codes"]) for r in body["schedule"]] == [
+        ("早上", ["A1", "A2"]),
+        ("中午", []),
+        ("晚上", []),
+        ("睡前", ["A3"]),
+    ]
+    assert body["uncertain"] == [] and body["warnings"] == []
     # 預覽不寫入
-    assert (await api.get(f"{ctx['base']}/medications", headers=ctx["elder"])).json() == []
+    assert (await api.get(f"{ctx['base']}/prescriptions", headers=ctx["elder"])).json() == []
 
 
 @pytest.mark.parametrize(
@@ -86,8 +126,9 @@ async def test_preview_shows_confirm_screen(api: httpx.AsyncClient, ctx: dict) -
     [
         (None, "QR_EMPTY"),  # 使用者取消掃描
         ("https://example.com", "QR_INVALID"),  # 不是藥袋 QR
-        ({**METFORMIN, "v": 2}, "QR_INVALID"),  # 不支援的版本
-        ({k: v for k, v in METFORMIN.items() if k != "qty"}, "QR_INVALID"),  # 缺欄位
+        ({**RX_A, "v": 3}, "QR_INVALID"),  # 不支援的版本
+        ({**RX_A, "items": [{k: v for k, v in RX_A["items"][0].items() if k != "qty"}]}, "QR_INVALID"),  # 缺欄位
+        ({**RX_A, "items": [{k: v for k, v in RX_A["items"][0].items() if k != "when"}]}, "QR_INVALID"),  # 沒有時段
     ],
 )
 async def test_preview_rejects_bad_qr(api: httpx.AsyncClient, ctx: dict, data, code: str) -> None:
@@ -96,155 +137,233 @@ async def test_preview_rejects_bad_qr(api: httpx.AsyncClient, ctx: dict, data, c
     assert resp.json()["error"]["code"] == code
 
 
-async def test_add_assigns_numbers(api: httpx.AsyncClient, ctx: dict) -> None:
-    first = await add(api, ctx, AMLODIPINE_5)
-    assert first.status_code == 201, first.text
-    assert first.json()["medication"]["number"] == 1
-    assert first.json()["message"] == "請在藥袋上寫上大大的 1"
+async def test_qr_v1_and_frequency_still_supported(api: httpx.AsyncClient, ctx: dict) -> None:
+    v1 = {"v": 1, "t": "rx", "hosp": "仁愛院區", "dept": "家醫科", "dr": "林醫師", "date": "2026-11-01", "days": 28,
+          "lic": "B025635100", "name": "Metformin", "use": "降血糖", "qty": 1, "freq": "BID", "meal": "after"}  # fmt: skip
+    item = (await preview(api, ctx, v1)).json()["draft"]["items"][0]
+    assert (item["slots"], item["meal_timing"]) == (["morning", "evening"], "after")
+    bedtime = (await preview(api, ctx, {**v1, "freq": "QD", "meal": "bedtime"})).json()["draft"]["items"][0]
+    assert bedtime["slots"] == ["bedtime"]
+    v2 = {**RX_B, "items": [{**RX_B["items"][0], "when": None, "freq": "TID"}]}
+    assert (await preview(api, ctx, v2)).json()["draft"]["items"][0]["slots"] == ["morning", "noon", "evening"]
 
-    second = (await add(api, ctx, METFORMIN)).json()
-    assert second["medication"]["number"] == 2
-    assert second["message"] == "請在藥袋上寫上大大的 2"
+
+async def test_add_assigns_letters(api: httpx.AsyncClient, ctx: dict) -> None:
+    first = await add(api, ctx, RX_A)
+    assert first.status_code == 201, first.text
+    body = first.json()
+    assert body["prescription"]["letter"] == "A"
+    assert [m["code"] for m in body["prescription"]["medications"]] == ["A1", "A2", "A3"]
+    assert body["message"] == "請用筆在這個藥袋上寫一個大大的「A」。手機上的 A1、A2、A3，就是這個藥袋裡的藥。"
+    assert [r["codes"] for r in body["schedule"]] == [["A1", "A2"], [], [], ["A3"]]
+
+    second = (await add(api, ctx, RX_B)).json()
+    assert second["prescription"]["letter"] == "B"
+    assert [m["code"] for m in second["prescription"]["medications"]] == ["B1", "B2"]
 
 
 async def test_same_ingredient_warning(api: httpx.AsyncClient, ctx: dict) -> None:
-    await add(api, ctx, AMLODIPINE_5)
-    await add(api, ctx, METFORMIN)
+    await add(api, ctx, RX_A)
+    await add(api, ctx, RX_B)
 
-    expected = [{"type": "same_ingredient", "with_number": 1, "message": "這兩包好像是同一種藥，請問藥師"}]
-    assert (await preview(api, ctx, AMLODIPINE_10)).json()["warnings"] == expected
+    # C1（壓可平錠）和 A1（脈優錠）不同牌子、同成分
+    expected = [{"type": "same_ingredient", "code": "C1", "with_code": "A1", "message": "這兩包好像是同一種藥，請問藥師"}]
+    body = (await preview(api, ctx, RX_C)).json()
+    assert body["warnings"] == expected
+    assert body["items"][0]["warnings"] == expected
     # 只標示，不阻擋
-    added = await add(api, ctx, AMLODIPINE_10)
+    added = await add(api, ctx, RX_C)
     assert added.status_code == 201
     assert added.json()["warnings"] == expected
-    assert added.json()["medication"]["number"] == 3
+
+    # 同一張藥單裡兩個同成分的藥也會標示
+    draft = manual_draft(license_no="A037344100")
+    draft["items"].append({**draft["items"][0], "name": "Aspirin 再一包"})
+    warnings = (await api.post(f"{ctx['base']}/prescriptions/preview", json=draft, headers=ctx["elder"])).json()["warnings"]
+    assert [(w["code"], w["with_code"]) for w in warnings] == [("D1", "A2"), ("D2", "A2"), ("D2", "D1")]
 
 
-async def test_same_license_warns_even_without_fda_data(api: httpx.AsyncClient, ctx: dict) -> None:
-    unknown = {**METFORMIN, "lic": "NOT-IN-FDA-DATA"}
-    await add(api, ctx, unknown)
-    warnings = (await preview(api, ctx, unknown)).json()["warnings"]
-    assert [w["with_number"] for w in warnings] == [1]
+async def test_finished_prescription_releases_letter(
+    api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    freeze(monkeypatch, "2026-11-07 10:00")
+    a = (await add(api, ctx, RX_A)).json()["prescription"]
+    await add(api, ctx, RX_B)
+    url = f"{ctx['base']}/prescriptions"
+
+    finished = (await api.post(f"{url}/{a['id']}/finish", headers=ctx["elder"])).json()
+    assert finished["status"] == "finished"
+    assert (await api.post(f"{url}/{a['id']}/finish", headers=ctx["elder"])).status_code == 200  # 重複不會出錯
+    assert [p["letter"] for p in (await api.get(url, headers=ctx["elder"])).json()] == ["B"]
+    assert [p["letter"] for p in (await api.get(f"{url}?status=finished", headers=ctx["elder"])).json()] == ["A"]
+
+    # A 空出來，新的藥單拿到 A
+    assert (await add(api, ctx, RX_C)).json()["prescription"]["letter"] == "A"
+
+    # 過了吃藥天數的藥單自動移到「已吃完」
+    freeze(monkeypatch, "2026-12-31 10:00")
+    assert (await api.get(url, headers=ctx["elder"])).json() == []
+    assert len((await api.get(f"{url}?status=finished", headers=ctx["elder"])).json()) == 3
 
 
-# ---------- 1-1 我的藥 ----------
+# ---------- 路徑 2：手動新增 ----------
 
 
-async def test_medication_card(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
-    freeze(monkeypatch, "2026-11-10 09:00")
-    await add(api, ctx, AMLODIPINE_5)
-    await add(api, ctx, AMLODIPINE_10)
-    cards = (await api.get(f"{ctx['base']}/medications", headers=ctx["elder"])).json()
-
-    assert [c["number"] for c in cards] == [1, 2]
-    card = cards[0]
-    # 大編號、藥名、一次幾顆、時段與時間、還剩幾天
-    assert (card["number"], card["name"], card["dose_qty"]) == (1, "脈優錠 5 毫克", 1)
-    assert [(s["label"], s["time"]) for s in card["slots"]] == [("早餐飯後", "08:00:00")]
-    assert card["run_out_date"] == "2026-11-28"
-    assert card["days_left"] == 19  # 11/10～11/28
-
-    # 念給我聽：藥名念健保用藥品項的中文品名
-    assert card["speech_text"] == (
-        "1 號藥，脈優錠５毫克，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。"
+async def test_manual_add_and_fill_in_later(api: httpx.AsyncClient, ctx: dict) -> None:
+    draft = manual_draft(
+        license_no="A037344100", strength="100 毫克", dose_qty=0.5, slots=["bedtime", "morning"], needs_review=True
     )
-    assert '"華興"壓可平錠10毫克 (安脈狄平)' in cards[1]["speech_text"]
-    # 英文稿（給外籍看護）：藥袋上沒有英文名時用健保英文品名，科別、用途翻成英文
-    assert card["speech_text_en"] == (
-        "Medicine number 1, NORVASC TABLETS 5MG, from Family Medicine, for blood pressure. "
-        "Take 1 tablet after meals, at 8 AM. 19 days left."
-    )
-    assert "半顆" in cards[1]["speech_text"]
+    shown = (await api.post(f"{ctx['base']}/prescriptions/preview", json=draft, headers=ctx["elder"])).json()
+    # 時段可以複選，依時間排序
+    assert [s["label"] for s in shown["items"][0]["slots"]] == ["早上", "睡前"]
+    assert shown["letter"] == "A"
+
+    created = (await api.post(f"{ctx['base']}/prescriptions", json=draft, headers=ctx["elder"])).json()["prescription"]
+    assert (created["source"], created["department"], created["needs_review"]) == ("manual", None, True)
+    assert created["medications"][0]["needs_review"] is True  # 劑量「看不清楚／不確定」→ 待核對
+
+    # 科別可之後補填
+    url = f"{ctx['base']}/prescriptions/{created['id']}"
+    patched = (await api.patch(url, json={"department": "家醫科"}, headers=ctx["elder"])).json()
+    assert patched["department"] == "家醫科"
+
+    # 天數一定要填
+    no_days = {**draft, "days": None}
+    resp = await api.post(f"{ctx['base']}/prescriptions", json=no_days, headers=ctx["elder"])
+    assert resp.json()["error"]["code"] == "DAYS_REQUIRED"
 
 
-# ---------- 1-3 藥品詳細頁：編輯、停用 ----------
+async def test_search_drugs(api: httpx.AsyncClient, ctx: dict, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+    await import_drugs(sessionmaker, lambda r: (r["product_en"] or "").startswith(("NORVASC", "LIPITOR", "NORCOL")))
+    url = f"{API}/drugs/search"
+
+    found = (await api.get(url, params={"q": "nor"}, headers=ctx["elder"])).json()
+    # 同藥名只出現一次，再選劑量；北市聯醫常用藥排前面
+    assert found[0]["name"] == "Norvasc"
+    assert found[0]["name_zh"] == "脈優錠"
+    assert [s["label"] for s in found[0]["strengths"]] == ["5 毫克", "10 毫克"]
+    assert found[0]["common"] is True
+    assert "Norcol" in [f["name"] for f in found[1:]]
+
+    # 中文也可以；不分大小寫
+    assert [f["name"] for f in (await api.get(url, params={"q": "脈優"}, headers=ctx["elder"])).json()] == ["Norvasc"]
+    lipitor = (await api.get(url, params={"q": "LIPI"}, headers=ctx["elder"])).json()[0]
+    assert [s["label"] for s in lipitor["strengths"]] == ["10 毫克", "20 毫克", "40 毫克"]
+    # 打 2 個字以上才搜尋
+    assert (await api.get(url, params={"q": "n"}, headers=ctx["elder"])).json() == []
 
 
-async def test_detail_and_edit(api: httpx.AsyncClient, ctx: dict) -> None:
-    med = (await add(api, ctx, METFORMIN)).json()["medication"]
+# ---------- 路徑 3：拍照辨識（手機出欄位，後端比對打分） ----------
+
+
+async def test_photo_preview_scores_fields(api: httpx.AsyncClient, ctx: dict) -> None:
+    body = {
+        "hospital": "臺北市立聯合醫院仁愛院區",
+        "department": "心臟內科",
+        "visit_date": "2026-11-05",
+        "days": 28,
+        "confidence": {"days": 0.5},
+        "items": [
+            {"name": "Norvsac", "strength": "5 毫克", "dose_qty": 1, "frequency": "QD", "meal_timing": "after", "confidence": {"name": 0.95}},
+            {"name": "Asprin", "slots": ["morning"]},
+            {"name": "XYZABC", "dose_qty": 1, "slots": ["noon"], "meal_timing": "before"},
+        ],
+    }  # fmt: skip
+    resp = await api.post(f"{ctx['base']}/prescriptions/photo-preview", json=body, headers=ctx["elder"])
+    assert resp.status_code == 200, resp.text
+    result = resp.json()
+    draft = result["draft"]
+    assert draft["source"] == "photo"
+    # 辨識錯字也能對到健保藥品，帶入代號，同成分比對才有用
+    assert draft["items"][0]["license_no"] == "B021571100"
+    assert draft["items"][0]["slots"] == ["morning"]
+    assert draft["items"][1]["license_no"] == "A037344100"  # Aspirin
+    assert draft["items"][1]["strength"] == "100 毫克"  # 從健保資料補上
+    assert draft["items"][2]["license_no"] is None  # 找不到就不帶入
+
+    # 沒把握的欄位：紅框「電腦不確定這一項」
+    assert {u["field"] for u in result["uncertain"]} == {
+        "days",
+        "items.1.dose_qty",
+        "items.1.meal_timing",
+        "items.2.name",
+        "items.2.strength",
+    }
+    assert [(i["code"], i["uncertain"]) for i in result["items"]] == [("A1", False), ("A2", True), ("A3", True)]
+    assert result["items"][1]["uncertain_fields"] == ["dose_qty", "meal_timing"]
+    # 看不出來的欄位先填預設值，讓長輩修改
+    assert (draft["items"][1]["dose_qty"], draft["items"][1]["meal_timing"]) == (1, "after")
+
+
+# ---------- 我的藥單、今天四個時段 ----------
+
+
+async def test_prescription_cards_and_today(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    freeze(monkeypatch, "2026-11-10 08:00")
+    await add(api, ctx, RX_A)
+    await add(api, ctx, RX_B)
+
+    cards = (await api.get(f"{ctx['base']}/prescriptions", headers=ctx["elder"])).json()
+    assert [(p["letter"], p["department"], p["visit_date"], p["days_left"]) for p in cards] == [
+        ("A", "心臟內科", "2026-11-05", 23),
+        ("B", "新陳代謝科", "2026-11-06", 24),
+    ]
+    a1 = cards[0]["medications"][0]
+    # 念給我聽：藥名念健保中文品名
+    assert a1["speech_text"] == "1 號藥，脈優錠５毫克，心臟內科開的，降血壓。一次 1 顆，飯後吃，早上 9 點。還剩 23 天。"
+    assert a1["speech_text_en"].startswith("Medicine number 1, Amlodipine, from Cardiology, for blood pressure.")
+
+    today = (await api.get(f"{ctx['base']}/today", headers=ctx["elder"])).json()
+    assert today["date"] == "2026-11-10"
+    assert [(s["label"], s["time"], [i["code"] for i in s["items"]]) for s in today["slots"]] == [
+        ("早上", "09:00:00", ["A1", "A2", "B1"]),
+        ("中午", "12:00:00", ["B1", "B2"]),
+        ("晚上", "18:00:00", ["B1"]),
+        ("睡前", "22:00:00", ["A3"]),
+    ]
+    noon = today["slots"][1]
+    assert [(g["letter"], g["department"], g["hospital"]) for g in noon["groups"]] == [
+        ("B", "新陳代謝科", "臺北市立聯合醫院中興院區")
+    ]
+    # UI E02：「中午十二點，要吃新陳代謝科一號一顆、二號一顆」（不念英文字母）
+    assert noon["speech_text"] == "中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆"
+    assert today["slots"][0]["speech_text"] == "早上 9 點，要吃心臟內科 1 號 1 顆、2 號 1 顆；新陳代謝科 1 號 1 顆"
+
+
+async def test_detail_edit_and_stop(api: httpx.AsyncClient, ctx: dict) -> None:
+    med = (await add(api, ctx, RX_A)).json()["prescription"]["medications"][0]
     url = f"{ctx['base']}/medications/{med['id']}"
 
-    detail = (await api.get(url, headers=ctx["elder"])).json()
-    for field in ("number", "name", "purpose", "dose_qty", "frequency", "meal_timing", "start_date", "days", "hospital", "department"):
-        assert detail[field] == med[field]
-
-    edited = (await api.patch(url, json={"frequency": "TID", "dose_qty": 0.5}, headers=ctx["elder"])).json()
-    assert [s["slot_key"] for s in edited["slots"]] == ["breakfast_after", "lunch_after", "dinner_after"]
+    assert (await api.get(url, headers=ctx["elder"])).json()["code"] == "A1"
+    edited = (await api.patch(url, json={"slots": ["noon", "morning"], "dose_qty": 0.5}, headers=ctx["elder"])).json()
+    assert [s["slot_key"] for s in edited["slots"]] == ["morning", "noon"]
     assert "一次 半顆" in edited["speech_text"]
 
-    assert (await api.get(f"{ctx['base']}/medications/{uuid.uuid4()}", headers=ctx["elder"])).status_code == 404
-
-
-async def test_stop_releases_number(api: httpx.AsyncClient, ctx: dict) -> None:
-    first = (await add(api, ctx, AMLODIPINE_5)).json()["medication"]
-    await add(api, ctx, METFORMIN)
-    url = f"{ctx['base']}/medications/{first['id']}"
-
     stopped = await api.post(f"{url}/stop", json={"reason": "doctor_advised"}, headers=ctx["elder"])
-    assert stopped.json()["status"] == "stopped"
-    assert stopped.json()["stop_reason"] == "doctor_advised"
-    # 重複停用不會出錯
+    assert (stopped.json()["status"], stopped.json()["stop_reason"]) == ("stopped", "doctor_advised")
     assert (await api.post(f"{url}/stop", json={"reason": "finished"}, headers=ctx["elder"])).status_code == 200
-    # 停用的藥不能再修改
-    assert (await api.patch(url, json={"days": 7}, headers=ctx["elder"])).json()["error"]["code"] == "MEDICATION_STOPPED"
+    assert (await api.patch(url, json={"dose_qty": 1}, headers=ctx["elder"])).json()["error"]["code"] == "MEDICATION_STOPPED"
+    # 停用的藥不再出現在今天的時段
+    codes = [i["code"] for s in (await api.get(f"{ctx['base']}/today", headers=ctx["elder"])).json()["slots"] for i in s["items"]]
+    assert "A1" not in codes
 
-    active = (await api.get(f"{ctx['base']}/medications", headers=ctx["elder"])).json()
-    assert [m["number"] for m in active] == [2]
-    every = (await api.get(f"{ctx['base']}/medications?include_stopped=true", headers=ctx["elder"])).json()
-    assert [(m["number"], m["status"]) for m in every] == [(2, "active"), (1, "stopped")]
-
-    # 1 號空出來，新藥拿到 1 號
-    assert (await add(api, ctx, AMLODIPINE_10)).json()["medication"]["number"] == 1
-
-
-# ---------- 1-4 提醒時間設定 ----------
-
-
-async def test_time_slots(api: httpx.AsyncClient, ctx: dict) -> None:
-    url = f"{ctx['base']}/time-slots"
-    slots = (await api.get(url, headers=ctx["elder"])).json()
-    assert [(s["slot_key"], s["time"]) for s in slots] == [
-        ("breakfast_before", "07:30:00"),
-        ("breakfast_after", "08:00:00"),
-        ("lunch_before", "11:30:00"),
-        ("lunch_after", "12:00:00"),
-        ("dinner_before", "17:30:00"),
-        ("dinner_after", "18:00:00"),
-        ("bedtime", "21:00:00"),
-    ]
-
-    resp = await api.put(url, json={"slots": [{"slot_key": "breakfast_after", "time": "09:00"}]}, headers=ctx["elder"])
-    assert dict((s["slot_key"], s["time"]) for s in resp.json())["breakfast_after"] == "09:00:00"
-
-    # 藥卡跟著新的時間
-    await add(api, ctx, AMLODIPINE_5)
-    card = (await api.get(f"{ctx['base']}/medications", headers=ctx["elder"])).json()[0]
-    assert card["slots"][0]["time"] == "09:00:00"
-    assert "早上 9 點" in card["speech_text"]
-
-    dup = [{"slot_key": "bedtime", "time": "21:00"}, {"slot_key": "bedtime", "time": "22:00"}]
-    assert (await api.put(url, json={"slots": dup}, headers=ctx["elder"])).json()["error"]["code"] == "DUPLICATE_SLOT"
-
-
-# ---------- 首頁狀態列：下一次吃藥 ----------
+    assert (await api.get(f"{ctx['base']}/medications/{uuid.uuid4()}", headers=ctx["elder"])).status_code == 404
 
 
 async def test_next_dose(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:
     url = f"{ctx['base']}/next-dose"
     assert (await api.get(url, headers=ctx["elder"])).json() is None  # 還沒有藥
 
-    await add(api, ctx, AMLODIPINE_5)  # 每天 08:00
-    await add(api, ctx, METFORMIN)  # 每天 08:00、18:00
+    await add(api, ctx, RX_B)  # 第一張藥單，配到 A：A1 早中晚、A2 中午
 
-    freeze(monkeypatch, "2026-11-05 10:00")
+    freeze(monkeypatch, "2026-11-07 10:00")
     nxt = (await api.get(url, headers=ctx["elder"])).json()
-    assert (nxt["label"], nxt["at"], nxt["is_today"]) == ("晚餐飯後", "2026-11-05T18:00:00+08:00", True)
-    assert [i["number"] for i in nxt["items"]] == [2]
+    assert (nxt["label"], nxt["at"], nxt["is_today"]) == ("中午", "2026-11-07T12:00:00+08:00", True)
+    assert [(i["code"], i["qty"]) for i in nxt["items"]] == [("A1", 1), ("A2", 1)]
 
-    freeze(monkeypatch, "2026-11-05 19:00")
+    freeze(monkeypatch, "2026-11-07 19:00")
     nxt = (await api.get(url, headers=ctx["elder"])).json()
-    assert (nxt["at"], nxt["is_today"]) == ("2026-11-06T08:00:00+08:00", False)
-    assert [(i["number"], i["qty"]) for i in nxt["items"]] == [(1, 1), (2, 1)]
+    assert (nxt["at"], nxt["is_today"]) == ("2026-11-08T09:00:00+08:00", False)
 
     # 藥都吃完了（超過天數）就沒有下一次
     freeze(monkeypatch, "2026-12-31 08:00")
@@ -257,25 +376,19 @@ async def test_next_dose(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.
 async def test_family_permissions(api: httpx.AsyncClient, ctx: dict) -> None:
     binding_id = await bind_family(api, ctx)
 
-    # 初始設定期間，家人可以幫忙掃藥袋、調時段
-    assert (await add(api, ctx, AMLODIPINE_5, who="family")).status_code == 201
-    slot = {"slots": [{"slot_key": "bedtime", "time": "22:00"}]}
-    assert (await api.put(f"{ctx['base']}/time-slots", json=slot, headers=ctx["family"])).status_code == 200
+    # 初始設定期間，家人可以幫忙新增藥單
+    assert (await add(api, ctx, RX_A, who="family")).status_code == 201
 
     await api.post(f"{API}/family/bindings/{binding_id}/complete-setup", headers=ctx["family"])
 
     # 之後只能看
-    assert (await api.get(f"{ctx['base']}/medications", headers=ctx["family"])).status_code == 200
-    assert (await api.get(f"{ctx['base']}/next-dose", headers=ctx["family"])).status_code == 200
-    for resp in (
-        await preview(api, ctx, METFORMIN, who="family"),
-        await api.put(f"{ctx['base']}/time-slots", json=slot, headers=ctx["family"]),
-    ):
-        assert resp.status_code == 403
-        assert resp.json()["error"]["code"] == "READ_ONLY"
+    for path in ("prescriptions", "today", "next-dose"):
+        assert (await api.get(f"{ctx['base']}/{path}", headers=ctx["family"])).status_code == 200
+    resp = await preview(api, ctx, RX_B, who="family")
+    assert (resp.status_code, resp.json()["error"]["code"]) == (403, "READ_ONLY")
 
     # 沒綁定的人什麼都不能看
-    resp = await api.get(f"{ctx['base']}/medications", headers=ctx["stranger"])
+    resp = await api.get(f"{ctx['base']}/prescriptions", headers=ctx["stranger"])
     assert resp.json()["error"]["code"] == "NOT_BOUND"
 
 
@@ -285,30 +398,33 @@ async def test_family_permissions(api: httpx.AsyncClient, ctx: dict) -> None:
 async def test_service_for_other_modules(
     api: httpx.AsyncClient, ctx: dict, sessionmaker: async_sessionmaker[AsyncSession]
 ) -> None:
-    await add(api, ctx, AMLODIPINE_5)  # 11/01 起 28 天
-    await add(api, ctx, METFORMIN)
+    await add(api, ctx, RX_A)  # 11/05 起 28 天
+    await add(api, ctx, RX_B)  # 11/06 起 28 天
     elder_id = ctx["elder_id"]
 
     async with sessionmaker() as session:
         service = MedicationService(session)
-        doses = await service.list_active_doses(elder_id, dt.date(2026, 11, 5))
-        assert [(d.number, d.name) for d in doses] == [(1, "脈優錠 5 毫克"), (2, "顧糖維膜衣錠 500 毫克")]
+        doses = await service.list_active_doses(elder_id, dt.date(2026, 11, 7))
+        assert [(d.code, d.name, d.strength) for d in doses][:2] == [("A1", "Amlodipine", "5 毫克"), ("A2", "Aspirin", "100 毫克")]
         assert await service.list_active_doses(elder_id, dt.date(2026, 12, 31)) == []
 
-        dinner = await service.doses_for_slot(elder_id, SlotKey.DINNER_AFTER, dt.date(2026, 11, 5))
-        assert [d.number for d in dinner] == [2]
+        noon = await service.slot_view(elder_id, SlotKey.NOON, dt.date(2026, 11, 7))
+        assert noon is not None and [i.code for i in noon.items] == ["B1", "B2"]
+        assert await service.slot_view(elder_id, SlotKey.NOON, dt.date(2026, 11, 5)) is None  # B 還沒開始吃
 
-        # 同一天開的藥，取最後加入的
+        # 最近看診的藥單（回診預約帶入科別）
         visit = await service.last_visit(elder_id)
-        assert (visit.hospital, visit.department, visit.doctor) == ("臺北市立聯合醫院仁愛院區", "新陳代謝科", "陳醫師")
+        assert (visit.letter, visit.department, visit.doctor) == ("B", "新陳代謝科", "陳醫師")
+
+        running_out = await service.running_out_on(dt.date(2026, 12, 2))  # A 吃完日
+        assert [p.letter for p in running_out[elder_id]] == ["A"]
+        assert await service.elders_scheduled_on(dt.date(2026, 11, 7)) == [elder_id]
 
 
-async def test_concurrent_adds_get_distinct_numbers(api: httpx.AsyncClient, ctx: dict) -> None:
-    import asyncio
-
+async def test_concurrent_adds_get_distinct_letters(api: httpx.AsyncClient, ctx: dict) -> None:
     drafts = [(await preview(api, ctx, p)).json()["draft"] for p in SAMPLES]
     responses = await asyncio.gather(
-        *(api.post(f"{ctx['base']}/medications", json=d, headers=ctx["elder"]) for d in drafts)
+        *(api.post(f"{ctx['base']}/prescriptions", json=d, headers=ctx["elder"]) for d in drafts)
     )
     assert all(r.status_code == 201 for r in responses), [r.text for r in responses]
-    assert sorted(r.json()["medication"]["number"] for r in responses) == [1, 2, 3]
+    assert sorted(r.json()["prescription"]["letter"] for r in responses) == ["A", "B", "C"]

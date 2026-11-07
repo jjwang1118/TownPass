@@ -1,8 +1,8 @@
 # 呷藥囉｜後端開發規格書
 
-> 版本：v0.1（2026-11-07）
+> 版本：v0.2（2026-11-08）
 > 範圍：後端 API（Python FastAPI）。前端架構不在本文件範圍，只列出前端與 App 需要配合的事項。
-> 依據：功能規格（文字版）與交付規格（圖檔版）。兩者矛盾處的決議見 [§1.2](#12-規格決議)。
+> 依據：功能規格（文字版）、交付規格（圖檔版）與 UI 設計稿（`resent_docs/ui/`）。矛盾處的決議見 [§1.2](#12-規格決議)。
 
 ---
 
@@ -14,30 +14,31 @@
 
 | 區 | 功能 | 本期 |
 |---|---|---|
-| 藥 | 藥品清單、掃藥袋 QR 新增、吃藥提醒、家人綁定與通知 | ✅ |
-| 救命卡 | 長輩醫療資訊、隨機卡號、救護人員查看、查看紀錄與通知家人 | ✅ |
-| 回診（Bonus） | 用藥天數算回診提醒、聯醫預約（模擬資料） | ✅ |
+| 藥 | 藥單（拍照辨識、掃藥袋 QR、手動新增）、今天四個時段、吃藥提醒（長輩與家屬同時收到）、家人綁定 | ✅ |
+| 救命卡（緊急醫療卡） | 長輩醫療資訊、隨機卡號、救護人員查看、查看紀錄與通知家人 | ✅ |
+| 回診（Bonus） | 用藥天數算回診提醒、聯醫預約（看診時間與名額、前一天自動提醒；模擬資料） | ✅ |
 
 ### 1.2 規格決議
 
-文字版與圖檔版矛盾處，決議如下：
+文字版、圖檔版與 UI 設計稿矛盾處，決議如下（2026-11-08 依 UI 設計稿調整第 3、4、5、7、9～11 項）：
 
 | # | 項目 | 決議 |
 |---|---|---|
-| 1 | 名稱 | **呷藥囉** |
-| 2 | 救護人員查詢方式 | **隨機卡號**（`TPE-XXXX-XXXX`），不用身分證字號 |
-| 3 | 提醒時段 | **可修改**，預設值見 [§5.3](#53-提醒時段與分配規則) |
-| 4 | 藥品標示 | **數字**（1、2、3…），寫在藥袋上 |
-| 5 | 緊急聯絡人 | **最多 2 位** |
+| 1 | 名稱 | **呷藥囉**（UI 設計稿的「藥報平安」不採用） |
+| 2 | 救護人員查詢方式 | **隨機卡號**（`TPE-XXXX-XXXX`），**不用身分證字號**（UI R02 的身分證字號欄位由前端改為卡號） |
+| 3 | 提醒時段 | **固定四個**：早上 09:00、中午 12:00、晚上 18:00、睡前 22:00，不能修改；飯前、飯後只是標示，見 [§5.3](#53-吃藥時段與規則) |
+| 4 | 藥品標示 | **藥單字母＋序號**（A1、A2…）：一個藥袋一張藥單，長輩在實體藥袋寫上大大的字母 |
+| 5 | 緊急聯絡人 | **1 位**，必填 |
 | 6 | 家人權限 | **唯讀**；但每次綁定後有**一次**初始設定機會，見 [§3.2](#32-家人的初始設定) |
-| 7 | 新增藥品方式 | 本期**只做掃藥袋 QR**；聯醫用藥帶入、手動輸入列為下一期 |
+| 7 | 新增藥品方式 | **拍照辨識、掃藥袋 QR、手動輸入**三條路徑，都先產生藥單草稿，逐項核對後加入；帶入聯醫用藥列為下一期 |
 | 8 | 藥師角色 | **不需要** |
-
-圖檔版的「拍照辨識」（E05、E06c）不做。
+| 9 | 吃藥提醒對象 | 時間到時，長輩與所有綁定家屬**同時**收到；不再提醒、不需要長輩回應 |
+| 10 | 回診預約提醒 | 預約後**自動**在前一天 18:00 提醒長輩與家屬（不需要「加入提醒」） |
+| 11 | 救護人員登入 | 所屬分隊（下拉選單）＋人員編號＋密碼 |
 
 ### 1.3 比賽規則對後端的限制
 
-- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料與國語朗讀稿文字（由 `speech` 模組用模板產生；藥名有中文就只念中文，只有英文就照原文念，科別、用途、稱呼不唸英文字母）。
+- **AI 推論在裝置端**：後端不呼叫任何雲端 AI API，也不跑模型。拍藥袋照片的辨識由 App 的裝置端模型完成，後端「辨識 API」只負責比對健保藥品資料、算出每個欄位的信心分數（[§8.3](#83-拍照辨識的輸入)）。語音（TTS、台語錄音拼接）由前端處理，後端只提供結構化資料與國語朗讀稿文字（由 `speech` 模組用模板產生；藥名有中文就只念中文，只有英文就照原文念，科別、用途、稱呼不唸英文字母）。
 - **開源免費**：所有套件需為 MIT、BSD、Apache-2.0 等可納入 AGPL 的授權，見 [§9](#9-技術選型)。
 - **可移轉、可維運**：附 Dockerfile，依 README 即可建置。
 
@@ -64,10 +65,9 @@
 
 城市通內建的 `notify` 只能顯示**本機通知**（`flutter_local_notifications`），伺服器無法透過它通知其他人的手機。以下功能都需要伺服器推播：
 
-- 吃藥提醒（時間到通知長輩）
-- 長輩回應、3 次沒回應 → 通知家人
+- 吃藥提醒（時間到同時通知長輩與家屬）
 - 救護人員查看救命卡 → 通知家人
-- 回診提醒
+- 回診提醒、預約提醒
 
 **做法**：App 加入 `firebase_messaging`（BSD-3），並依入門指引「以自訂 Handler 擴充 App 能力」的四個步驟新增 `push_token` Handler（見 [§2.3](#23-與城市通-app-的溝通)），把 FCM token 交給網頁，網頁再呼叫 `POST /devices` 登記。後端用 `firebase-admin` 發送。
 
@@ -91,7 +91,8 @@
 | name | 方向 | 使用的 API | data 格式（依 App 原始碼） |
 |---|---|---|---|
 | `userinfo` | App → 後端 | `POST /auth/townpass` | `lib/bean/account.dart` 的 `Account`（駝峰式，如 `realName`、`phoneNo`、`birthday: "YYYY/MM/DD"`）；沒有帳號時為 `[]`，後端回 400 |
-| `qr_code_scan` | App → 後端 | `POST …/medications/qr-preview`、`POST /responder/cards/lookup`、`POST /family/bindings` | 掃到的字串；使用者取消時為 `null` |
+| `qr_code_scan` | App → 後端 | `POST …/prescriptions/qr-preview`、`POST /responder/cards/lookup`、`POST /family/bindings` | 掃到的字串；使用者取消時為 `null` |
+| 拍照辨識（自訂，名稱由 App 決定） | App → 後端 | `POST …/prescriptions/photo-preview` | 裝置端模型整理出的藥單欄位，格式見 [§8.3](#83-拍照辨識的輸入) |
 | `location` | App → 後端 | `POST /responder/cards/lookup` | geolocator `Position.toJson()`（`latitude`、`longitude`、`timestamp`…）；失敗時為 `[]`，後端視為沒有定位 |
 | `push_token`（自訂） | App → 後端 | `POST /devices` | `{ "token": "…", "platform": "ios" \| "android" }` |
 | `phone_call` | 後端 → App | 緊急聯絡人的 `call` 欄位 | 電話號碼字串，只含數字與開頭的 `+`（App 會組成 `tel://{data}`） |
@@ -108,9 +109,9 @@
 
 | 角色 | 登入方式 | 說明 |
 |---|---|---|
-| 長輩 `elder` | 台北通 userinfo | 管理自己的藥、提醒時段、救命卡、家人綁定、預約 |
+| 長輩 `elder` | 台北通 userinfo | 管理自己的藥單、救命卡、家人綁定、預約 |
 | 家人 `family` | 台北通 userinfo | 以邀請碼綁定長輩；唯讀（初始設定除外） |
-| 救護人員 `responder` | 消防局帳號（模擬 EMT-001～003） | 只能查看救命卡；登入 12 小時有效 |
+| 救護人員 `responder` | 所屬分隊＋人員編號＋密碼（模擬 A12345 等 3 筆） | 只能查看救命卡；登入 12 小時有效 |
 | 路人 | 不登入 | 掃 QR 只看到「請撥打 119」，不呼叫後端 |
 
 身分在第一次使用時選擇（長輩或家人），存在 `users.role`。
@@ -119,9 +120,8 @@
 
 | 資源 | 長輩本人 | 已綁定家人 | 救護人員 |
 |---|---|---|---|
-| 藥品清單 | 讀寫 | 讀（初始設定時可寫） | — |
-| 提醒時段 | 讀寫 | 讀（初始設定時可寫） | — |
-| 提醒回應 | 寫（按「好，我知道了」） | 讀；可「提醒長輩吃藥」 | — |
+| 藥單、藥品 | 讀寫 | 讀（初始設定時可寫） | — |
+| 吃藥提醒 | 讀 | 讀；同時收到推播；可「提醒長輩吃藥」 | — |
 | 救命卡、緊急聯絡人 | 讀寫 | 讀（初始設定時可寫） | 讀（需卡號） |
 | 救命卡重新產生卡號 | 可 | 可（初始設定後也可以） | — |
 | 撤回健康資料同意 | 可 | — | — |
@@ -134,7 +134,7 @@
 ### 3.2 家人的初始設定
 
 - 每一筆綁定（`family_bindings`）都有一次初始設定機會。
-- 綁定成功後，家人可以新增或修改：藥品、提醒時段、救命卡、緊急聯絡人。
+- 綁定成功後，家人可以新增或修改：藥單、救命卡（含緊急聯絡人）、預約。
 - 家人按下「完成設定」後，寫入 `family_bindings.setup_completed_at`，之後該家人對這位長輩全部唯讀。
 - 後端在每個寫入 API 檢查：`role == elder 且是本人` 或 `是已綁定家人 且 setup_completed_at IS NULL`。
 - 解除綁定後重新綁定，會產生新的綁定紀錄，因此有新的一次機會。重新綁定需要長輩產生邀請碼，所以由長輩控制。
@@ -192,8 +192,9 @@ microservice/backend/
     ├── modules/
     │   ├── auth/                # 台北通登入、身分選擇
     │   ├── family/              # 邀請碼、綁定、初始設定
-    │   ├── medication/          # 藥品、QR 解析、同成分檢查、時段
-    │   ├── reminder/            # 提醒事件、回應、升級通知家人
+    │   ├── medication/          # 藥單、三條路徑（QR、拍照比對、手動）、同成分、藥名搜尋、今天四個時段
+    │   ├── reminder/            # 吃藥提醒（長輩與家屬同時）、回診提醒
+    │   ├── speech/              # 朗讀稿模板（國語、英文）
     │   ├── emergency_card/      # 救命卡、卡號、查看紀錄、同意
     │   ├── responder/           # 救護人員登入、名冊驗證
     │   ├── appointment/         # 院區、科別、醫師、門診、預約
@@ -262,7 +263,7 @@ microservice/backend/
 | elder_id | uuid FK users | |
 | family_id | uuid FK users | |
 | relation_label | text | 家人對長輩的稱呼，如「媽媽」，用於通知文字 |
-| notify_on_ack | bool default true | 長輩每次回應是否通知（可關） |
+| notify_on_ack | bool default true | 目前未使用（吃藥提醒已改為不需回應） |
 | setup_completed_at | timestamptz NULL | NULL 表示還能做初始設定 |
 | created_at | timestamptz | |
 | revoked_at | timestamptz NULL | 解除綁定 |
@@ -271,40 +272,46 @@ microservice/backend/
 
 #### 藥
 
-**`medications`**
+**`prescriptions`**：藥單，一個藥袋一張。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | id | uuid PK | |
 | elder_id | uuid FK users | |
-| number | int | 藥袋上的大編號 |
-| name | text | 藥名 |
-| license_no | text NULL | 健保藥品代號（藥袋 QR 的 `lic`），用於同成分檢查 |
-| purpose | text | 用途 |
-| dose_qty | numeric(3,1) | 一次幾顆，支援半顆 |
-| frequency | enum `QD` / `BID` / `TID` / `QID` / `HS` | 一天 1～4 次、睡前 |
-| meal_timing | enum `before` / `after` / `bedtime` | 飯前、飯後、睡前 |
-| start_date | date | 就醫日期 |
-| days | int | 給藥天數 |
-| hospital | text | 院區 |
-| department | text | 科別 |
-| doctor | text | 醫師 |
-| source | enum `qr` / `tpech` / `manual` | 本期只有 `qr` |
-| status | enum `active` / `stopped` | |
-| stopped_at | timestamptz NULL | |
-| stop_reason | enum `finished` / `doctor_advised` NULL | 停用原因：吃完了、醫生說不用吃了 |
-| created_by | uuid FK users | 長輩或做初始設定的家人 |
+| letter | char(1) | 藥單字母 A～Z；吃藥中的藥單不重複，吃完後釋放 |
+| source | enum `photo` / `qr` / `manual` | 拍照辨識、掃 QR、手動 |
+| hospital / department / doctor | text NULL | 院區、科別、醫師；手動新增時可之後補填 |
+| visit_date | date | 看診日，從這天開始吃 |
+| days | int | 給藥天數（必填） |
+| status | enum `active` / `finished` | 吃藥中、已吃完 |
+| finished_at | timestamptz NULL | |
+| created_by | uuid FK users | 核對並加入的人（長輩或做初始設定的家人） |
 | created_at / updated_at | timestamptz | |
 
-唯一索引：`(elder_id, number) WHERE status = 'active'`。
+唯一索引：`(elder_id, letter) WHERE status = 'active'`。過了吃藥天數的藥單在查詢或新增時自動改為 `finished`。
 
-**`time_slots`**：每位長輩 7 筆，預設值見 [§5.3](#53-提醒時段與分配規則)。
+**`medications`**：藥單裡的藥。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| elder_id | uuid FK users | PK 之一 |
-| slot_key | enum | PK 之一，見下表 |
-| time | time | 可修改 |
+| id | uuid PK | |
+| prescription_id | uuid FK prescriptions | |
+| elder_id | uuid FK users | |
+| seq | int | 藥單內的序號；編號 = 字母＋序號（A1） |
+| name | text | 藥名（藥袋上的寫法） |
+| license_no | text NULL | 健保藥品代號，用於同成分檢查 |
+| strength | text NULL | 劑量，例如「5 毫克」 |
+| purpose | text NULL | 用途 |
+| dose_qty | numeric(3,1) | 一次幾顆，支援半顆 |
+| slots | text[] | 什麼時候吃：`morning` / `noon` / `evening` / `bedtime`，可複選 |
+| meal_timing | enum `before` / `after` | 飯前、飯後 |
+| needs_review | bool | 待核對（劑量選了「看不清楚／不確定」） |
+| status | enum `active` / `stopped` | |
+| stopped_at | timestamptz NULL | |
+| stop_reason | enum `finished` / `doctor_advised` NULL | 停用原因：吃完了、醫生說不用吃了 |
+| created_at / updated_at | timestamptz | |
+
+唯一索引：`(prescription_id, seq)`。
 
 **`drug_licenses`**：從健保署「健保用藥品項查詢檔」匯入（約 4.5 萬筆），只讀。
 
@@ -313,6 +320,10 @@ microservice/backend/
 | license_no | text PK | 健保藥品代號（10 碼） |
 | name_zh / name_en | text | 中、英文品名 |
 | ingredients | text[] | ATC 代碼，只有 7 碼（同一種化學成分）時才放；3～5 碼的藥物類別不放 |
+| product_en / product_zh | text | 產品名（去掉劑量、藥廠、括號），藥名搜尋「同藥名只出現一次」用 |
+| ingredient_en | text | 英文品名括號內的主成分 |
+| strength | text | 劑量，例如「5 毫克」 |
+| form | text | 劑型，例如「錠劑」 |
 
 #### 提醒
 
@@ -322,18 +333,15 @@ microservice/backend/
 |---|---|---|
 | id | uuid PK | |
 | elder_id | uuid FK users | |
-| slot_key | enum | |
+| slot_key | enum `morning` / `noon` / `evening` / `bedtime` | |
 | scheduled_date | date | 台北日期 |
 | scheduled_at | timestamptz | 該次提醒時間 |
-| items | jsonb | 快照：`[{"number":1,"name":"…","qty":"2"}]` |
-| attempts | int | 已推播次數（1～3） |
-| last_pushed_at | timestamptz | |
-| acked_at | timestamptz NULL | 長輩按「好，我知道了」 |
-| escalated_at | timestamptz NULL | 已通知家人「沒有回應」 |
+| groups | jsonb | 快照：依藥單分組的藥（字母、院區、科別、每個藥的編號與顆數） |
+| pushed_at | timestamptz | 推播長輩與家屬的時間 |
 
-唯一索引：`(elder_id, slot_key, scheduled_date)`，避免排程重複建立；當天改了時段時間也不會重複提醒。
+唯一索引：`(elder_id, slot_key, scheduled_date)`，避免排程重複建立。
 
-**`refill_notices`**：回診提醒的發送紀錄，`(elder_id, run_out_date)` 為主鍵，同一個吃完日只發一次。
+**`refill_notices`**：回診提醒的發送紀錄，`(elder_id, run_out_date)` 為主鍵，`letters` 記錄提醒了哪幾張藥單，同一個吃完日只發一次。
 
 #### 救命卡
 
@@ -343,17 +351,19 @@ microservice/backend/
 |---|---|---|
 | id | uuid PK | |
 | elder_id | uuid FK users UNIQUE | |
-| title | text | 稱呼，如「陳阿嬤」；吃藥提醒語音也使用 |
-| birth_year | int | |
+| name | text 🔒 | 姓名；推播給家屬時也用 |
+| birth_date | date | 出生年月日（顯示年齡） |
 | gender | enum | |
+| blood_type | enum `A` / `B` / `O` / `AB` / `unknown` | 血型 |
 | chronic_conditions | text 🔒 | JSON 陣列，加密後儲存 |
-| allergies | text 🔒 | JSON 陣列：`[{"type":"drug","name":"盤尼西林"}]` |
-| hospital | text | 預設「臺北市立聯合醫院」 |
+| allergies | text 🔒 | JSON 陣列：`[{"type":"drug","name":"盤尼西林"},{"type":"food","name":"海鮮"}]` |
 | updated_at / updated_by | | |
+
+不收集常去醫院與病歷號（UI E14）。
 
 「正在吃的藥」不存在這張表，查詢時由 `MedicationService` 即時帶入。
 
-**`emergency_contacts`**：每張卡最多 2 筆（service 檢查）。
+**`emergency_contacts`**：每張卡 1 筆，和救命卡一起儲存。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
@@ -382,7 +392,7 @@ microservice/backend/
 | id | uuid PK | |
 | card_id | uuid FK | |
 | responder_id | uuid FK responders | |
-| responder_name / responder_unit | text | 查看當下的姓名、分隊（快照，之後離職或調動也不變） |
+| responder_name / responder_unit / responder_staff_no | text | 查看當下的姓名、分隊、人員編號（快照，之後離職或調動也不變） |
 | code_used | text | 使用的卡號 |
 | method | enum `qr` / `manual` | 掃描或手動輸入 |
 | latitude / longitude | numeric NULL | 救護人員手機定位 |
@@ -406,7 +416,7 @@ microservice/backend/
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | id | uuid PK | |
-| account | text UNIQUE | `EMT-001`～`EMT-003` |
+| account | text UNIQUE | 人員編號，例如 `A12345` |
 | password_hash | text | argon2 |
 | name | text | |
 | unit | text | 所屬分隊，如「中山分隊」 |
@@ -424,51 +434,48 @@ microservice/backend/
 | `hospitals` | id、name、address | 聯醫 7 院區：中興、仁愛、和平婦幼（和平、婦幼 2 個院址）、忠孝、陽明、松德、林森中醫昆明（林森、昆明 2 個院址），共 9 筆，名稱與地址依聯醫官網 |
 | `departments` | id、hospital_id、name | 科別 |
 | `doctors` | id、department_id、name | 醫師 |
-| `clinic_sessions` | id、doctor_id、date、period（`morning` / `afternoon` / `evening`）、capacity、booked_count（有效預約數）、issued_count（已發出的看診號碼）、status（`open` / `suspended`） | 門診；額滿或停診時前端顯示灰色 |
-| `appointments` | id、elder_id、session_id、visit_no（看診號碼）、status（`booked` / `cancelled`）、cancelled_at、reminder_enabled（「加入提醒」）、reminded_day_before_at、reminded_same_day_at、created_at | 同一位長輩同一個門診只能有一筆有效預約 |
+| `clinic_sessions` | id、doctor_id、date、period（`morning` / `afternoon` / `evening`）、issued_count（已發出的看診號碼）、status（`open` / `suspended`） | 門診（某位醫師某天的上午、下午或晚上） |
+| `clinic_slots` | id、session_id、time（例如 09:30）、capacity、booked_count（有效預約數） | 看診時間，各自有名額；額滿時前端顯示灰色 |
+| `appointments` | id、elder_id、session_id、slot_id、visit_no（看診號碼）、status（`booked` / `cancelled`）、cancelled_at、reminded_day_before_at、created_at | 同一位長輩同一個門診只能有一筆有效預約 |
 
-預約時以 `UPDATE clinic_sessions SET booked_count = booked_count + 1, issued_count = issued_count + 1 WHERE id = ? AND booked_count < capacity AND status = 'open' AND date BETWEEN 明天 AND 14 天後 RETURNING issued_count` 確保不超額，`visit_no` 取 `issued_count`。取消時只減 `booked_count`，所以名額釋出、看診號碼不會重複發給別人。
+預約時以 `UPDATE clinic_slots SET booked_count = booked_count + 1 WHERE id = ? AND booked_count < capacity AND 門診開放且在明天起 14 天內 RETURNING session_id` 確保不超額，再以 `UPDATE clinic_sessions SET issued_count = issued_count + 1 RETURNING issued_count` 發看診號碼。取消時只減 `booked_count`，所以名額釋出、看診號碼不會重複發給別人。
 
 #### 推播
 
 **`device_tokens`**：user_id、token（UNIQUE）、platform、updated_at。一個使用者可以有多台裝置。
 
-### 5.3 提醒時段與分配規則
+### 5.3 吃藥時段與規則
 
-**預設時段**（每位長輩可修改）：
+**固定四個時段**（不能修改，`medication/rules.py`）：
 
-| slot_key | 名稱 | 預設 |
+| slot_key | 名稱 | 時間 |
 |---|---|---|
-| `breakfast_before` | 早餐飯前 | 07:30 |
-| `breakfast_after` | 早餐飯後 | 08:00 |
-| `lunch_before` | 午餐飯前 | 11:30 |
-| `lunch_after` | 午餐飯後 | 12:00 |
-| `dinner_before` | 晚餐飯前 | 17:30 |
-| `dinner_after` | 晚餐飯後 | 18:00 |
-| `bedtime` | 睡前 | 21:00 |
+| `morning` | 早上 | 09:00 |
+| `noon` | 中午 | 12:00 |
+| `evening` | 晚上 | 18:00 |
+| `bedtime` | 睡前 | 22:00 |
 
-**分配規則**（`medication/rules.py`）：
+每個藥自己記錄「什麼時候吃」（可複選），飯前、飯後只是標示，不影響提醒時間。藥袋 QR 或拍照辨識給的是頻率時，換成時段：
 
-| 頻率 | 分配到的餐別 |
+| 頻率 | 時段 |
 |---|---|
-| `QD` 一天一次 | 早 |
-| `BID` 一天兩次 | 早、晚 |
-| `TID` 一天三次 | 早、中、晚 |
-| `QID` 一天四次 | 早、中、晚、睡前 |
+| `QD` 一天一次 | 早上 |
+| `BID` 一天兩次 | 早上、晚上 |
+| `TID` 一天三次 | 早上、中午、晚上 |
+| `QID` 一天四次 | 早上、中午、晚上、睡前 |
 | `HS` 睡前 | 睡前 |
-
-餐別再依 `meal_timing` 對應到飯前或飯後時段。例如「TID、飯後」→ `breakfast_after`、`lunch_after`、`dinner_after`。分配結果即時計算，不另外存表。
 
 **其他計算規則**：
 
-- **剩餘天數** = `start_date + days − 今天`，小於 0 顯示 0。
-- **藥吃完日** = `start_date + days − 1`。
-- **編號** = 該長輩目前 `active` 藥品中，沒被使用的最小正整數。停用後編號釋放，讓編號維持在長輩好記的小數字。
+- **剩餘天數** = `visit_date + days − 今天`，小於 0 顯示 0。
+- **藥吃完日** = `visit_date + days − 1`。
+- **藥單字母** = 該長輩吃藥中的藥單沒用到的第一個字母（A～Z）。吃完或提早移到「已吃完」後字母釋放。
+- **藥的編號** = 字母＋藥單內的序號（A1、A2…）。
 
 ### 5.4 個資保護
 
 - 慢性病、過敏、用藥屬個資法第 6 條特種個資。救命卡寫入前必須有有效的 `consents`（`health_data`），否則回 `403 CONSENT_REQUIRED`。
-- **撤回同意**：只有長輩本人可以撤回。清空 `chronic_conditions`、`allergies`，並撤銷有效卡號；查看紀錄、緊急聯絡人保留。重新同意並儲存後補發新卡號。
+- **撤回同意**：只有長輩本人可以撤回。清空 `chronic_conditions`、`allergies`，並撤銷有效卡號；查看紀錄、姓名、緊急聯絡人保留。重新同意並儲存後補發新卡號。
 - **欄位加密**：🔒 欄位用 `cryptography` 的 Fernet（AES-128-CBC + HMAC）在應用層加密，金鑰放環境變數 `FIELD_ENCRYPTION_KEY`（正式版放 Secret Manager）。
 - **查看紀錄**只能新增。
 - 救護人員查詢回應附上免責文字：「本資料由本人或家屬提供，僅供參考，請以醫療專業判斷為準」。
@@ -484,15 +491,11 @@ microservice/backend/
 
 | 工作 | 條件 | 動作 |
 |---|---|---|
-| 建立提醒 | 某長輩某時段時間已到（延誤 30 分鐘內），該時段有藥、今天還沒建立 | 建 `reminder_events`，推播長輩（第 1 次） |
-| 重新提醒 | 未回應，距上次推播滿 10 分鐘，`attempts < 3` | 推播長輩，`attempts + 1` |
-| 通知家人沒有回應 | 未回應，第 3 次推播後滿 10 分鐘，尚未通知 | 推播所有綁定家人，`data.call` 為撥給長輩的 `phone_call` 訊息；寫入 `escalated_at` |
-| 回診提醒 | 每天 09:00 起；有藥品的吃完日 = 今天 + 7，且尚未發過（`refill_notices`） | 推播長輩與家人：「1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋」 |
-| 預約提醒 | 有「加入提醒」的預約：前一天 18:00 起、當天 08:00 起，各一次 | 推播長輩與家人，`data.map` 為「帶我去醫院」的 `launch_map` 訊息 |
+| 吃藥提醒 | 某長輩某時段（09:00、12:00、18:00、22:00）時間已到（延誤 30 分鐘內），該時段有藥、今天還沒建立 | 建 `reminder_events`，**同時**推播長輩與所有綁定家屬 |
+| 回診提醒 | 每天 09:00 起；有藥單的吃完日 = 今天 + 7，且尚未發過（`refill_notices`） | 推播長輩與家人：「藥單 A（仁愛院區 心臟內科）再 7 天就吃完囉，要記得回診或領慢箋」 |
+| 預約提醒 | 每筆有效預約，前一天 18:00 起一次 | 推播長輩與家屬（文字不同），`data.map` 為「帶我去醫院」的 `launch_map` 訊息 |
 
-重新提醒的間隔（10 分鐘）先用預設值，Demo 時可用環境變數縮短。
-
-「建立」和「領取要重新提醒／通知家人的提醒」都用一條 SQL（`INSERT … ON CONFLICT DO NOTHING RETURNING`、`UPDATE … RETURNING`）完成，排程同時被呼叫兩次也只有一次會發出推播。
+「建立」和「領取要提醒的預約」都用一條 SQL（`INSERT … ON CONFLICT DO NOTHING RETURNING`、`UPDATE … RETURNING`）完成，排程同時被呼叫兩次也只有一次會發出推播。
 
 ### 6.2 推播內容
 
@@ -506,17 +509,17 @@ microservice/backend/
 }
 ```
 
-| type | 對象 | 文字範例 |
+| type | 對象 | 標題｜內文範例 |
 |---|---|---|
-| `medication_reminder` | 長輩 | 阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 1 顆 |
-| `medication_acked` | 家人（`notify_on_ack`） | 媽媽已回應 18:00 的吃藥提醒（按「好，我知道了」不代表已經吃藥，所以不寫「已經吃藥了」） |
-| `medication_no_response` | 家人 | 媽媽 18:00 的吃藥提醒沒有回應，要不要打給她？ |
-| `medication_nudge` | 長輩 | 陳小美提醒你吃藥喔（家人的台北通姓名） |
-| `card_accessed` | 家人 | 臺北市消防局中山分隊王大明於 15:20 查看了媽媽的救命卡（「媽媽」是各家人自己設定的稱呼；`data.call` 為撥給該分隊的 `phone_call` 訊息） |
-| `refill_reminder` | 長輩、家人 | 1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋 |
-| `appointment_reminder` | 長輩、家人 | 明天上午 仁愛院區 家醫科 林醫師 回診，看診號碼 12 號 |
+| `medication_reminder` | 長輩 | 中午 12:00 該吃藥了｜B1、B2 各 1 顆，點開可以聽語音（UI E09） |
+| `family_medication_reminder` | 家屬（同時） | 王美玉 中午 12:00 該吃藥了｜B1、B2 各 1 顆，記得關心她（UI F04；姓名取自救命卡，沒有時用台北通姓名） |
+| `medication_nudge` | 長輩 | 家人提醒｜陳小美提醒你吃藥喔（家人的台北通姓名） |
+| `card_accessed` | 家屬 | 救護人員查看了王美玉的緊急醫療卡｜11/07 14:32｜臺北市政府消防局 大安分隊｜人員編號 A12345。長輩可能需要緊急協助，請盡快聯絡。（UI F07；`data.call` 為撥給長輩的 `phone_call` 訊息） |
+| `refill_reminder` | 長輩、家屬 | 回診提醒｜藥單 A（仁愛院區 心臟內科）再 7 天就吃完囉，要記得回診或領慢箋 |
+| `appointment_reminder` | 長輩 | 明天 09:30 要回診｜仁愛院區心臟內科林醫師，記得帶健保卡（UI E16） |
+| `appointment_reminder` | 家屬 | 王美玉 明天 09:30 要回診｜仁愛院區心臟內科林醫師，記得提醒或陪伴她（UI F08） |
 
-全螢幕提醒、聲音、震動、閃光、國台語朗讀由 App 與前端處理，後端只提供 `items` 與稱呼。
+點開吃藥提醒後的時段用藥詳情（`GET /reminders/{id}`）依藥單分組，朗讀稿「中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆」不念英文字母。全螢幕提醒、聲音、震動、國台語朗讀由 App 與前端處理。
 
 ---
 
@@ -540,7 +543,7 @@ microservice/backend/
 | 401 | 未登入或登入過期 |
 | 403 | `Forbidden`、`CONSENT_REQUIRED`、`RESPONDER_NOT_AUTHORIZED` |
 | 404 | `NotFound`（含卡號無效） |
-| 409 | `Conflict`（邀請碼已使用、門診額滿、緊急聯絡人已滿） |
+| 409 | `Conflict`（邀請碼已使用、看診時間額滿、藥單字母用完） |
 | 429 | 卡號查詢過於頻繁 |
 
 ### 7.2 端點
@@ -562,7 +565,7 @@ microservice/backend/
 | POST | `/family/invites` | 長輩產生邀請碼，回 `code`、`qr_url`（邀請 QR 的內容：`{前端網址}/invite/{code}`）、`expires_at`；舊的有效邀請碼立即失效 |
 | POST | `/family/bindings` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上稱呼 `relation_label`；完成綁定 |
 | GET | `/family/bindings` | 綁定清單 |
-| PATCH | `/family/bindings/{id}` | 家人修改 `notify_on_ack`、`relation_label` |
+| PATCH | `/family/bindings/{id}` | 家人修改 `relation_label`（`notify_on_ack` 目前未使用） |
 | POST | `/family/bindings/{id}/complete-setup` | 家人完成初始設定，之後唯讀 |
 | DELETE | `/family/bindings/{id}` | 長輩解除綁定 |
 
@@ -570,23 +573,29 @@ microservice/backend/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/elders/{elder_id}/medications?include_stopped=` | 藥品清單，依編號排序：大編號、藥名、一次幾顆、時段與時間、還剩幾天、「念給我聽」朗讀稿 `speech_text`（國語）與 `speech_text_en`（英文，給外籍看護） |
-| POST | `/elders/{elder_id}/medications/qr-preview` | body 為 App 的 `qr_code_scan` 回覆；回確認畫面內容 `draft`、會提醒的時段、同成分警示（不寫入） |
-| POST | `/elders/{elder_id}/medications` | body 為長輩核對後的 `draft`；回編號、同成分警示與「請在藥袋上寫上大大的 N」 |
-| GET | `/elders/{elder_id}/medications/{id}` | 詳細頁 |
-| PATCH | `/elders/{elder_id}/medications/{id}` | 編輯 |
-| POST | `/elders/{elder_id}/medications/{id}/stop` | body `{"reason": "finished" \| "doctor_advised"}`；停用後不再提醒，編號釋放 |
-| GET | `/elders/{elder_id}/time-slots` | 時段設定 |
-| PUT | `/elders/{elder_id}/time-slots` | 修改時段，只需送要改的時段 |
-| GET | `/elders/{elder_id}/next-dose` | 首頁狀態列：「下一次吃藥：今天 12:00」 |
+| GET | `/drugs/search?q=` | 藥名搜尋（手動新增）：2 個字以上，中英文、不分大小寫、比對字首；同藥名只出現一次，附可選劑量清單（每個劑量帶健保藥品代號）；北市聯醫常用藥（模擬）排前面，最多 8 筆 |
+| POST | `/elders/{elder_id}/prescriptions/qr-preview` | 掃 QR：body 為 App 的 `qr_code_scan` 回覆 |
+| POST | `/elders/{elder_id}/prescriptions/photo-preview` | 拍照辨識：body 為裝置端模型整理出的欄位（[§8.3](#83-拍照辨識的輸入)）；比對健保資料、回每個欄位的信心分數與 `uncertain`（紅框） |
+| POST | `/elders/{elder_id}/prescriptions/preview` | 手動新增、或修改後「再看一次」：body 為藥單草稿 |
+| POST | `/elders/{elder_id}/prescriptions` | 「確認無誤，加入藥單」：body 為核對後的草稿；配字母、記錄核對者；回藥單、同成分警示、四個時段各吃哪幾號、「請用筆在這個藥袋上寫一個大大的「A」」 |
+| GET | `/elders/{elder_id}/prescriptions?status=active\|finished` | 我的藥單：吃藥中（依字母）、已吃完（新的在前）；含每個藥的「念給我聽」朗讀稿 |
+| GET | `/elders/{elder_id}/prescriptions/{id}` | 藥單詳細 |
+| PATCH | `/elders/{elder_id}/prescriptions/{id}` | 補填院區、科別、醫師，或修改看診日、天數 |
+| POST | `/elders/{elder_id}/prescriptions/{id}/finish` | 提早移到「已吃完」，字母釋放 |
+| GET | `/elders/{elder_id}/medications/{id}` | 藥品詳細 |
+| PATCH | `/elders/{elder_id}/medications/{id}` | 修改藥名、劑量、顆數、時段、飯前飯後、待核對 |
+| POST | `/elders/{elder_id}/medications/{id}/stop` | body `{"reason": "finished" \| "doctor_advised"}`；停用後不再提醒 |
+| GET | `/elders/{elder_id}/today?date=` | 今天四個時段的藥（首頁、時段用藥詳情、家屬首頁）：依藥單分組，附朗讀稿；沒有藥的時段不列出 |
+| GET | `/elders/{elder_id}/next-dose` | 首頁「下一次吃藥」 |
+
+三個預覽 API 都回同一個格式：預計配的字母、草稿 `draft`、每個藥的編號與時段、同成分警示、`uncertain`、四個時段各吃哪幾號。預覽不寫入。
 
 **reminder**
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/reminders/{event_id}` | 提醒畫面資料：稱呼、時段、`items`、朗讀稿 `speech_text`（國語）與 `speech_text_en`（英文）、狀態 |
-| POST | `/reminders/{event_id}/ack` | 長輩按「好，我知道了」（只有長輩本人，家人不能代按） |
-| GET | `/elders/{elder_id}/reminders?date=` | 某天的提醒與回應狀態 |
+| GET | `/reminders/{event_id}` | 點開推播：時段、依藥單分組的藥、朗讀稿 `speech_text`（國語）與 `speech_text_en`（英文） |
+| GET | `/elders/{elder_id}/reminders?date=` | 某天的提醒 |
 | POST | `/elders/{elder_id}/nudge` | 綁定的家人提醒長輩吃藥 |
 
 **emergency_card**
@@ -595,9 +604,8 @@ microservice/backend/
 |---|---|---|
 | POST | `/elders/{elder_id}/consents` | 同意儲存健康資料；已同意時回傳原紀錄 |
 | DELETE | `/elders/{elder_id}/consents/health_data` | 撤回同意（只有長輩本人） |
-| GET | `/elders/{elder_id}/emergency-card` | 長輩、家人檢視（含正在吃的藥、卡號與 QR 內容、查看紀錄）；還沒建立時回 `404 CARD_NOT_CREATED` |
-| PUT | `/elders/{elder_id}/emergency-card` | 編輯 |
-| PUT | `/elders/{elder_id}/emergency-card/contacts` | 整批設定緊急聯絡人（最多 2 位），回應附 `phone_call` 訊息 |
+| GET | `/elders/{elder_id}/emergency-card` | 長輩、家人檢視（姓名、年齡、性別、血型、一位緊急聯絡人、慢性病、過敏、來自藥單的目前用藥、卡號與 QR 內容、查看紀錄）；還沒建立時回 `404 CARD_NOT_CREATED` |
+| PUT | `/elders/{elder_id}/emergency-card` | 儲存整張卡：姓名、出生年月日、一位緊急聯絡人必填；聯絡人回應附 `phone_call` 訊息 |
 | POST | `/elders/{elder_id}/emergency-card/regenerate-code` | 重新產生卡號，舊卡號立即失效 |
 | GET | `/emergency-card/common-items` | 常見慢性病、過敏選項 |
 
@@ -605,23 +613,24 @@ microservice/backend/
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/responder/login` | 帳號密碼登入，比對名冊；帳密錯誤回 `401 INVALID_CREDENTIALS`（不透露帳號是否存在），離職或無救護權限回 `403 RESPONDER_NOT_AUTHORIZED`「無權限」 |
+| GET | `/responder/units` | 所屬單位下拉選單（臺北市政府消防局各分隊，名稱為範例）；不需登入 |
+| POST | `/responder/login` | body `{unit, staff_no, password}`，比對名冊；單位、編號或密碼錯誤都回 `401 INVALID_CREDENTIALS`（不透露帳號是否存在），離職或無救護權限回 `403 RESPONDER_NOT_AUTHORIZED`「無權限」 |
 | POST | `/responder/cards/lookup` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上 `location`（App 的 `location` 回覆）；回救命卡內容；寫查看紀錄並推播家人 |
 
-查詢回應依顯示順序排列：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人，並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在後端記憶體，重新啟動後歸零。
+查詢回應只有必要欄位（UI R03）：姓名、年齡、性別、血型、一位緊急聯絡人（撥號）、慢性病、過敏、目前用藥，不含常去醫院與病歷號；並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在後端記憶體，重新啟動後歸零。
 
 **appointment**
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/hospitals` | 步驟 1：院區清單，附 `launch_map` 訊息（帶我去醫院） |
-| GET | `/hospitals/{id}/departments?elder_id=` | 步驟 2：科別；帶 `elder_id` 時，上次看的科別排第一 |
-| GET | `/departments/{id}/doctors?elder_id=` | 步驟 3：醫師；帶 `elder_id` 時，上次看診的醫師排第一並標記（前端預設選取） |
-| GET | `/doctors/{id}/sessions` | 步驟 4、5：明天起 2 週有門診的日子（「11/12（星期三）」），每天的上午／下午／晚上時段與是否可約 |
-| POST | `/elders/{elder_id}/appointments` | 步驟 6：body `{"session_id"}`；回完成頁內容（含看診號碼、帶我去醫院） |
-| GET | `/elders/{elder_id}/appointments` | 我的預約：今天以後、未取消，依日期排序 |
+| GET | `/hospitals` | 選院區：9 個院址附地址與 `launch_map` 訊息（帶我去醫院） |
+| GET | `/hospitals/{id}/departments?elder_id=` | 選科別；帶 `elder_id` 時，最近藥單的科別排第一並附 `from_letter`（「已從藥單 A 帶入科別」） |
+| GET | `/departments/{id}/doctors?elder_id=` | 選醫師：每週門診時間（「週一、週五 上午」）；2 週內都額滿時 `available=false`、`note=已額滿`；藥單上的醫師排第一並標記 |
+| GET | `/doctors/{id}/sessions` | 選日期：明天起 2 週的門診（「11/14（五）」「上午門診」）；額滿、停診不可選 |
+| GET | `/sessions/{id}/slots` | 選時段：每個看診時間（「上午 09:30」）的剩餘名額（「還有 3 個名額」「已額滿」） |
+| POST | `/elders/{elder_id}/appointments` | 確認預約：body `{"slot_id"}`；回預約成功頁（看診號碼、日期、時段、院區、科別、醫師、帶我去醫院） |
+| GET | `/elders/{elder_id}/appointments` | 我的預約：今天以後、未取消，依日期與時間排序 |
 | POST | `/elders/{elder_id}/appointments/{id}/cancel` | 取消；看診日已過不能取消 |
-| PUT | `/elders/{elder_id}/appointments/{id}/reminder` | 完成頁「加入提醒」：body `{"enabled": true}` |
 
 **notification、internal**
 
@@ -637,31 +646,30 @@ microservice/backend/
 
 ### 8.1 藥袋 QR
 
-比賽時自行產生範例 QR。一張藥袋一個 QR，內容為 JSON：
+比賽時自行產生範例 QR。**一個藥袋（一張藥單）一個 QR**，內容為 JSON：
 
 ```json
 {
-  "v": 1,
+  "v": 2,
   "t": "rx",
   "hosp": "臺北市立聯合醫院仁愛院區",
-  "dept": "家醫科",
-  "dr": "林醫師",
-  "date": "2026-11-07",
+  "dept": "心臟內科",
+  "dr": "王醫師",
+  "date": "2026-11-05",
   "days": 28,
-  "lic": "B021571100",
-  "name": "脈優錠 5 毫克",
-  "use": "降血壓",
-  "qty": 1,
-  "freq": "QD",
-  "meal": "after"
+  "items": [
+    {"lic": "B021571100", "name": "Amlodipine", "mg": "5 毫克", "use": "降血壓", "qty": 1, "when": ["morning"], "meal": "after"},
+    {"lic": "B022890100", "name": "Atorvastatin", "mg": "20 毫克", "use": "降血脂", "qty": 1, "freq": "HS", "meal": "after"}
+  ]
 }
 ```
 
-- `v`：格式版本，不支援的版本回 `400 QR_INVALID`；不是藥袋 QR 或缺欄位也回 `400 QR_INVALID`。
+- `v`：格式版本。仍接受 v1（一個 QR 一個藥）；其他版本、不是藥袋 QR 或缺欄位回 `400 QR_INVALID`。
+- `lic`：健保藥品代號（10 碼）；`mg`：劑量。
+- `when`（時段，可複選）與 `freq`（頻率，換算見 [§5.3](#53-吃藥時段與規則)）擇一；`meal` 為 `before` / `after`。
 - `qty`：一次幾顆，可以是 `0.5`。API 回應中的顆數一律是 JSON 數字。
-- QR 本身含完整資料，掃描不需查詢醫院系統。前端可離線顯示確認畫面，加入清單時才呼叫後端。
-- `lic`：健保藥品代號（10 碼）。
-- 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`（ATC 7 碼），和長輩其他 `active` 藥品比對。有重疊時回 `warnings: [{"type":"same_ingredient","with_number":2}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
+- QR 本身含完整資料，掃描不需查詢醫院系統。
+- 同成分檢查：以 `lic` 查 `drug_licenses.ingredients`（ATC 7 碼），和長輩吃藥中的藥、以及同一張藥單裡前面的藥比對。有重疊時回 `warnings: [{"type":"same_ingredient","code":"C1","with_code":"A1"}]`，前端顯示「這兩包好像是同一種藥，請問藥師」。只標示，不阻擋。
 
 ### 8.2 救命卡卡號
 
@@ -670,6 +678,31 @@ microservice/backend/
 - **QR 內容**是網址：`https://<前端網址>/c/TPE-7K3Q-9X2M`。
   - 路人用一般相機掃到：開啟前端公開頁，只顯示「這位長輩有登記救命卡，請立即撥打 119」。**這個頁面不呼叫後端**，所以無法藉此測試卡號是否存在。
   - 救護人員在台北通內掃描：前端把 `qr_code_scan` 的回覆原封不動送到 `/responder/cards/lookup`，由後端從網址取出卡號。
+
+### 8.3 拍照辨識的輸入
+
+App 用裝置端模型讀藥袋照片後，把整理出的欄位送到 `POST …/prescriptions/photo-preview`。看不出來的欄位留空；`confidence` 為模型對各欄位的把握（0～1，可省略，省略視為 1）：
+
+```json
+{
+  "hospital": "臺北市立聯合醫院仁愛院區",
+  "department": "心臟內科",
+  "visit_date": "2026-11-05",
+  "days": 28,
+  "confidence": {"days": 0.6},
+  "items": [
+    {"name": "Norvasc", "license_no": null, "strength": "5 毫克", "purpose": "降血壓",
+     "dose_qty": 1, "frequency": "QD", "meal_timing": "after", "confidence": {"name": 0.9}}
+  ]
+}
+```
+
+後端處理：
+
+1. 有健保碼就直接查；沒有就以藥名比對健保藥品資料（產品名、主成分、中英文品名，容許錯字），相似度 0.75 以上才帶入藥品代號與劑量。
+2. 每個欄位的信心分數 = 模型的把握與比對相似度取較低者；看不出來的欄位為 0，並先填預設值（一次 1 顆、早上、飯後、看診日為今天）。
+3. 低於 0.8 的欄位列在 `uncertain`（例如 `items.1.name`），該藥的 `uncertain=true`，前端用紅框標示「電腦不確定這一項，請照藥袋核對」。
+4. 天數看不出來時 `draft.days` 為 null，加入前必須填（否則 `400 DAYS_REQUIRED`）。
 
 ---
 
@@ -719,7 +752,6 @@ Python 3.12。
 | `FRONTEND_BASE_URL` | 前端網址，預設 `http://10.0.2.2:5173`（模擬器）：CORS、推播 deeplink、救命卡與邀請 QR |
 | `EXTRA_CORS_ORIGINS` | 額外允許的網頁來源，預設 `http://localhost:5173`（電腦瀏覽器） |
 | `SCHEDULER_ENABLED` | 後端內建排程，預設 `true` |
-| `REMIND_INTERVAL_MINUTES` | 重新提醒間隔，預設 10 |
 | `DEMO_MODE` | 開啟後可切換身分、使用模擬觸發 API |
 
 ---
@@ -729,18 +761,17 @@ Python 3.12。
 ### 11.1 種子資料（`seed/`）
 
 - 長輩、家人各一個模擬台北通帳號（修改 `account.json` 的 `birthday`、`citizen` 呈現長輩情境）。
-- 消防局名冊 3 筆：`EMT-001`、`EMT-002` 在職且有救護權限；`EMT-003` 已離職，示範被擋。
-- 聯醫院區、科別、醫師、未來 2 週門診（含一個額滿、一個停診）。✅ 院區名稱與地址依北市聯醫公開資訊，科別、醫師、門診為模擬資料；門診從執行匯入的隔天起產生 2 週，Demo 前一天要再執行一次。
-- 範例藥袋 QR 3 張，其中 2 張成分相同，示範同成分警示。✅ `seed/qr/`
-- 藥品資料：匯入健保用藥品項全部 4.5 萬筆（真實資料）；範例藥袋用真實藥品代號（脈優錠、顧糖維、壓可平錠）。✅
+- 消防局名冊 3 筆：`A12345`（大安分隊）、`A23456`（中山分隊）在職且有救護權限；`A34567`（信義分隊）已離職，示範被擋。分隊清單為範例名稱。
+- 聯醫院區、科別、醫師、未來 2 週門診與看診時間（每 30 分鐘一個，每個 8 個名額，預先填入部分模擬預約；含一個全部額滿、一個停診的門診）。✅ 院區名稱與地址依北市聯醫公開資訊，科別、醫師、門診為模擬資料；門診從執行匯入的隔天起產生 2 週，Demo 前一天要再執行一次。
+- 範例藥袋 QR 3 張（v2，一張藥單多個藥），對應 UI 的藥單 A、B，以及和 A1 同成分的藥單 C。✅ `seed/qr/`
+- 藥品資料：匯入健保用藥品項全部 4.5 萬筆（真實資料）；範例藥袋用真實藥品代號。北市聯醫常用藥清單為模擬。✅
 
 ### 11.2 展示用 API（僅 `DEMO_MODE`，正式版移除）
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/demo/trigger/reminder?elder_id=` | 立即提醒今天第一個有藥的時段（已提醒過就重新開始） |
-| POST | `/demo/trigger/no-response?elder_id=` | 把最近一筆未回應的提醒當作 3 次沒回應，立即通知家人 |
-| POST | `/demo/trigger/refill?elder_id=` | 立即發回診提醒（最快吃完的那幾號藥） |
+| POST | `/demo/trigger/reminder?elder_id=` | 立即提醒今天第一個有藥的時段，長輩與家屬同時收到（已提醒過就再推播一次） |
+| POST | `/demo/trigger/refill?elder_id=` | 立即發回診提醒（最快吃完的那幾張藥單） |
 
 **Demo 順序**：路人掃 QR 只看到「請撥 119」→ 救護人員登入後掃同一張卡看到完整資料 → 女兒手機收到「救護人員查看了媽媽的救命卡」。
 
@@ -753,6 +784,8 @@ Python 3.12。
 | FCM 推播 | App | 加入 `firebase_messaging`；新增 Handler 回傳 FCM token；處理通知點擊的 deeplink |
 | 全螢幕提醒 | App | 聲音、震動、閃光、全螢幕顯示 |
 | 國台語朗讀 | 前端、App | 國語用 `microservice/frontend/tts/`（`speak(speech_text)`：App 的 `tts_speak` handler → 網頁 speechSynthesis，見該目錄 README）；App 已加 `tts_speak`、`tts_stop` handler（`lib/util/web_message_handler/tts_message_handler.dart`，`flutter_tts`，只用離線語音）；Android WebView 不支援 speechSynthesis，只能靠 App handler；英文稿 `speech_text_en` 要用 `speak(text, { lang: 'en-US' })` 朗讀，**前端模組與 App handler 目前只挑中文語音，需要補上英文（en-US）離線語音的選擇**；台語之後再定 |
+| 拍照辨識 | App | 拍照走台北通原生 handler（WebView 直接開相機可能失敗）；用裝置端模型（例如 Gemma 4 E2B）把照片整理成 [§8.3](#83-拍照辨識的輸入) 的欄位，再由前端送到 `photo-preview`；README 要揭露模型名稱、版本、量化格式、推論框架與來源 |
+| 救護人員查詢 | 前端 | UI R02 的「身分證字號」改為救命卡卡號輸入（或掃 QR） |
 | 卡號 QR 與桌布 | 前端 | 依卡號產生 QR、敬老卡貼紙、手機桌布 |
 | 救護人員定位 | 前端 | 查詢前呼叫台北通 `location` 取得座標 |
 | 一鍵撥號 | 前端 | 呼叫台北通 `phone_call` |
@@ -762,6 +795,7 @@ Python 3.12。
 
 ## 13. 下一期
 
-- 新增藥品：帶入聯醫用藥（模擬 API）、手動輸入。
+- 新增藥品：帶入聯醫用藥（模擬 API）。
+- 複方藥的同成分比對（複方有自己的 ATC，目前不會和單方比對到）。
 - 串接北市聯醫掛號系統、消防局人員名冊正式 API。
 - 台北通 userinfo 的伺服器端驗證（比賽時直接信任前端送來的 userinfo）。

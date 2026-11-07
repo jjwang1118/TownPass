@@ -1,21 +1,26 @@
 import datetime as dt
+from decimal import Decimal
 
-from app.integrations.fda.importer import from_nhi
+from app.integrations.fda.importer import from_nhi, parse_name
+from app.modules.appointment import rules as appt_rules
+from app.modules.appointment.models import Period
 from app.modules.emergency_card import rules as card_rules
 from app.modules.medication import rules as med_rules
-from app.modules.medication.models import Frequency, MealTiming, SlotKey
+from app.modules.medication.models import Frequency, SlotKey
 from app.modules.speech import rules as speech
 
 
-def test_allocate_slots() -> None:
-    assert med_rules.allocate_slots(Frequency.TID, MealTiming.AFTER) == [
-        SlotKey.BREAKFAST_AFTER,
-        SlotKey.LUNCH_AFTER,
-        SlotKey.DINNER_AFTER,
+def test_fixed_slots() -> None:
+    # 固定四個時段：09:00、12:00、18:00、22:00
+    assert [(med_rules.SLOT_LABELS[s], med_rules.SLOT_TIMES[s].hour) for s in med_rules.SLOT_ORDER] == [
+        ("早上", 9),
+        ("中午", 12),
+        ("晚上", 18),
+        ("睡前", 22),
     ]
-    assert med_rules.allocate_slots(Frequency.QID, MealTiming.BEFORE)[-1] is SlotKey.BEDTIME
-    assert med_rules.allocate_slots(Frequency.HS, MealTiming.AFTER) == [SlotKey.BEDTIME]
-    assert med_rules.allocate_slots(Frequency.BID, MealTiming.BEDTIME) == [SlotKey.BEDTIME]
+    assert med_rules.FREQUENCY_SLOTS[Frequency.TID] == [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING]
+    assert med_rules.FREQUENCY_SLOTS[Frequency.HS] == [SlotKey.BEDTIME]
+    assert med_rules.sort_slots(["bedtime", "morning", "morning"]) == [SlotKey.MORNING, SlotKey.BEDTIME]
 
 
 def test_days() -> None:
@@ -25,9 +30,30 @@ def test_days() -> None:
     assert med_rules.days_left(start, 28, dt.date(2026, 12, 31)) == 0
 
 
-def test_next_number_reuses_smallest() -> None:
-    assert med_rules.next_number(set()) == 1
-    assert med_rules.next_number({1, 3}) == 2
+def test_next_letter_reuses_smallest() -> None:
+    assert med_rules.next_letter(set()) == "A"
+    assert med_rules.next_letter({"A", "C"}) == "B"
+    assert med_rules.next_letter(set(med_rules.LETTERS)) is None
+    assert med_rules.code("A", 2) == "A2"
+
+
+def test_doses_text() -> None:
+    # 推播：「B1、B2 各 1 顆」；顆數不同時分開寫
+    assert med_rules.doses_text([("B1", Decimal(1)), ("B2", Decimal(1))]) == "B1、B2 各 1 顆"
+    assert med_rules.doses_text([("A3", Decimal("0.5"))]) == "A3 半顆"
+    assert med_rules.doses_text([("A1", Decimal(1)), ("C1", Decimal("0.5"))]) == "A1 1 顆、C1 半顆"
+
+
+def test_search_helpers() -> None:
+    assert med_rules.matches_prefix("asp", "ASPIRIN E.C. TABLETS")
+    assert med_rules.matches_prefix("阿斯", "阿斯匹靈腸衣錠")
+    assert med_rules.matches_prefix("tab", "NORVASC TABLETS")  # 其中一個字開頭也算
+    assert not med_rules.matches_prefix("vasc", "NORVASC TABLETS")
+    assert med_rules.display_name("NORVASC TABLETS") == "Norvasc"
+    assert med_rules.display_name("TRAJENTA DUO FILM-COATED TABLETS") == "Trajenta Duo"
+    assert med_rules.similarity("Norvsac", "NORVASC") > med_rules.NAME_MATCH_MIN
+    assert med_rules.similarity("abc", "NORVASC") < med_rules.NAME_MATCH_MIN
+    assert med_rules.strength_number("2.5/1000 毫克") == 2.5
 
 
 def test_card_code_roundtrip() -> None:
@@ -120,12 +146,23 @@ def test_same_ingredient() -> None:
 
 
 def test_from_nhi_uses_full_atc_only() -> None:
-    item = {"藥品代號": "B021571100", "中文品名": "脈優錠５毫克", "英文品名": "NORVASC TABLETS 5MG", "ATC代碼": "C08CA01"}
+    item = {
+        "藥品代號": "B021571100",
+        "中文品名": "脈優錠５毫克",
+        "英文品名": "NORVASC TABLETS 5MG",
+        "ATC代碼": "C08CA01",
+        "劑型": "錠劑",
+    }
     assert from_nhi(item) == {
         "license_no": "B021571100",
         "name_zh": "脈優錠５毫克",
         "name_en": "NORVASC TABLETS 5MG",
         "ingredients": ["C08CA01"],
+        "product_en": "NORVASC TABLETS",
+        "product_zh": "脈優錠",
+        "ingredient_en": None,
+        "strength": "5 毫克",
+        "form": "錠劑",
     }
     # 3～5 碼只是藥物類別（R05X 感冒複方），不拿來比對同成分
     assert from_nhi({**item, "ATC代碼": "R05X"})["ingredients"] == []
@@ -201,3 +238,49 @@ def test_english_reminder() -> None:
     assert text == (
         "Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; number 3, half a tablet."
     )
+
+
+def test_parse_name() -> None:
+    # 去掉劑量、藥廠（引號）、括號，拆出主成分與劑量；全形數字轉半形
+    assert parse_name('Amcopine Tablets 10mg "H.S." (Amlodipine)', '"華興"壓可平錠10毫克 (安脈狄平)') == (
+        "AMCOPINE TABLETS",
+        "壓可平錠",
+        "AMLODIPINE",
+        "10 毫克",
+    )
+    assert parse_name("Trajenta Duo 2.5/1000mg Film-Coated Tablets", "糖倍平 膜衣錠 2.5/1000 毫克")[3] == "2.5/1000 毫克"
+    assert parse_name("SOME CREAM", "某某乳膏")[3] is None
+
+
+def test_slot_speech() -> None:
+    # UI E02：依科別分組念序號與顆數，不念英文字母與藥名
+    groups = [("B", "新陳代謝科", [(1, Decimal(1)), (2, Decimal(1))])]
+    assert speech.slot(time=dt.time(12, 0), groups=groups) == "中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆"
+    assert speech.slot(time=dt.time(22, 0), groups=[("A", "", [(3, Decimal("0.5"))])]) == "晚上 10 點，要吃另一包藥 3 號 半顆"
+    assert speech.slot(time=dt.time(12, 0), groups=groups, lang=speech.Lang.EN) == (
+        "12 PM medicine: Endocrinology and Metabolism, number 1, 1 tablet; number 2, 1 tablet."
+    )
+
+
+def test_age() -> None:
+    assert card_rules.age(dt.date(1948, 5, 12), dt.date(2026, 11, 7)) == 78
+    assert card_rules.age(dt.date(1948, 11, 8), dt.date(2026, 11, 7)) == 77
+    assert card_rules.age(None, dt.date(2026, 11, 7)) is None
+
+
+def test_appointment_labels() -> None:
+    assert appt_rules.date_label(dt.date(2026, 11, 14)) == "11/14（六）"
+    assert appt_rules.time_label(Period.MORNING, dt.time(9, 30)) == "上午 09:30"
+    assert appt_rules.remaining_label(3) == "還有 3 個名額"
+    assert appt_rules.remaining_label(0) == "已額滿"
+    sessions = [
+        (dt.date(2026, 11, 9), Period.MORNING),  # 一
+        (dt.date(2026, 11, 13), Period.MORNING),  # 五
+        (dt.date(2026, 11, 16), Period.MORNING),  # 一（重複的星期只列一次）
+        (dt.date(2026, 11, 10), Period.EVENING),  # 二
+    ]
+    assert appt_rules.weekly_schedule(sessions) == "週一、週五 上午；週二 晚上"
+    title, body = appt_rules.elder_reminder(
+        at=dt.time(9, 30), hospital="臺北市立聯合醫院仁愛院區", department="心臟內科", doctor="林醫師"
+    )
+    assert (title, body) == ("明天 09:30 要回診", "仁愛院區心臟內科林醫師，記得帶健保卡")

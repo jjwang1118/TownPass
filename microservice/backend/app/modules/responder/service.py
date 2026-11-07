@@ -9,10 +9,11 @@ from app.modules.emergency_card import rules as card_rules
 from app.modules.emergency_card.models import AccessMethod
 from app.modules.emergency_card.schemas import ResponderCardOut
 from app.modules.emergency_card.service import EmergencyCardService, ResponderInfo
+from app.modules.responder import rules
 from app.modules.responder.models import EmploymentStatus, Responder
 from app.modules.responder.rate_limit import lookup_limiter
 from app.modules.responder.repository import ResponderRepository
-from app.modules.responder.schemas import LoginIn, LookupIn, ResponderTokenOut
+from app.modules.responder.schemas import LoginIn, LookupIn, ResponderTokenOut, UnitsOut
 
 
 class ResponderService:
@@ -20,12 +21,21 @@ class ResponderService:
         self.session = session
         self.repo = ResponderRepository(session)
 
+    @staticmethod
+    def units() -> UnitsOut:
+        """登入畫面的所屬單位下拉選單。"""
+        return UnitsOut(agency=rules.AGENCY, units=rules.UNITS)
+
     async def login(self, body: LoginIn) -> ResponderTokenOut:
-        """比對消防局名冊：在職且有救護權限才發 token（12 小時，一個勤務班）。"""
-        responder = await self.repo.get_by_account(body.account.strip().upper())
-        if responder is None or not verify_password(responder.password_hash, body.password):
-            # 帳號不存在和密碼錯誤回同樣的訊息，避免被試出有哪些帳號
-            raise Unauthorized("帳號或密碼錯誤", code="INVALID_CREDENTIALS")
+        """比對消防局名冊（單位、人員編號、密碼）：在職且有救護權限才發 token（12 小時，一個勤務班）。"""
+        responder = await self.repo.get_by_account(body.staff_no.strip().upper())
+        if (
+            responder is None
+            or responder.unit != body.unit.strip()
+            or not verify_password(responder.password_hash, body.password)
+        ):
+            # 編號不存在、單位不符、密碼錯誤都回同樣的訊息，避免被試出有哪些帳號
+            raise Unauthorized("單位、人員編號或密碼錯誤", code="INVALID_CREDENTIALS")
         self._check_roster(responder)
 
         token, expires_at = issue_token(responder.id, TokenKind.RESPONDER)
@@ -34,6 +44,7 @@ class ResponderService:
             expires_at=expires_at,
             name=responder.name,
             unit=responder.unit,
+            staff_no=responder.account,
             title=responder.title,
         )
 
@@ -62,7 +73,13 @@ class ResponderService:
 
         position = body.location.data if body.location is not None else None
         return await EmergencyCardService(self.session).lookup_for_responder(
-            ResponderInfo(id=responder.id, name=responder.name, unit=responder.unit, unit_phone=responder.unit_phone),
+            ResponderInfo(
+                id=responder.id,
+                name=responder.name,
+                unit=responder.unit,
+                unit_phone=responder.unit_phone,
+                staff_no=responder.account,
+            ),
             code,
             method,
             latitude=Decimal(str(round(position.latitude, 6))) if position else None,

@@ -1,0 +1,30 @@
+[Agent name]: 後端工程師
+
+[Modified Description]:
+- 依 UI 設計稿（resent_docs/ui/）與使用者決定調整後端：需要藥單、三條路徑都做、採辨識 API、固定四個時間、家屬每次同時收到推播、不使用身分證；回診具體時間與自動提醒、救護分隊清單、緊急醫療卡欄位照 UI；帶入聯醫用藥這期不做
+- 藥單：新增 prescriptions（字母 A～Z，吃藥中不重複、吃完釋放；院區科別醫師可之後補填；天數必填；記錄核對者），medications 改掛在藥單底下（編號 A1、A2），新增劑量、待核對、時段陣列；移除 time_slots
+- 三條路徑共用預覽格式：掃 QR（藥袋 QR 升級 v2，一張藥單多個藥，仍接受 v1）、拍照辨識（手機裝置端模型出欄位，後端比對健保藥品資料、容許錯字、算每個欄位信心分數，低於 0.8 列為不確定）、手動（新增藥名搜尋 /drugs/search：中英文、字首比對、同藥名一次再選劑量、北市聯醫常用藥（模擬）排前面）
+- 同成分警示改用編號（code、with_code），同一張藥單內也比對
+- 新增今天四個時段 /today（依藥單分組，朗讀「中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆」，不念英文字母）
+- 吃藥提醒：固定 09:00、12:00、18:00、22:00；長輩與所有綁定家屬同時推播（文字依 UI E09、F04）；移除再提醒、沒回應通知、「好，我知道了」與 REMIND_INTERVAL_MINUTES；回診提醒改以藥單為單位
+- 救命卡：姓名（加密）、出生年月日（顯示年齡）、血型、食物過敏；緊急聯絡人改 1 位並和卡片一起儲存（移除 /contacts）；移除稱呼、出生年、常去醫院；救護人員查看通知改為 UI F07 文字並附撥給長輩
+- 救護人員：新增分隊清單 /responder/units（範例名稱），登入改為分隊＋人員編號＋密碼；名冊改為 A12345 等 3 筆，舊 EMT 帳號匯入時清除；查看紀錄加人員編號
+- 回診：門診拆成看診時間 clinic_slots（每 30 分鐘、8 個名額、預先填入模擬預約），新增 /sessions/{id}/slots；醫師顯示每週門診時間與已額滿；科別標記「藥單 A 的科別」；預約後前一天 18:00 自動提醒長輩與家屬（移除「加入提醒」與當天 08:00 提醒）
+- 健保藥品資料加產品名、主成分、劑量、劑型欄位（藥名搜尋用），重新產生 nhi_drugs.json.gz；匯入改依欄位數分批
+- migration f6497e343c3a：重建藥品與提醒相關表、清空門診與預約（啟動時重新匯入）、無法降版；本機開發資料庫已套用並重新匯入
+- 範例藥袋改為 v2 三張（藥單 A 心臟內科 3 個藥、B 新陳代謝科 2 個藥、C 和 A1 同成分），重新產生 QR
+- 測試：改寫藥單、提醒、救命卡、回診測試，conftest 改為整個 schema 重建；共 125 個測試通過；沒有新增 ruff 問題
+- 更新規格書 v0.2（§1.2 決議、§2、§3、§5.2、§5.3、§6、§7.2、§8.1、新增 §8.3、§10～§13）、deploy.md 檢查清單與各模組、seed、alembic README
+- 尚待前端與 App：拍照辨識的裝置端模型與 handler、R02 身分證字號欄位改為卡號
+
+[Modified Time]: 1108003225
+
+[Modified Position]: microservice/backend/app/modules/medication/（models.py、rules.py、schemas.py、repository.py、service.py、router.py、README.md）, microservice/backend/app/modules/reminder/, microservice/backend/app/modules/emergency_card/, microservice/backend/app/modules/responder/（新增 rules.py）, microservice/backend/app/modules/appointment/, microservice/backend/app/modules/speech/rules.py, microservice/backend/app/modules/internal/service.py, microservice/backend/app/modules/demo/router.py, microservice/backend/app/modules/notification/schemas.py, microservice/backend/app/integrations/fda/importer.py, microservice/backend/app/core/config.py, microservice/backend/.env.example, microservice/backend/alembic/versions/20261108_f6497e343c3a_prescriptions_and_ui_alignment.py, microservice/backend/seed/（load.py、data/rx_samples.json、data/responders.json、data/tpech_clinics.json、data/nhi_drugs.json.gz、qr/）, microservice/backend/tests/, microservice/docs/backend-spec.md, microservice/docs/deploy.md:197
+
+[Modified Description]:
+- 使用者決定名稱維持「呷藥囉」（不採用 UI 稿的「藥報平安」）
+- 使用者決定「念給我聽」照念完整健保中文品名（含藥廠、成分），程式不需修改
+
+[Modified Time]: 1108003915
+
+[Modified Position]: microservice/docs/backend-spec.md:27

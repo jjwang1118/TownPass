@@ -10,7 +10,7 @@
 |---|---|---|
 | POST | `/internal/tick` | 需要 `X-Internal-Secret` header（值為 `INTERNAL_SECRET`）；不出現在 API 文件 |
 
-回應：`{"created": 1, "repushed": 0, "escalated": 0, "refill": 0, "appointment": 0}`，分別是新建立的吃藥提醒、重新提醒、通知家人沒有回應、回診提醒（藥快吃完）、預約提醒的數量。
+回應：`{"created": 1, "refill": 0, "appointment": 0}`，分別是新建立的吃藥提醒（長輩與家屬同時推播）、回診提醒（藥單快吃完）、預約提醒（前一天 18:00）的數量。
 
 手動觸發（`INTERNAL_SECRET` 在 `.env`）：
 

@@ -55,7 +55,9 @@ async def _prepare_database() -> bool:
 
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     async with engine.begin() as conn:
-        await conn.run_sync(metadata.drop_all)
+        # 整個 schema 重建：資料表改名或移除後，舊表不會殘留
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
         await conn.run_sync(metadata.create_all)
     await engine.dispose()
     return True

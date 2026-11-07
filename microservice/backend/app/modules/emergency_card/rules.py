@@ -1,5 +1,6 @@
 """救命卡卡號的純計算規則（規格書 §8.2）。"""
 
+import datetime as dt
 import re
 import secrets
 from urllib.parse import urlparse
@@ -47,3 +48,10 @@ def code_from_qr(scanned: str) -> str | None:
     path = urlparse(scanned).path
     match = re.search(r"/c/([^/?#]+)$", path)
     return normalize_code(match.group(1)) if match else None
+
+
+def age(birth_date: dt.date | None, today: dt.date) -> int | None:
+    """足歲。沒有出生日期時回傳 None。"""
+    if birth_date is None:
+        return None
+    return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))

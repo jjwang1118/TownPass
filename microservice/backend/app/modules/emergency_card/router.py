@@ -12,7 +12,6 @@ from app.modules.emergency_card.schemas import (
     CommonItemsOut,
     ConsentCreate,
     ConsentOut,
-    ContactsUpdate,
 )
 from app.modules.emergency_card.service import EmergencyCardService
 
@@ -52,14 +51,8 @@ async def get_card(elder_id: UUID, user_id: CurrentUserId, service: Service) -> 
 
 @router.put("/elders/{elder_id}/emergency-card", response_model=CardOut)
 async def update_card(elder_id: UUID, body: CardUpdate, user_id: CurrentUserId, service: Service) -> CardOut:
+    """儲存整張卡，含一位緊急聯絡人（UI E14）。"""
     return await service.update_card(user_id, elder_id, body)
-
-
-@router.put("/elders/{elder_id}/emergency-card/contacts", response_model=CardOut)
-async def update_contacts(
-    elder_id: UUID, body: ContactsUpdate, user_id: CurrentUserId, service: Service
-) -> CardOut:
-    return await service.update_contacts(user_id, elder_id, body)
 
 
 @router.post("/elders/{elder_id}/emergency-card/regenerate-code", response_model=CardCodeOut)

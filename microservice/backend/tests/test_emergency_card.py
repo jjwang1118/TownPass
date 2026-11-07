@@ -1,4 +1,4 @@
-"""救命卡與救護人員：功能規格「二、救命卡」2-1～2-5。需要 PostgreSQL。"""
+"""救命卡（緊急醫療卡）與救護人員：UI E13、E14、F06、F07、R01～R04。需要 PostgreSQL。"""
 
 import json
 from pathlib import Path
@@ -14,19 +14,18 @@ from tests.conftest import FakePusher, LoginFn
 
 API = "/api/v1"
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
-RX_1 = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]
+RX_A = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]
+ELDER_PHONE = "0932166777"  # assets/mock_data/account.json 的 phoneNo
 
 CARD = {
-    "title": "陳阿嬤",
-    "birth_year": 1948,
+    "name": "王美玉",
+    "birth_date": "1948-05-12",
     "gender": "female",
+    "blood_type": "O",
     "chronic_conditions": ["高血壓", "糖尿病", "高血壓"],
     "allergies": [{"type": "drug", "name": "盤尼西林"}, {"type": "food", "name": "海鮮"}],
+    "contact": {"name": "陳小華", "relation": "女兒", "phone": "0912-345-678"},
 }
-CONTACTS = [
-    {"name": "陳小美", "relation": "女兒", "phone": "0912-345-678"},
-    {"name": "陳大同", "relation": "兒子", "phone": "0923 456 789"},
-]
 
 
 @pytest.fixture(autouse=True)
@@ -54,17 +53,19 @@ async def bind_family(api: httpx.AsyncClient, ctx: dict, label: str = "媽媽") 
 
 
 async def setup_card(api: httpx.AsyncClient, ctx: dict, who: str = "elder") -> dict:
-    """勾選同意 → 填救命卡 → 設定緊急聯絡人。"""
+    """勾選同意 → 填救命卡（含一位緊急聯絡人）。"""
     assert (await api.post(f"{ctx['base']}/consents", json={}, headers=ctx[who])).status_code == 201
     resp = await api.put(f"{ctx['base']}/emergency-card", json=CARD, headers=ctx[who])
-    assert resp.status_code == 200, resp.text
-    resp = await api.put(f"{ctx['base']}/emergency-card/contacts", json={"contacts": CONTACTS}, headers=ctx[who])
     assert resp.status_code == 200, resp.text
     return resp.json()
 
 
-async def responder_login(api: httpx.AsyncClient, account: str = "EMT-001") -> dict:
-    resp = await api.post(f"{API}/responder/login", json={"account": account, "password": f"demo-{account.lower()}"})
+def login_body(staff_no: str = "A12345", unit: str = "大安分隊", password: str | None = None) -> dict:
+    return {"unit": unit, "staff_no": staff_no, "password": password or f"demo-{staff_no.lower()}"}
+
+
+async def responder_login(api: httpx.AsyncClient, staff_no: str = "A12345", unit: str = "大安分隊") -> dict:
+    resp = await api.post(f"{API}/responder/login", json=login_body(staff_no, unit))
     assert resp.status_code == 200, resp.text
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
@@ -91,18 +92,27 @@ async def test_consent_required(api: httpx.AsyncClient, ctx: dict) -> None:
 
 
 async def test_my_card(api: httpx.AsyncClient, ctx: dict) -> None:
-    preview = await api.post(f"{ctx['base']}/medications/qr-preview", json=qr_reply(json.dumps(RX_1)), headers=ctx["elder"])
-    await api.post(f"{ctx['base']}/medications", json=preview.json()["draft"], headers=ctx["elder"])
+    preview = await api.post(f"{ctx['base']}/prescriptions/qr-preview", json=qr_reply(json.dumps(RX_A)), headers=ctx["elder"])
+    await api.post(f"{ctx['base']}/prescriptions", json=preview.json()["draft"], headers=ctx["elder"])
 
     card = await setup_card(api, ctx)
-    assert (card["title"], card["birth_year"], card["gender"]) == ("陳阿嬤", 1948, "female")
-    assert card["hospital"] == "臺北市立聯合醫院"
+    # UI E13：姓名、78 歲、女、O 型
+    assert (card["name"], card["birth_date"], card["gender"], card["blood_type"]) == ("王美玉", "1948-05-12", "female", "O")
+    assert card["age"] == 78
+    assert "hospital" not in card  # 不收集常去醫院
     assert card["chronic_conditions"] == ["高血壓", "糖尿病"]  # 去除重複
-    assert [a["name"] for a in card["allergies"]] == ["盤尼西林", "海鮮"]
-    # 正在吃的藥從藥區自動帶入
-    assert [(m["number"], m["name"]) for m in card["current_medications"]] == [(1, "脈優錠 5 毫克")]
-    # 緊急聯絡人：一鍵撥號訊息照 App 的 phone_call 格式
-    assert card["contacts"][0]["call"] == {"name": "phone_call", "data": "0912345678"}
+    assert [(a["type"], a["name"]) for a in card["allergies"]] == [("drug", "盤尼西林"), ("food", "海鮮")]
+    # 目前用藥來自藥單（A1 等編號）
+    first = card["current_medications"][0]
+    assert (first["code"], first["name"], first["strength"], first["purpose"]) == (
+        "A1",
+        "Amlodipine",
+        "5 毫克",
+        "降血壓",
+    )
+    # 緊急聯絡人（一位）：一鍵撥號訊息照 App 的 phone_call 格式
+    assert (card["contact"]["name"], card["contact"]["relation"]) == ("陳小華", "女兒")
+    assert card["contact"]["call"] == {"name": "phone_call", "data": "0912345678"}
     assert card["has_consent"] is True
     assert card["access_logs"] == []
     # 卡號與 QR 內容
@@ -110,13 +120,18 @@ async def test_my_card(api: httpx.AsyncClient, ctx: dict) -> None:
     assert card["code"]["qr_url"].endswith(f"/c/{card['code']['code']}")
 
 
-async def test_contacts_limit(api: httpx.AsyncClient, ctx: dict) -> None:
+async def test_required_fields(api: httpx.AsyncClient, ctx: dict) -> None:
     await setup_card(api, ctx)
-    three = {"contacts": CONTACTS + [{"name": "鄰居", "relation": "鄰居", "phone": "0934567890"}]}
-    resp = await api.put(f"{ctx['base']}/emergency-card/contacts", json=three, headers=ctx["elder"])
-    assert resp.status_code == 400
-    bad = {"contacts": [{"name": "x", "relation": "x", "phone": "請打給我"}]}
-    assert (await api.put(f"{ctx['base']}/emergency-card/contacts", json=bad, headers=ctx["elder"])).status_code == 400
+    # 姓名、出生年月日、一位緊急聯絡人必填
+    for field in ("name", "birth_date", "contact"):
+        body = {k: v for k, v in CARD.items() if k != field}
+        assert (await api.put(f"{ctx['base']}/emergency-card", json=body, headers=ctx["elder"])).status_code == 400
+    bad = {**CARD, "contact": {"name": "x", "relation": "x", "phone": "請打給我"}}
+    assert (await api.put(f"{ctx['base']}/emergency-card", json=bad, headers=ctx["elder"])).status_code == 400
+    # 改聯絡人會取代原本的（只有一位）
+    other = {**CARD, "contact": {"name": "陳大同", "relation": "兒子", "phone": "0923 456 789"}}
+    card = (await api.put(f"{ctx['base']}/emergency-card", json=other, headers=ctx["elder"])).json()
+    assert card["contact"]["name"] == "陳大同"
 
 
 async def test_common_items(api: httpx.AsyncClient) -> None:
@@ -163,7 +178,7 @@ async def test_revoke_consent(api: httpx.AsyncClient, ctx: dict) -> None:
 
     card = (await api.get(f"{ctx['base']}/emergency-card", headers=ctx["elder"])).json()
     assert (card["has_consent"], card["chronic_conditions"], card["allergies"], card["code"]) == (False, [], [], None)
-    assert len(card["contacts"]) == 2
+    assert card["contact"]["name"] == "陳小華"
     emt = await responder_login(api)
     assert (await lookup(api, emt, code=code)).status_code == 404
 
@@ -175,18 +190,25 @@ async def test_revoke_consent(api: httpx.AsyncClient, ctx: dict) -> None:
 # ---------- 2-4 救護人員 ----------
 
 
-async def test_responder_login(api: httpx.AsyncClient, ctx: dict) -> None:
-    ok = await api.post(f"{API}/responder/login", json={"account": "emt-001", "password": "demo-emt-001"})
-    assert ok.status_code == 200
-    assert (ok.json()["name"], ok.json()["unit"]) == ("王大明", "中山分隊")
+async def test_responder_units(api: httpx.AsyncClient) -> None:
+    units = (await api.get(f"{API}/responder/units")).json()
+    assert units["agency"] == "臺北市政府消防局"
+    assert units["units"][0] == "大安分隊"
 
-    wrong = await api.post(f"{API}/responder/login", json={"account": "EMT-001", "password": "x"})
-    unknown = await api.post(f"{API}/responder/login", json={"account": "EMT-999", "password": "x"})
-    assert wrong.json() == unknown.json()  # 不透露帳號是否存在
+
+async def test_responder_login(api: httpx.AsyncClient, ctx: dict) -> None:
+    ok = await api.post(f"{API}/responder/login", json=login_body("a12345", password="demo-a12345"))
+    assert ok.status_code == 200
+    assert (ok.json()["name"], ok.json()["unit"], ok.json()["staff_no"]) == ("王大明", "大安分隊", "A12345")
+
+    wrong = await api.post(f"{API}/responder/login", json=login_body(password="x"))
+    wrong_unit = await api.post(f"{API}/responder/login", json=login_body(unit="信義分隊"))
+    unknown = await api.post(f"{API}/responder/login", json=login_body("Z99999", password="x"))
+    assert wrong.json() == wrong_unit.json() == unknown.json()  # 不透露帳號是否存在
     assert wrong.status_code == 401
 
     # 已離職：顯示「無權限」
-    resigned = await api.post(f"{API}/responder/login", json={"account": "EMT-003", "password": "demo-emt-003"})
+    resigned = await api.post(f"{API}/responder/login", json=login_body("A34567", unit="信義分隊"))
     assert resigned.status_code == 403
     assert resigned.json()["error"] == {"code": "RESPONDER_NOT_AUTHORIZED", "message": "無權限"}
 
@@ -203,7 +225,7 @@ async def test_resigned_after_login(
     code = (await setup_card(api, ctx))["code"]["code"]
     emt = await responder_login(api)
     async with sessionmaker() as session:
-        await session.execute(text("UPDATE responders SET employment_status = 'resigned' WHERE account = 'EMT-001'"))
+        await session.execute(text("UPDATE responders SET employment_status = 'resigned' WHERE account = 'A12345'"))
         await session.commit()
     resp = await lookup(api, emt, code=code)
     assert resp.json()["error"]["code"] == "RESPONDER_NOT_AUTHORIZED"
@@ -246,24 +268,30 @@ async def test_demo_flow(api: httpx.AsyncClient, ctx: dict, pushes: FakePusher) 
     assert resp.status_code == 200, resp.text
     shown = resp.json()
 
-    # 顯示順序：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人
-    keys = list(shown)
-    assert keys.index("allergies") < keys.index("current_medications") < keys.index("chronic_conditions") < keys.index("contacts")
-    assert shown["contacts"][0]["call"] == {"name": "phone_call", "data": "0912345678"}
+    # UI R03：只有必要欄位；「撥打 陳小華（女兒）」
+    assert (shown["name"], shown["age"], shown["gender"], shown["blood_type"]) == ("王美玉", 78, "female", "O")
+    assert "hospital" not in shown and "birth_date" not in shown
+    assert shown["contact"]["call"] == {"name": "phone_call", "data": "0912345678"}
     assert shown["disclaimer"] == "本資料由本人或家屬提供，僅供參考，請以醫療專業判斷為準"
     assert shown["close_at"]  # 30 分鐘後自動關閉
 
     # 留紀錄：哪位救護人員、什麼時間、什麼地點
     logs = (await api.get(f"{ctx['base']}/emergency-card", headers=ctx["elder"])).json()["access_logs"]
     assert len(logs) == 1
-    assert (logs[0]["responder_name"], logs[0]["responder_unit"], logs[0]["method"]) == ("王大明", "中山分隊", "qr")
+    assert (logs[0]["responder_name"], logs[0]["responder_unit"], logs[0]["responder_staff_no"], logs[0]["method"]) == (
+        "王大明",
+        "大安分隊",
+        "A12345",
+        "qr",
+    )
     assert (float(logs[0]["latitude"]), float(logs[0]["longitude"])) == (25.0478, 121.5171)
 
-    # 女兒收到通知，附一鍵撥號給救護人員的分隊
+    # UI F07：女兒收到通知，附時間、單位、人員編號，與「打電話給長輩」
     assert len(pushes.sent) == 1
     tokens, message = pushes.sent[0]
     assert tokens == ["daughter-phone"]
-    assert message.body.startswith("臺北市消防局中山分隊王大明於 ")
-    assert message.body.endswith(" 查看了媽媽的救命卡")
-    assert message.data["type"] == "card_accessed"
-    assert json.loads(message.data["call"]) == {"name": "phone_call", "data": "0200000001"}
+    assert message.title == "救護人員查看了王美玉的緊急醫療卡"
+    assert "｜臺北市政府消防局 大安分隊｜人員編號 A12345。" in message.body
+    assert message.body.endswith("長輩可能需要緊急協助，請盡快聯絡。")
+    assert (message.data["type"], message.data["staff_no"]) == ("card_accessed", "A12345")
+    assert json.loads(message.data["call"]) == {"name": "phone_call", "data": ELDER_PHONE}

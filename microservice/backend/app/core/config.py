@@ -34,9 +34,8 @@ class Settings(BaseSettings):
     # 額外允許呼叫 API 的網頁來源，逗號分隔；例如在電腦瀏覽器開前端：http://localhost:5173
     extra_cors_origins: str = "http://localhost:5173"
 
-    # 後端內建排程：每分鐘檢查吃藥提醒、沒回應通知、回診與預約提醒
+    # 後端內建排程：每分鐘檢查吃藥提醒、回診與預約提醒
     scheduler_enabled: bool = True
-    remind_interval_minutes: int = 10
     demo_mode: bool = False
 
     @field_validator("database_url")

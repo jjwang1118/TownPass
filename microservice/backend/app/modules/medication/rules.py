@@ -1,86 +1,130 @@
 """藥區的純計算規則（規格書 §5.3）。沒有 I/O，方便寫單元測試。"""
 
 import datetime as dt
+import difflib
+import re
+import string
+from collections.abc import Iterable
+from decimal import Decimal
 
+from app.integrations.fda.importer import normalize
 from app.modules.medication.models import Frequency, MealTiming, SlotKey
 
-DEFAULT_SLOT_TIMES: dict[SlotKey, dt.time] = {
-    SlotKey.BREAKFAST_BEFORE: dt.time(7, 30),
-    SlotKey.BREAKFAST_AFTER: dt.time(8, 0),
-    SlotKey.LUNCH_BEFORE: dt.time(11, 30),
-    SlotKey.LUNCH_AFTER: dt.time(12, 0),
-    SlotKey.DINNER_BEFORE: dt.time(17, 30),
-    SlotKey.DINNER_AFTER: dt.time(18, 0),
-    SlotKey.BEDTIME: dt.time(21, 0),
+# 固定四個時段，不能修改
+SLOT_TIMES: dict[SlotKey, dt.time] = {
+    SlotKey.MORNING: dt.time(9, 0),
+    SlotKey.NOON: dt.time(12, 0),
+    SlotKey.EVENING: dt.time(18, 0),
+    SlotKey.BEDTIME: dt.time(22, 0),
 }
+SLOT_ORDER = list(SLOT_TIMES)
 
 SLOT_LABELS: dict[SlotKey, str] = {
-    SlotKey.BREAKFAST_BEFORE: "早餐飯前",
-    SlotKey.BREAKFAST_AFTER: "早餐飯後",
-    SlotKey.LUNCH_BEFORE: "午餐飯前",
-    SlotKey.LUNCH_AFTER: "午餐飯後",
-    SlotKey.DINNER_BEFORE: "晚餐飯前",
-    SlotKey.DINNER_AFTER: "晚餐飯後",
+    SlotKey.MORNING: "早上",
+    SlotKey.NOON: "中午",
+    SlotKey.EVENING: "晚上",
     SlotKey.BEDTIME: "睡前",
 }
 
 MEAL_TIMING_LABELS: dict[MealTiming, str] = {
     MealTiming.BEFORE: "飯前",
     MealTiming.AFTER: "飯後",
-    MealTiming.BEDTIME: "睡前",
 }
 
-FREQUENCY_LABELS: dict[Frequency, str] = {
-    Frequency.QD: "一天一次",
-    Frequency.BID: "一天兩次",
-    Frequency.TID: "一天三次",
-    Frequency.QID: "一天四次",
-    Frequency.HS: "睡前一次",
+# 藥袋 QR、拍照辨識給的是頻率時，換成時段
+FREQUENCY_SLOTS: dict[Frequency, list[SlotKey]] = {
+    Frequency.QD: [SlotKey.MORNING],
+    Frequency.BID: [SlotKey.MORNING, SlotKey.EVENING],
+    Frequency.TID: [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING],
+    Frequency.QID: [SlotKey.MORNING, SlotKey.NOON, SlotKey.EVENING, SlotKey.BEDTIME],
+    Frequency.HS: [SlotKey.BEDTIME],
 }
 
 SAME_INGREDIENT_MESSAGE = "這兩包好像是同一種藥，請問藥師"
+LETTERS = string.ascii_uppercase
 
-# 頻率 → 餐別
-_MEALS_BY_FREQUENCY: dict[Frequency, tuple[str, ...]] = {
-    Frequency.QD: ("breakfast",),
-    Frequency.BID: ("breakfast", "dinner"),
-    Frequency.TID: ("breakfast", "lunch", "dinner"),
-    Frequency.QID: ("breakfast", "lunch", "dinner", "bedtime"),
-    Frequency.HS: ("bedtime",),
-}
+# 拍照辨識：信心分數低於這個值，畫面用紅框標示「電腦不確定」
+CONFIDENCE_THRESHOLD = 0.8
+# 藥名比對：相似度低於這個值就當作找不到（不帶入藥品代號，避免拿錯的藥比對同成分）
+NAME_MATCH_MIN = 0.75
+
+# 「北市聯醫常用藥」（模擬，依 ATC 碼）：藥名搜尋排前面
+COMMON_ATC = frozenset(
+    {
+        "C08CA01",  # amlodipine
+        "B01AC06",  # aspirin
+        "C10AA05",  # atorvastatin
+        "C10AA07",  # rosuvastatin
+        "A10BA02",  # metformin
+        "A10BH05",  # linagliptin
+        "A10BB12",  # glimepiride
+        "C09CA01",  # losartan
+        "C09CA03",  # valsartan
+        "C07AB07",  # bisoprolol
+        "N02BE01",  # acetaminophen
+        "A02BC01",  # omeprazole
+    }
+)
+# 口服劑型排在注射、外用前面
+ORAL_FORM_HINTS = ("錠", "膠囊", "內服", "糖漿", "顆粒")
 
 
 # ---------- 時段與日期 ----------
 
 
-def allocate_slots(frequency: Frequency, meal_timing: MealTiming) -> list[SlotKey]:
-    """依頻率與飯前飯後，把藥分配到時段。例如 TID + after → 三餐飯後。"""
-    slots: list[SlotKey] = []
-    for meal in _MEALS_BY_FREQUENCY[frequency]:
-        if meal == "bedtime" or meal_timing is MealTiming.BEDTIME:
-            slot = SlotKey.BEDTIME
-        else:
-            slot = SlotKey(f"{meal}_{meal_timing.value}")
-        if slot not in slots:
-            slots.append(slot)
-    return slots
+def sort_slots(slots: Iterable[SlotKey | str]) -> list[SlotKey]:
+    """去除重複，依時間排序。"""
+    unique = {SlotKey(s) for s in slots}
+    return [s for s in SLOT_ORDER if s in unique]
 
 
-def run_out_date(start_date: dt.date, days: int) -> dt.date:
+def run_out_date(visit_date: dt.date, days: int) -> dt.date:
     """藥吃完的那一天。"""
-    return start_date + dt.timedelta(days=days - 1)
+    return visit_date + dt.timedelta(days=days - 1)
 
 
-def days_left(start_date: dt.date, days: int, today: dt.date) -> int:
+def days_left(visit_date: dt.date, days: int, today: dt.date) -> int:
     """還剩幾天（含今天）。還沒開始吃時為全部天數。"""
-    if today < start_date:
+    if today < visit_date:
         return days
-    return max((start_date + dt.timedelta(days=days) - today).days, 0)
+    return max((visit_date + dt.timedelta(days=days) - today).days, 0)
 
 
-def is_scheduled_on(start_date: dt.date, days: int, day: dt.date) -> bool:
+def is_scheduled_on(visit_date: dt.date, days: int, day: dt.date) -> bool:
     """這一天在用藥期間內。"""
-    return start_date <= day <= run_out_date(start_date, days)
+    return visit_date <= day <= run_out_date(visit_date, days)
+
+
+def next_letter(used: set[str]) -> str | None:
+    """吃藥中的藥單沒用到的第一個字母；A～Z 都用完時回傳 None。"""
+    return next((letter for letter in LETTERS if letter not in used), None)
+
+
+def code(letter: str, seq: int) -> str:
+    """藥的編號，例如 A1。"""
+    return f"{letter}{seq}"
+
+
+def qty_label(qty: Decimal) -> str:
+    """1 → 1 顆；0.5 → 半顆；1.5 → 1 顆半。"""
+    whole, fraction = int(qty), qty - int(qty)
+    if fraction == 0:
+        return f"{whole} 顆"
+    if fraction == Decimal("0.5"):
+        return "半顆" if whole == 0 else f"{whole} 顆半"
+    return f"{qty.normalize()} 顆"
+
+
+def doses_text(items: list[tuple[str, Decimal]]) -> str:
+    """推播用：「B1、B2 各 1 顆」；顆數不同時「A1 1 顆、A3 半顆」。"""
+    if len({qty for _, qty in items}) == 1:
+        codes = "、".join(c for c, _ in items)
+        qty = qty_label(items[0][1])
+        return f"{codes} 各 {qty}" if len(items) > 1 else f"{codes} {qty}"
+    return "、".join(f"{c} {qty_label(q)}" for c, q in items)
+
+
+# ---------- 同成分 ----------
 
 
 def same_ingredient(
@@ -89,16 +133,67 @@ def same_ingredient(
     other_license: str | None,
     other_ingredients: list[str],
 ) -> bool:
-    """同一張許可證，或主成分有重疊（不分大小寫）。"""
+    """同一個藥品代號，或主成分（ATC 7 碼）有重疊（不分大小寫）。"""
     if new_license and new_license == other_license:
         return True
-    normalize = lambda items: {i.strip().lower() for i in items if i.strip()}  # noqa: E731
-    return bool(normalize(new_ingredients) & normalize(other_ingredients))
+    normalize_set = lambda items: {i.strip().lower() for i in items if i.strip()}  # noqa: E731
+    return bool(normalize_set(new_ingredients) & normalize_set(other_ingredients))
 
 
-def next_number(used: set[int]) -> int:
-    """進行中藥品沒用到的最小正整數，讓編號維持在長輩好記的小數字。"""
-    n = 1
-    while n in used:
-        n += 1
-    return n
+# ---------- 藥名搜尋與辨識比對 ----------
+
+
+def search_key(text: str) -> str:
+    """比對用：全形轉半形、大寫、去掉空白以外的符號。"""
+    return re.sub(r"[^\w\s/.%]", " ", normalize(text)).upper().strip()
+
+
+def matches_prefix(query: str, *candidates: str | None) -> bool:
+    """藥名搜尋：候選名稱（或其中任一個字）以查詢文字開頭，不分大小寫。"""
+    q = search_key(query)
+    for candidate in candidates:
+        if not candidate:
+            continue
+        key = search_key(candidate)
+        if key.startswith(q) or any(word.startswith(q) for word in key.split()):
+            return True
+    return False
+
+
+def similarity(a: str, b: str) -> float:
+    """兩個藥名的相似度（0～1），去掉空白後比較。"""
+    a_key, b_key = search_key(a).replace(" ", ""), search_key(b).replace(" ", "")
+    if not a_key or not b_key:
+        return 0.0
+    if a_key == b_key:
+        return 1.0
+    return difflib.SequenceMatcher(None, a_key, b_key).ratio()
+
+
+def strength_number(strength: str | None) -> float:
+    """劑量排序用：「2.5/1000 毫克」→ 2.5；拆不出數字時排最後。"""
+    if strength and (match := re.match(r"\d+(?:\.\d+)?", strength)):
+        return float(match.group())
+    return float("inf")
+
+
+def is_oral(form: str | None) -> bool:
+    return bool(form) and any(hint in form for hint in ORAL_FORM_HINTS)  # type: ignore[operator]
+
+
+# 英文產品名裡的劑型字，顯示藥名時去掉（劑型另外顯示）
+_FORM_WORDS = re.compile(
+    r"\b(FILM[- ]COATED|SUGAR[- ]COATED|ENTERIC[- ]COATED|ENTERIC[- ]MICROENCAPSULATED|MICROENCAPSULATED|"
+    r"SUSTAINED[- ]RELEASE|EXTENDED[- ]RELEASE|PROLONGED[- ]RELEASE|CONTROLLED[- ]RELEASE|"
+    r"F\.?C\.?|E\.?C\.?|S\.?R\.?|S\.?C\.?|TABLETS?|TABS?\.?|CAPSULES?|CAPS?\.?|CAPLETS?|GRANULES?|"
+    r"ORAL|SOLUTION|SUSPENSION|SYRUP|INJECTION|INJ\.?)(?=\s|$)",
+    re.IGNORECASE,
+)
+
+
+def display_name(product_en: str | None, fallback: str = "") -> str:
+    """「NORVASC TABLETS」→「Norvasc」；「ANSIN E.C. TABLETS」→「Ansin」。去掉後沒有字時用原本的名稱。"""
+    if not product_en:
+        return fallback
+    name = re.sub(r"\s+", " ", _FORM_WORDS.sub(" ", product_en)).strip(" ,.-")
+    return (name or product_en).title()

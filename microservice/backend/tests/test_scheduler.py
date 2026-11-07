@@ -15,7 +15,7 @@ from app.modules.internal import scheduler
 from tests.conftest import FakePusher, LoginFn
 
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
-RX_1 = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]  # 早餐飯後 08:00
+RX_A = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]  # 藥單 A：早上 A1、A2
 
 
 def freeze(monkeypatch: pytest.MonkeyPatch, taipei: str) -> None:
@@ -38,14 +38,14 @@ async def test_tick_once_sends_reminder(
     headers, elder_id = await login("elder-1", "陳阿嬤", "elder")
     base = f"/api/v1/elders/{elder_id}"
     await api.post("/api/v1/devices", json={"name": "push_token", "data": {"token": "elder-phone", "platform": "android"}}, headers=headers)
-    qr = {"name": "qr_code_scan", "data": json.dumps(RX_1, ensure_ascii=False)}
-    draft = (await api.post(f"{base}/medications/qr-preview", json=qr, headers=headers)).json()["draft"]
-    await api.post(f"{base}/medications", json=draft, headers=headers)
+    qr = {"name": "qr_code_scan", "data": json.dumps(RX_A, ensure_ascii=False)}
+    draft = (await api.post(f"{base}/prescriptions/qr-preview", json=qr, headers=headers)).json()["draft"]
+    await api.post(f"{base}/prescriptions", json=draft, headers=headers)
 
-    freeze(monkeypatch, "2026-11-05 08:00:01")
+    freeze(monkeypatch, "2026-11-05 09:00:01")
     result = await scheduler.tick_once(sessionmaker)
     assert result.created == 1
-    assert pushes.sent[0][1].body.startswith("陳阿嬤，吃藥時間到囉～")
+    assert pushes.sent[0][1].title == "早上 09:00 該吃藥了"
 
 
 async def test_lifespan_starts_and_stops_scheduler(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -23,11 +23,6 @@ async def get_reminder(event_id: UUID, user_id: CurrentUserId, service: Service)
     return await service.get(user_id, event_id)
 
 
-@router.post("/reminders/{event_id}/ack", response_model=ReminderOut)
-async def ack_reminder(event_id: UUID, user_id: CurrentUserId, service: Service) -> ReminderOut:
-    return await service.ack(user_id, event_id)
-
-
 @router.get("/elders/{elder_id}/reminders", response_model=list[ReminderOut])
 async def list_reminders(
     elder_id: UUID, user_id: CurrentUserId, service: Service, date: Annotated[dt.date, Query()]

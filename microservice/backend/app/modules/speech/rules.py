@@ -242,3 +242,30 @@ def reminder(
     )
     head = f"{t}，" if (t := without_latin(title)) else ""
     return f"{head}吃藥時間到囉～{meal_word}吃：{doses}"
+
+
+def slot(
+    *,
+    time: dt.time,
+    groups: list[tuple[str, str, list[tuple[int, Decimal]]]],
+    lang: Lang = Lang.ZH,
+) -> str:
+    """時段「唸給我聽」與吃藥提醒（UI E02、E03）。groups 為（藥單字母, 科別, [(序號, 顆數)]），依藥單分組。
+
+    中文稿不念英文字母（交付規格），所以用科別區分藥單；沒有科別時念「另一包藥」。藥名不念。
+    zh：中午 12 點，要吃新陳代謝科 1 號 1 顆、2 號 1 顆
+    en：12 PM medicine: Endocrinology, number 1, 1 tablet; number 2, 1 tablet.
+    """
+    _ensure_supported(lang)
+    if lang is Lang.EN:
+        parts = []
+        for letter, department, items in groups:
+            doses = "; ".join(f"number {seq}, {qty_text(qty, lang)}" for seq, qty in items)
+            parts.append(f"{department_en(department) or f'Bag {letter}'}, {doses}")
+        return f"{speak_time(time, lang)} medicine: {'. '.join(parts)}."
+
+    parts = []
+    for _, department, items in groups:
+        doses = "、".join(f"{seq} 號 {qty_text(qty, lang)}" for seq, qty in items)
+        parts.append(f"{without_latin(department) or '另一包藥'} {doses}")
+    return f"{speak_time(time, lang)}，要吃{'；'.join(parts)}"

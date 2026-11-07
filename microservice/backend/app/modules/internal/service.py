@@ -7,11 +7,9 @@ from app.modules.reminder.service import ReminderService
 
 
 class TickResult(BaseModel):
-    created: int  # 新建立並推播的吃藥提醒
-    repushed: int  # 重新提醒
-    escalated: int  # 通知家人沒有回應
-    refill: int  # 回診提醒（藥再 7 天吃完）
-    appointment: int  # 預約提醒（前一天、當天）
+    created: int  # 新建立並推播的吃藥提醒（長輩與家屬同時）
+    refill: int  # 回診提醒（藥單再 7 天吃完）
+    appointment: int  # 預約提醒（前一天 18:00）
 
 
 class TickService:
@@ -25,8 +23,6 @@ class TickService:
         now = clock.now()
         return TickResult(
             created=await self.reminders.create_due_events(now),
-            repushed=await self.reminders.repush_unacked(now),
-            escalated=await self.reminders.escalate_no_response(now),
             refill=await self.reminders.send_refill_reminders(now),
             appointment=await self.appointments.send_reminders(now),
         )
