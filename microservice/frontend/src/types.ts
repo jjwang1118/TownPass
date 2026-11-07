@@ -120,6 +120,8 @@ export interface DraftPrescription {
   visitDate: string
   days: number
   medicines: DraftMedicine[]
+  /** 由手動新增建立（非拍照／QR Code 辨識） */
+  manual?: boolean
 }
 
 export interface BookingDraft {

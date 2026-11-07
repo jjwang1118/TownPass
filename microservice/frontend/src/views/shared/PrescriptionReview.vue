@@ -25,7 +25,9 @@ const allChecked = computed(() => !!draft.value && draft.value.medicines.length 
 const heading = computed(() => (props.mode === 'review' ? '請對照藥袋逐項核對' : '資料確認：請再看一次'))
 const notice = computed(() =>
   props.mode === 'review'
-    ? '這是電腦整理的結果，可能會看錯。請藥師或家人對照藥袋，全部打勾才能加入。'
+    ? state.draft?.manual
+      ? '這是手動輸入的藥。請藥師或家人對照藥袋，全部打勾才能加入。'
+      : '這是電腦整理的結果，可能會看錯。請藥師或家人對照藥袋，全部打勾才能加入。'
     : '這是修改後的藥單。請再看一次，全部正確就按下方「確認無誤，加入藥單」。',
 )
 const buttonText = computed(() => (allChecked.value ? '確認無誤，加入藥單' : `還有 ${unchecked.value} 項沒核對`))

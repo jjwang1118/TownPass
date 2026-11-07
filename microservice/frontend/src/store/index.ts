@@ -175,6 +175,24 @@ export function addManualMedicine(med: Omit<DraftMedicine, 'code' | 'checked'>) 
   state.manualMedicines.push({ ...med, code: '', checked: false })
 }
 
+/** 手動新增藥品 →「已輸入」確認 → 以手動輸入的藥品建立藥單草稿（院區／科別未知，標示為手動新增） */
+export function startDraftFromManual(med: Omit<DraftMedicine, 'code' | 'checked'>) {
+  addManualMedicine(med)
+  const now = new Date()
+  const code = nextPrescriptionCode(now)
+  const medicines = clone(state.manualMedicines).map((m) => ({ ...m, checked: false }))
+  state.draft = {
+    code,
+    manual: true,
+    hospital: '手動新增',
+    department: '',
+    visitDate: toISODate(now),
+    days: 28,
+    medicines: recode(medicines, code),
+  }
+  state.manualMedicines = []
+}
+
 export function updateDraftMedicine(index: number, med: Omit<DraftMedicine, 'code' | 'checked'>) {
   const draft = state.draft
   if (!draft || !draft.medicines[index]) return

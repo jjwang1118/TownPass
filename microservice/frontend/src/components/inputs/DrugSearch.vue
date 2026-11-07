@@ -15,10 +15,12 @@ const emit = defineEmits<{ select: [drug: DrugEntry] }>()
 
 const query = ref(props.selected)
 const picked = ref(!!props.selected)
+/** 最近一次從清單選定（或初始帶入）的文字 */
+let pickedText = props.selected
 
 watch(query, (q) => {
   // 使用者修改文字後，需重新從清單選擇
-  if (q !== props.selected) picked.value = false
+  if (q !== pickedText) picked.value = false
 })
 
 interface Match {
@@ -54,6 +56,7 @@ function split(m: Match): { before: string; bold: string; after: string } {
 }
 
 function choose(m: Match) {
+  pickedText = m.drug.name
   query.value = m.drug.name
   picked.value = true
   emit('select', m.drug)

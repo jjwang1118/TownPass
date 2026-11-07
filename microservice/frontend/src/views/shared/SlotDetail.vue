@@ -38,7 +38,7 @@ const heading = computed(
     </div>
 
     <template v-for="g in groups" :key="g.rx.code">
-      <h3 class="group-label font-h3-semibold">{{ g.rx.code }}　{{ g.rx.department }}｜{{ g.rx.hospital }}</h3>
+      <h3 class="group-label font-h3-semibold">{{ g.rx.code }}　{{ g.rx.department ? `${g.rx.department}｜${g.rx.hospital}` : g.rx.hospital }}</h3>
       <MedicineCard
         v-for="m in g.medicines"
         :key="m.code"

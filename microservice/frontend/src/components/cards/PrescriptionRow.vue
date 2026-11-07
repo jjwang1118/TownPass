@@ -13,7 +13,7 @@ defineProps<{ code: string; hospital: string; department: string; statusText: st
   <article class="el-crd-14" :class="{ finished }">
     <RxBadge :code="code" :finished="finished" :label="finished ? '已吃完的藥單' : `藥單 ${code}`" />
     <span class="texts">
-      <span class="line1 font-h3-semibold">{{ hospital }}｜{{ department }}</span>
+      <span class="line1 font-h3-semibold">{{ department ? `${hospital}｜${department}` : hospital }}</span>
       <span class="line2 font-h3-regular">{{ statusText }}</span>
     </span>
     <AppIcon name="chevron-right" class="arrow" />

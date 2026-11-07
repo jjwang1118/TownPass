@@ -10,7 +10,7 @@ defineProps<{ code: string; hospital: string; department: string; visitDate: str
   <section class="el-crd-08" :aria-label="`藥單 ${code}`">
     <RxBadge :code="code" />
     <span class="texts">
-      <span class="line1 font-h3-semibold">{{ hospital }}｜{{ department }}</span>
+      <span class="line1 font-h3-semibold">{{ department ? `${hospital}｜${department}` : hospital }}</span>
       <span class="line2 font-h3-regular">看診 {{ formatSlashDate(visitDate) }}｜{{ days }} 天</span>
     </span>
   </section>

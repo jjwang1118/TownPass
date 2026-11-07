@@ -97,3 +97,21 @@
 [Modified Time]: 1107222542
 
 [Modified Position]: microservice/frontend/（package.json、vite.config.ts、tsconfig.json、index.html、src/**）
+
+[Modified Description]:
+- 開發用：elderlyCare（呷藥囉）服務的 destinationUrl 改為 http://10.0.2.2:5173/，讓 Android 模擬器載入本機 Vite 開發伺服器（正式部署後需改回正式網址）
+- 開發用：debug manifest 加上 usesCleartextTraffic，允許 debug build 的 WebView 載入 http 開發伺服器
+
+[Modified Time]: 1107224100
+
+[Modified Position]: lib/page/city_service/model/my_service_model.dart:192、android/app/src/debug/AndroidManifest.xml:7-8
+
+[Modified Description]:
+- 依使用者需求調整 EL-PG-14 手動新增藥品流程：按「加入這個藥」→ 顯示「已輸入」彈窗（藥名、顆數、時段、飯前飯後）→ 按「確認」→ 進入 EL-PG-07 確認藥單（原規格為回到 EL-PG-05）
+- 新增 MedicineAddedDialog 彈窗元件（自行設計，風格比照 EL-MD-01）
+- 手動建立的藥單標頭顯示「手動新增」，提醒框改為「這是手動輸入的藥…」
+- 修正藥名搜尋點選結果後清單未收合的問題
+
+[Modified Time]: 1107225000
+
+[Modified Position]: microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/inputs/DrugSearch.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/components/cards/PrescriptionHeader.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/views/shared/SlotDetail.vue、microservice/frontend/src/types.ts
