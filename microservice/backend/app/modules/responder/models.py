@@ -20,6 +20,7 @@ class Responder(UUIDPrimaryKey, Base):
     password_hash: Mapped[str] = mapped_column(String(256))
     name: Mapped[str] = mapped_column(String(32))
     unit: Mapped[str] = mapped_column(String(32))  # 所屬分隊
+    unit_phone: Mapped[str] = mapped_column(String(20))  # 分隊電話，查看救命卡後讓家人一鍵撥號
     title: Mapped[str] = mapped_column(String(32))  # 職稱
     employment_status: Mapped[EmploymentStatus] = mapped_column(enum_column(EmploymentStatus))
     has_ems_permission: Mapped[bool] = mapped_column(Boolean)

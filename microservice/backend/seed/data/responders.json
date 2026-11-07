@@ -1,0 +1,32 @@
+[
+  {
+    "account": "EMT-001",
+    "password": "demo-emt-001",
+    "name": "王大明",
+    "unit": "中山分隊",
+    "unit_phone": "0200000001",
+    "title": "隊員",
+    "employment_status": "active",
+    "has_ems_permission": true
+  },
+  {
+    "account": "EMT-002",
+    "password": "demo-emt-002",
+    "name": "李小華",
+    "unit": "大安分隊",
+    "unit_phone": "0200000002",
+    "title": "小隊長",
+    "employment_status": "active",
+    "has_ems_permission": true
+  },
+  {
+    "account": "EMT-003",
+    "password": "demo-emt-003",
+    "name": "張志明",
+    "unit": "信義分隊",
+    "unit_phone": "0200000003",
+    "title": "隊員",
+    "employment_status": "resigned",
+    "has_ems_permission": true
+  }
+]

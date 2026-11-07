@@ -136,3 +136,15 @@
 - 更新 medication、seed、fda、tests、modules、backend README 與規格書 §1.3、§5.2、§7.2、§8.1、§9、§11.1
 [Modified Time]: 1107180218
 [Modified Position]: microservice/backend/app/modules/medication/, microservice/backend/app/integrations/fda/importer.py, microservice/backend/seed/, microservice/backend/alembic/versions/20261107_621183e5af7e_medication_stop_reason.py, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 實作 emergency_card 模組（功能規格 2-1～2-3）：同意與撤回（僅長輩本人）、救命卡建立與編輯、緊急聯絡人（最多 2 位，附 phone_call 訊息）、隨機卡號與重新產生（綁定家人皆可）、查看紀錄
+- 實作 responder 模組（功能規格 2-4）：消防局帳號登入與名冊驗證（離職顯示無權限）、每次請求重新確認、掃 QR 或輸入卡號查詢、每人每分鐘 10 次限制
+- 救護人員查看後通知家人「臺北市消防局某分隊某某某於 HH:MM 查看了媽媽的救命卡」，附撥給分隊的 phone_call（使用者決定）；查詢結果附 close_at（30 分鐘）
+- 新增 migration：responders.unit_phone、card_access_logs 救護人員姓名與分隊快照
+- family 新增 list_family_members；seed 新增模擬消防局名冊 3 筆
+- 新增 tests/test_emergency_card.py（13 個，含完整 Demo 流程），共 73 個測試通過
+- 更新 emergency_card、responder、fire_dept、seed、tests、modules README 與規格書 §3.1、§5.2、§5.4、§6.2、§7.2
+[Modified Time]: 1107183740
+[Modified Position]: microservice/backend/app/modules/emergency_card/, microservice/backend/app/modules/responder/, microservice/backend/app/modules/family/service.py, microservice/backend/seed/, microservice/backend/alembic/versions/20261107_e60c934e0318_responder_unit_phone_access_log_snapshot.py, microservice/backend/tests/, microservice/docs/backend-spec.md

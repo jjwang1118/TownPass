@@ -10,6 +10,7 @@
 | `test_app.py` | 路由、錯誤格式、登入檢查；資料表能編譯成 PostgreSQL | 否 |
 | `test_family.py` | 邀請碼、綁定、權限檢查 | 是 |
 | `test_medication.py` | 掃藥袋 QR、編號、同成分警示、藥卡、停用、時段、下一次吃藥、家人權限 | 是 |
+| `test_emergency_card.py` | 救命卡、同意、卡號、救護人員登入與查詢、通知家人、完整 Demo 流程 | 是 |
 
 ## 資料庫
 
@@ -25,6 +26,7 @@
 | `api` | 連到測試資料庫的 `httpx.AsyncClient` |
 | `login` | `await login("townpass-id", "姓名", "elder")` 用 App 模擬帳號登入並選身分，回傳 `(headers, user_id)` |
 | `sessionmaker` | 直接呼叫 service 時開 session：`async with sessionmaker() as session:` |
+| `pushes` | 取代 FCM，發出的推播記在 `pushes.sent`，可檢查內容 |
 
 - 測試函式可以直接寫 `async def`（已設定 `asyncio_mode = "auto"`）。
 - 不需要資料庫的 API 測試參考 `test_app.py`。

@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool  # noqa: E402
 
 from app.core.db import get_session  # noqa: E402
+from app.integrations.fcm.client import PushMessage  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import metadata  # noqa: E402
 
@@ -91,6 +92,26 @@ async def api(sessionmaker: async_sessionmaker[AsyncSession]) -> AsyncIterator[h
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
     app.dependency_overrides.clear()
+
+
+class FakePusher:
+    """記下要發送的推播，取代 FCM。"""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[list[str], "PushMessage"]] = []
+
+    async def send(self, tokens: list[str], message: "PushMessage") -> None:
+        self.sent.append((tokens, message))
+
+
+@pytest.fixture
+def pushes(monkeypatch: pytest.MonkeyPatch) -> FakePusher:
+    """測試中發出的推播都記在 pushes.sent。"""
+    from app.modules.notification import service as notification_service
+
+    fake = FakePusher()
+    monkeypatch.setattr(notification_service, "get_pusher", lambda: fake)
+    return fake
 
 
 @pytest.fixture

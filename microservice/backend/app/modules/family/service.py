@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import NoReturn
 from uuid import UUID
@@ -23,6 +24,13 @@ class Access(StrEnum):
     WRITE = "write"  # 長輩本人，或尚未完成初始設定的綁定家人
 
 
+@dataclass(frozen=True)
+class FamilyMember:
+    family_id: UUID
+    relation_label: str
+    notify_on_ack: bool
+
+
 class FamilyService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -45,8 +53,18 @@ class FamilyService:
 
     async def list_family_ids(self, elder_id: UUID, *, ack_subscribers_only: bool = False) -> list[UUID]:
         """要通知的家人。ack_subscribers_only=True 時只回傳有開啟「長輩回應通知」的家人。"""
-        bindings = await self.repo.list_active_bindings_of_elder(elder_id)
-        return [b.family_id for b in bindings if b.notify_on_ack or not ack_subscribers_only]
+        return [
+            m.family_id
+            for m in await self.list_family_members(elder_id)
+            if m.notify_on_ack or not ack_subscribers_only
+        ]
+
+    async def list_family_members(self, elder_id: UUID) -> list[FamilyMember]:
+        """綁定的家人與他們對長輩的稱呼（如「媽媽」），用於組通知文字。"""
+        return [
+            FamilyMember(family_id=b.family_id, relation_label=b.relation_label, notify_on_ack=b.notify_on_ack)
+            for b in await self.repo.list_active_bindings_of_elder(elder_id)
+        ]
 
     # ---------- 邀請碼 ----------
 

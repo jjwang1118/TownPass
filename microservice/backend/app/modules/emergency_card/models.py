@@ -77,6 +77,9 @@ class CardAccessLog(UUIDPrimaryKey, Base):
 
     card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("emergency_cards.id"), index=True)
     responder_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("responders.id"))
+    # 查看當下的姓名與分隊（之後離職或調動，紀錄也不變）
+    responder_name: Mapped[str] = mapped_column(String(32))
+    responder_unit: Mapped[str] = mapped_column(String(32))
     code_used: Mapped[str] = mapped_column(String(16))
     method: Mapped[AccessMethod] = mapped_column(enum_column(AccessMethod))
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))

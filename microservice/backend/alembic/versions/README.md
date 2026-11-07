@@ -6,5 +6,6 @@
 |---|---|
 | `20261107_f9fea4f23ad7_init.py` | 第一版：建立全部 19 張資料表 |
 | `20261107_621183e5af7e_medication_stop_reason.py` | `medications` 新增停用原因 `stop_reason` |
+| `20261107_e60c934e0318_responder_unit_phone_access_log_snapshot.py` | `responders` 新增分隊電話；`card_access_logs` 新增救護人員姓名、分隊快照 |
 
 產生與套用方式見 [../README.md](../README.md)。

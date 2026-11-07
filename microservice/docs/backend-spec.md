@@ -123,7 +123,8 @@ Cloud Run 沒有請求時會縮到 0 台，程式內的排程器（APScheduler�
 | 提醒時段 | 讀寫 | 讀（初始設定時可寫） | — |
 | 提醒回應 | 寫（按「好，我知道了」） | 讀；可「提醒長輩吃藥」 | — |
 | 救命卡、緊急聯絡人 | 讀寫 | 讀（初始設定時可寫） | 讀（需卡號） |
-| 救命卡重新產生卡號 | 可 | 可 | — |
+| 救命卡重新產生卡號 | 可 | 可（初始設定後也可以） | — |
+| 撤回健康資料同意 | 可 | — | — |
 | 救命卡查看紀錄 | 讀 | 讀 | — |
 | 家人綁定 | 產生邀請碼、解除 | 使用邀請碼 | — |
 | 預約回診 | 讀寫 | 讀 | — |
@@ -379,6 +380,7 @@ microservice/backend/
 | id | uuid PK | |
 | card_id | uuid FK | |
 | responder_id | uuid FK responders | |
+| responder_name / responder_unit | text | 查看當下的姓名、分隊（快照，之後離職或調動也不變） |
 | code_used | text | 使用的卡號 |
 | method | enum `qr` / `manual` | 掃描或手動輸入 |
 | latitude / longitude | numeric NULL | 救護人員手機定位 |
@@ -406,6 +408,7 @@ microservice/backend/
 | password_hash | text | argon2 |
 | name | text | |
 | unit | text | 所屬分隊，如「中山分隊」 |
+| unit_phone | text | 分隊電話，查看救命卡後讓家人一鍵撥號 |
 | title | text | 職稱 |
 | employment_status | enum `active` / `resigned` | |
 | has_ems_permission | bool | 是否有救護權限 |
@@ -463,7 +466,7 @@ microservice/backend/
 ### 5.4 個資保護
 
 - 慢性病、過敏、用藥屬個資法第 6 條特種個資。救命卡寫入前必須有有效的 `consents`（`health_data`），否則回 `403 CONSENT_REQUIRED`。
-- **撤回同意**：清空 `chronic_conditions`、`allergies`，並撤銷有效卡號。查看紀錄保留。
+- **撤回同意**：只有長輩本人可以撤回。清空 `chronic_conditions`、`allergies`，並撤銷有效卡號；查看紀錄、緊急聯絡人保留。重新同意並儲存後補發新卡號。
 - **欄位加密**：🔒 欄位用 `cryptography` 的 Fernet（AES-128-CBC + HMAC）在應用層加密，金鑰放環境變數 `FIELD_ENCRYPTION_KEY`（正式版放 Secret Manager）。
 - **查看紀錄**只能新增。
 - 救護人員查詢回應附上免責文字：「本資料由本人或家屬提供，僅供參考，請以醫療專業判斷為準」。
@@ -505,7 +508,7 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 | `medication_acked` | 家人（`notify_on_ack`） | 媽媽 18:00 已經吃藥了 |
 | `medication_no_response` | 家人 | 媽媽 18:00 的吃藥提醒沒有回應，要不要打給她？ |
 | `medication_nudge` | 長輩 | 女兒提醒你吃藥喔 |
-| `card_accessed` | 家人 | 臺北市消防局中山分隊王大明於 15:20 查看了媽媽的救命卡 |
+| `card_accessed` | 家人 | 臺北市消防局中山分隊王大明於 15:20 查看了媽媽的救命卡（「媽媽」是各家人自己設定的稱呼；`data.call` 為撥給該分隊的 `phone_call` 訊息） |
 | `refill_reminder` | 長輩、家人 | 1 號、3 號的藥再 7 天就吃完囉 |
 | `appointment_reminder` | 長輩、家人 | 明天上午 仁愛院區 家醫科 林醫師 |
 
@@ -586,11 +589,11 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/elders/{elder_id}/consents` | 同意儲存健康資料 |
-| DELETE | `/elders/{elder_id}/consents/health_data` | 撤回同意 |
-| GET | `/elders/{elder_id}/emergency-card` | 長輩、家人檢視（含正在吃的藥、查看紀錄） |
+| POST | `/elders/{elder_id}/consents` | 同意儲存健康資料；已同意時回傳原紀錄 |
+| DELETE | `/elders/{elder_id}/consents/health_data` | 撤回同意（只有長輩本人） |
+| GET | `/elders/{elder_id}/emergency-card` | 長輩、家人檢視（含正在吃的藥、卡號與 QR 內容、查看紀錄）；還沒建立時回 `404 CARD_NOT_CREATED` |
 | PUT | `/elders/{elder_id}/emergency-card` | 編輯 |
-| PUT | `/elders/{elder_id}/emergency-card/contacts` | 設定緊急聯絡人（最多 2 位） |
+| PUT | `/elders/{elder_id}/emergency-card/contacts` | 整批設定緊急聯絡人（最多 2 位），回應附 `phone_call` 訊息 |
 | POST | `/elders/{elder_id}/emergency-card/regenerate-code` | 重新產生卡號，舊卡號立即失效 |
 | GET | `/emergency-card/common-items` | 常見慢性病、過敏選項 |
 
@@ -598,10 +601,10 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/responder/login` | 帳號密碼登入，比對名冊；不符回 `403 RESPONDER_NOT_AUTHORIZED` |
+| POST | `/responder/login` | 帳號密碼登入，比對名冊；帳密錯誤回 `401 INVALID_CREDENTIALS`（不透露帳號是否存在），離職或無救護權限回 `403 RESPONDER_NOT_AUTHORIZED`「無權限」 |
 | POST | `/responder/cards/lookup` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上 `location`（App 的 `location` 回覆）；回救命卡內容；寫查看紀錄並推播家人 |
 
-查詢回應依顯示順序排列：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人，並附免責文字。每位救護人員每分鐘最多查詢 10 次，避免猜卡號。
+查詢回應依顯示順序排列：過敏 → 正在吃的藥 → 慢性病 → 緊急聯絡人，並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在伺服器記憶體，Cloud Run 有多台時各自計算。
 
 **appointment**
 

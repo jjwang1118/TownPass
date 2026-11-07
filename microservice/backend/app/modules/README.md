@@ -23,8 +23,8 @@
 | [family/](family/) | 邀請碼、綁定、**權限檢查** | 6 | ✅ 完成 |
 | [medication/](medication/) | 藥品、掃 QR 新增、時段 | 9 | ✅ 完成 |
 | [reminder/](reminder/) | 吃藥提醒、回應、通知家人 | 4 | 待實作 |
-| [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 7 | 待實作（卡號規則、常見選項已完成） |
-| [responder/](responder/) | 救護人員登入、查詢救命卡 | 2 | 待實作 |
+| [emergency_card/](emergency_card/) | 救命卡、卡號、查看紀錄、同意 | 7 | ✅ 完成 |
+| [responder/](responder/) | 救護人員登入、查詢救命卡 | 2 | ✅ 完成 |
 | [appointment/](appointment/) | 院區、門診、預約 | 7 | 待實作 |
 | [notification/](notification/) | 推播 token、發送推播 | 2 | ✅ 完成 |
 | [internal/](internal/) | 排程入口 `/internal/tick` | 1 | 待實作 |
