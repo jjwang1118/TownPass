@@ -1,28 +1,28 @@
 <script setup lang="ts">
-/**
- * EL-CRD-14 藥單列（吃藥中／已吃完）
- * 註：點擊後的「藥單詳情」頁尚未建檔（ID 待定），目前不設點擊行為。
- */
+/** EL-CRD-14 藥單列（吃藥中／已吃完），點擊整列 → 藥單詳情 */
 import AppIcon from '@/components/AppIcon.vue'
 import RxBadge from './RxBadge.vue'
 
 defineProps<{ code: string; hospital: string; department: string; statusText: string; finished: boolean }>()
+const emit = defineEmits<{ click: [] }>()
 </script>
 
 <template>
-  <article class="el-crd-14" :class="{ finished }">
+  <button type="button" class="el-crd-14" :class="{ finished }" @click="emit('click')">
     <RxBadge :code="code" :finished="finished" :label="finished ? '已吃完的藥單' : `藥單 ${code}`" />
     <span class="texts">
       <span class="line1 font-h3-semibold">{{ department ? `${hospital}｜${department}` : hospital }}</span>
       <span class="line2 font-h3-regular">{{ statusText }}</span>
     </span>
     <AppIcon name="chevron-right" class="arrow" />
-  </article>
+  </button>
 </template>
 
 <style scoped>
 .el-crd-14 {
   width: 100%;
+  min-height: 48px;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;

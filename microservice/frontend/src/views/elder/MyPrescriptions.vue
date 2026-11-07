@@ -7,6 +7,7 @@ import PrescriptionRow from '@/components/cards/PrescriptionRow.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
 import { daysLeft, isFinished, state } from '@/store'
 import { formatMonthDay } from '@/utils/date'
+import type { Prescription } from '@/types'
 
 const router = useRouter()
 const now = new Date()
@@ -14,6 +15,10 @@ const now = new Date()
 const sorted = computed(() => [...state.prescriptions].sort((a, b) => b.visitDate.localeCompare(a.visitDate)))
 const active = computed(() => sorted.value.filter((rx) => !isFinished(rx, now)))
 const finished = computed(() => sorted.value.filter((rx) => isFinished(rx, now)))
+
+function openDetail(rx: Prescription) {
+  router.push(`/elder/prescriptions/${state.prescriptions.indexOf(rx)}`)
+}
 </script>
 
 <template>
@@ -26,6 +31,7 @@ const finished = computed(() => sorted.value.filter((rx) => isFinished(rx, now))
       :hospital="rx.hospital"
       :department="rx.department"
       :status-text="`${formatMonthDay(rx.visitDate)} 看診｜還剩 ${daysLeft(rx, now)} 天`"
+      @click="openDetail(rx)"
       :finished="false"
     />
     <p v-if="active.length === 0" class="page-desc">目前沒有吃藥中的藥單。</p>
@@ -39,6 +45,7 @@ const finished = computed(() => sorted.value.filter((rx) => isFinished(rx, now))
         :hospital="rx.hospital"
         :department="rx.department"
         :status-text="`${formatMonthDay(rx.visitDate)} 看診｜已吃完`"
+      @click="openDetail(rx)"
         finished
       />
     </template>

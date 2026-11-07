@@ -8,17 +8,31 @@
 import { computed } from 'vue'
 import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
 import RxBadge from './RxBadge.vue'
-import { amountText } from '@/utils/schedule'
+import { amountText, slotNames } from '@/utils/schedule'
 import type { Medicine } from '@/types'
 
 const props = withDefaults(
-  defineProps<{ medicine: Medicine; department?: string; showDepartment?: boolean; clickable?: boolean }>(),
-  { showDepartment: false, clickable: true },
+  defineProps<{
+    medicine: Medicine
+    department?: string
+    showDepartment?: boolean
+    /** 顯示服用時段（藥單詳情用：早上、晚上） */
+    showSlots?: boolean
+    clickable?: boolean
+  }>(),
+  { showDepartment: false, showSlots: false, clickable: true },
 )
 const emit = defineEmits<{ click: []; speak: [] }>()
 
 const meta = computed(() =>
-  [props.showDepartment ? props.department : '', props.medicine.effect, props.medicine.meal].filter(Boolean).join('｜'),
+  [
+    props.showDepartment ? props.department : '',
+    props.medicine.effect,
+    props.showSlots ? slotNames(props.medicine.slots) : '',
+    props.medicine.meal,
+  ]
+    .filter(Boolean)
+    .join('｜'),
 )
 </script>
 

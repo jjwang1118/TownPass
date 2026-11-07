@@ -25,7 +25,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/elder/card', component: () => import('@/views/elder/MyEmergencyCard.vue'), meta: { id: 'EL-PG-15', title: '緊急醫療卡' } },
   { path: '/elder/card/edit', component: () => import('@/views/elder/EditEmergencyCard.vue'), meta: { id: 'EL-PG-16', title: '編輯緊急醫療卡' } },
   { path: '/elder/invite', component: () => import('@/views/elder/InviteFamily.vue'), meta: { id: 'EL-PG-17', title: '邀請家屬' } },
-  { path: '/elder/prescriptions', component: () => import('@/views/elder/MyPrescriptions.vue'), meta: { id: 'EL-PG-18', title: '我的藥單' } },
+  { path: '/elder/prescriptions/:index', component: () => import('@/views/elder/PrescriptionDetail.vue'), meta: { id: '藥單詳情', title: '藥單詳情' } },
+  { path: '/elder/prescriptions',component: () => import('@/views/elder/MyPrescriptions.vue'), meta: { id: 'EL-PG-18', title: '我的藥單' } },
 
   /* ---------- 家屬 ---------- */
   { path: '/family', component: () => import('@/views/family/FamilyLogin.vue'), meta: { id: 'FM-PG-01', title: '藥報平安' } },

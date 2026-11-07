@@ -124,3 +124,12 @@
 [Modified Time]: 1107225600
 
 [Modified Position]: microservice/frontend/src/components/overlays/MedicineAddedDialog.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，「我的藥單」每張藥單列改為可點擊，進入新增的「藥單詳情」頁（規格中 ID 待定，依「顯示此藥單所有藥品清單」自行設計）
+- 藥單詳情：藥單標頭、還剩天數／已吃完、唸給我聽＋語言切換、藥品卡列表（含服用時段）
+- 藥品卡新增 showSlots 選項以顯示服用時段
+
+[Modified Time]: 1107225800
+
+[Modified Position]: microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/MyPrescriptions.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/router/index.ts
