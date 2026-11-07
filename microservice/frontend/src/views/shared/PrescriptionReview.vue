@@ -14,7 +14,8 @@ import { prescriptionSupplyDays } from '@/utils/supply'
 import { useTts } from '@/composables/useTts'
 import { medicineSpeech } from '@/utils/speech'
 
-const props = defineProps<{ mode: 'review' | 'confirm' }>()
+/** error：加入藥單失敗的原因，顯示在加入按鈕上方 */
+const props = defineProps<{ mode: 'review' | 'confirm'; error?: string }>()
 const emit = defineEmits<{ submit: [] }>()
 
 const router = useRouter()
@@ -62,14 +63,14 @@ onMounted(() => {
           @edit="router.push(`/elder/add/medicine/${i}`)"
           @speak="speak(medicineSpeech(m, true), state.lang)"
         />
-        <p v-if="m.uncertain" class="uncertain font-h3-regular">電腦不確定這一項，請照藥袋核對</p>
         <CheckRow v-model="m.checked" :described-by="`med-${m.code}`">核對無誤</CheckRow>
       </div>
 
-      <p class="hint font-h3-regular">讀錯了？點藥品就能修改</p>
+      <p class="hint font-h3-semibold">讀錯了？點藥品就能修改</p>
       <SecondaryButton v-if="mode === 'review' && draft.manual" @click="router.push('/elder/add/manual')">
         再新增一個藥
       </SecondaryButton>
+      <WarningNotice v-if="error" role="alert">{{ error }}</WarningNotice>
       <PrimaryButton :disabled="!allChecked" @click="emit('submit')">{{ buttonText }}</PrimaryButton>
     </template>
   </PageLayout>
@@ -81,11 +82,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 4px;
 }
-.uncertain {
-  color: var(--color-red-500, #d64545);
-}
 .hint {
   color: var(--color-primary-700);
-  text-align: center;
 }
 </style>

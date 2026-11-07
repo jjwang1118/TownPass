@@ -2,6 +2,29 @@ const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+/** 即時日期、時間與問候統一使用台北時區，不受瀏覽器時區影響。 */
+const taipeiFormatter = new Intl.DateTimeFormat('zh-TW', {
+  timeZone: 'Asia/Taipei',
+  month: 'numeric',
+  day: 'numeric',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+
+function taipeiParts(date: Date) {
+  const parts = taipeiFormatter.formatToParts(date)
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  return {
+    month: value('month'),
+    day: value('day'),
+    weekday: value('weekday').slice(-1),
+    hour: value('hour'),
+    minute: value('minute'),
+  }
+}
+
 /** 'YYYY-MM-DD' → 當地時間 Date（00:00） */
 export function parseDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
@@ -44,23 +67,25 @@ export function formatSlashDate(iso: string): string {
 
 /** 11 月 7 日（六） */
 export function formatLongDate(date: Date): string {
-  return `${date.getMonth() + 1} 月 ${date.getDate()} 日（${WEEKDAY_ZH[date.getDay()]}）`
+  const { month, day, weekday } = taipeiParts(date)
+  return `${month} 月 ${day} 日（${weekday}）`
 }
 
 /** HH:mm */
 export function formatClock(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const { hour, minute } = taipeiParts(date)
+  return `${hour}:${minute}`
 }
 
 /** ISO datetime → 11/07 14:32 */
 export function formatDateTime(isoDateTime: string): string {
-  const d = new Date(isoDateTime)
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${formatClock(d)}`
+  const { month, day, hour, minute } = taipeiParts(new Date(isoDateTime))
+  return `${pad(Number(month))}/${pad(Number(day))} ${hour}:${minute}`
 }
 
 /** 時段問候 */
 export function greeting(date: Date): string {
-  const h = date.getHours()
+  const h = Number(taipeiParts(date).hour)
   if (h >= 5 && h < 11) return '早安'
   if (h >= 11 && h < 18) return '午安'
   return '晚安'

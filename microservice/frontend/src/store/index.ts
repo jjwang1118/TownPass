@@ -21,7 +21,7 @@ import type {
   RescueSession,
   ViewLog,
 } from '@/types'
-import { ELDER, FAMILY_USER, RECOGNIZED_PRESCRIPTION } from '@/data/mock'
+import { ELDER, FAMILY_USER } from '@/data/mock'
 import { ApiError, del, get, getToken, post, put, setToken, type Role } from '@/api/client'
 import {
   cardToApi,
@@ -46,6 +46,7 @@ import type {
   HospitalOut,
   InviteOut,
   MeOut,
+  PhotoRecognitionIn,
   PrescriptionCreated,
   PrescriptionOut,
   PreviewOut,
@@ -348,26 +349,10 @@ export async function startDraftFromQr(raw: string): Promise<void> {
   setDraftFromPreview(preview)
 }
 
-/**
- * EL-PG-05 拍藥袋：手機上的辨識模型還沒接上，先用模擬辨識結果送給後端比對健保藥品資料、打信心分數
- * （規格書 §8.3）。之後換成 App 裝置端模型整理出的欄位即可。
- */
-export async function startDraftFromRecognition(recognized: DraftPrescription = RECOGNIZED_PRESCRIPTION) {
-  const body = {
-    hospital: recognized.hospital,
-    department: recognized.department || null,
-    visit_date: recognized.visitDate,
-    items: recognized.medicines.map((m) => ({
-      name: m.name,
-      purpose: m.effect || null,
-      dose_qty: m.amount,
-      quantity: m.quantity || null,
-      slots: m.slots,
-      meal_timing: m.meal === '飯前' ? 'before' : 'after',
-    })),
-  }
-  const preview = await call(() => post<PreviewOut>(elderPath('/prescriptions/photo-preview'), body, { role: 'elder' }))
-  setDraftFromPreview(preview)
+/** 拍照或相簿 OCR 整理的欄位送後端比對；預覽不儲存，核對後才加入藥單。 */
+export async function startDraftFromRecognition(recognized: PhotoRecognitionIn, signal?: AbortSignal) {
+  const preview = await call(() => post<PreviewOut>(elderPath('/prescriptions/photo-preview'), recognized, { role: 'elder', signal }))
+  if (!signal?.aborted) setDraftFromPreview(preview)
 }
 
 export function addManualMedicine(med: Omit<DraftMedicine, 'code' | 'checked'>) {

@@ -53,6 +53,7 @@ export function setToken(role: Role, token: string | null): void {
 
 interface RequestOptions {
   role?: Role
+  signal?: AbortSignal
   body?: unknown
   query?: Record<string, string | undefined>
 }
@@ -72,9 +73,11 @@ export async function api<T>(method: string, path: string, options: RequestOptio
     res = await fetch(url, {
       method,
       headers,
+      signal: options.signal,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
-  } catch {
+  } catch (e) {
+    if (options.signal?.aborted) throw e
     throw new ApiError('NETWORK', '連不到伺服器，請確認後端已啟動、網路正常', 0)
   }
   if (res.status === 204) return undefined as T

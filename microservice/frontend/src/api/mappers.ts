@@ -77,12 +77,13 @@ export function toDraft(preview: PreviewOut): DraftPrescription {
     warnings: preview.warnings.map((w) => `${w.code} 和 ${w.with_code}：${w.message}`),
     medicines: d.items.map((item, i): DraftMedicine => ({
       code: preview.items[i]?.code ?? `${preview.letter}${i + 1}`,
-      name: item.name,
+      // EL-CRD-09「藥名＋劑量」：後端分開回傳 name／strength，與藥名搜尋選藥相同，劑量接在藥名後面
+      name: item.strength && !item.name.includes(item.strength) ? `${item.name} ${item.strength}` : item.name,
       effect: item.purpose ?? '',
       amount: item.dose_qty,
       slots: item.slots,
       meal: toMeal(item.meal_timing),
-      quantity: item.quantity ?? (d.days ?? DEFAULT_DAYS) * dailyAmount({ amount: item.dose_qty, slots: item.slots }),
+      quantity: item.quantity ?? (d.days ?? (d.source === 'photo' ? 0 : DEFAULT_DAYS)) * dailyAmount({ amount: item.dose_qty, slots: item.slots }),
       licenseNo: item.license_no ?? undefined,
       checked: false,
       uncertain: preview.items[i]?.uncertain ?? false,

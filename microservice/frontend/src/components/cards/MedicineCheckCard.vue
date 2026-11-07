@@ -19,7 +19,8 @@ const emit = defineEmits<{ edit: []; speak: [] }>()
           <span class="amount font-h2-semibold">{{ amountText(medicine.amount) }}</span>
         </span>
         <span class="name font-h3-regular">{{ medicine.name }}</span>
-        <span class="meta font-h3-regular">{{ medicine.effect }}｜{{ slotNames(medicine.slots) }}</span>
+        <!-- 功效｜服用時機；功效沒讀到時不顯示開頭的分隔線 -->
+        <span class="meta font-h3-regular">{{ [medicine.effect, slotNames(medicine.slots)].filter(Boolean).join('｜') }}</span>
       </button>
       <ReadAloudButton variant="single" :label="`朗讀 ${medicine.code} ${medicine.name}`" @click="emit('speak')" />
     </div>

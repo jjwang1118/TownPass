@@ -79,3 +79,93 @@
 [Modified Time]: 1108015115
 
 [Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue:1、logs/1107_communication、logs/1108_communication、microservice/docs/qrcode_format.md、microservice/frontend/.env.example、microservice/frontend/src/components/cards/QrUploadArea.vue、microservice/frontend/src/services/prescriptionOcr.ts、lib/page/city_service/model/my_service_model.dart:192
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依使用者需求，拍藥袋頁新增「OCR 辨識結果（開發用）」區塊，不啟動後端也能檢查裝置端 OCR：顯示整理出的醫院、科別、醫師、看診日、天數，每個藥的藥名、劑量、每次幾顆、總顆數、一天幾次、飯前飯後與各欄位信心分數，並可展開 Tesseract 原始辨識文字
+- 只在開發模式（npm run dev，import.meta.env.DEV）顯示，正式建置不出現；後端連線失敗時仍顯示已辨識的欄位
+- OCR 服務新增選填的 onText 回呼，每次辨識（含以原圖重新辨識）都回傳原始文字，解析失敗時也能檢查辨識內容
+- 驗證：vue-tsc 型別檢查通過；npm test 7 個測試通過
+
+[Modified Time]: 1108030304
+
+[Modified Position]: microservice/frontend/src/views/elder/PhotoPrescription.vue:24-46、microservice/frontend/src/views/elder/PhotoPrescription.vue:100-121、microservice/frontend/src/services/localPrescriptionOcr.ts:36-40、microservice/frontend/src/services/localPrescriptionOcr.ts:86、microservice/frontend/src/services/localPrescriptionOcr.ts:96
+
+[Modified Description]:
+- 依使用者需求，拍藥袋的裝置端 OCR 由 Tesseract.js 改為 PaddleOCR：PP-OCRv5 手機版模型（Apache-2.0）＋ esearch-ocr 8.5.2（Apache-2.0）＋ onnxruntime-web 1.31.1（MIT，單執行緒 wasm）；移除 tesseract.js
+- 模型（偵測 4.7 MB、辨識 16.5 MB、字典）放在 src/assets/ocr/，以 Vite ?url 打包，不依賴外部 CDN；模型載入一次後整個網頁共用，下載時顯示進度
+- 實測同一張藥袋（放大 3 倍）：醫院、科別、醫師、適應症都讀得到（Tesseract 原本漏抓或認錯）
+- 欄位整理：新增 joinOcrRows 依文字框位置把同一列接成一行（藥名與用法常被拆成兩個框）；常見簡體字轉繁體（诊→診、医→醫、内→內 等）；「9.DTB」修正為 9.0TB；接回被斷開的英文藥名（DI -me thy lephedrine → DI-methylephedrine）；醫師姓名遇到「藥局、調劑、地點」等欄位就停
+- 驗證：npm test 10 個測試通過（新增 3 個 PaddleOCR 實際輸出案例）；vue-tsc 與 npm run build 通過；尚未在 App 內實測辨識速度
+
+[Modified Time]: 1108032239
+
+[Modified Position]: microservice/frontend/src/services/localPrescriptionOcr.ts:1-172、microservice/frontend/src/utils/prescriptionText.ts:3-66、microservice/frontend/src/utils/prescriptionText.ts:128、microservice/frontend/src/utils/prescriptionText.ts:145、microservice/frontend/tests/prescriptionText.test.mjs:96-147、microservice/frontend/package.json、microservice/frontend/package-lock.json、microservice/frontend/src/assets/ocr/
+
+[Modified Description]:
+- 依使用者需求試做 Google ML Kit 文字辨識：App 新增 prescription_ocr handler（網頁傳 JPEG base64，App 以 ML Kit 中文模型辨識，回傳每行文字、信心分數與四角座標；每次用完關閉辨識器並刪除暫存檔），加入 _cachedMessageHandlers
+- pubspec 新增 google_mlkit_text_recognition 0.17.1；Android 加入 com.google.mlkit:text-recognition-chinese:16.0.1（模型隨 App 打包、離線可用）；iOS 尚未設定（需 Podfile 加 GoogleMLKit/TextRecognitionChinese）
+- 授權提醒：外掛為 MIT，但底層 ML Kit 適用 Google 條款、非開源授權，不符合 CLAUDE.md「App 擴充選 MIT／BSD／Apache」規定，目前為試做，是否採用待團隊決定
+- 網頁：在 App 內優先呼叫 prescription_ocr（30 秒內沒回應或失敗改用 PaddleOCR），回傳的座標沿用 joinOcrRows 接列與既有欄位規則；開發用區塊標示這次使用的辨識引擎
+- 驗證：vue-tsc 通過、npm test 10 個通過；flutter build apk --debug 成功並已安裝到模擬器；尚未在 App 內實測 ML Kit 辨識結果
+
+[Modified Time]: 1108034620
+
+[Modified Position]: lib/util/web_message_handler/prescription_ocr_message_handler.dart:1-62、lib/util/web_message_handler/tp_web_message_listener.dart:3、lib/util/web_message_handler/tp_web_message_listener.dart:23、pubspec.yaml:76-77、pubspec.lock、android/app/build.gradle:72-73、microservice/frontend/src/services/localPrescriptionOcr.ts:2、microservice/frontend/src/services/localPrescriptionOcr.ts:9-24、microservice/frontend/src/services/localPrescriptionOcr.ts:118-160、microservice/frontend/src/views/elder/PhotoPrescription.vue:42-47、microservice/frontend/src/views/elder/PhotoPrescription.vue:105
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 修正拍藥袋上傳照片一律顯示「照片辨識失敗」：沒有 cross-origin isolation（COOP/COEP）時瀏覽器不提供 SharedArrayBuffer，esearch-ocr 初始化時的 `instanceof SharedArrayBuffer` 丟出 ReferenceError；載入引擎前補一個空類別，只讓型別檢查不出錯（沒有物件屬於它，不影響單執行緒設定）
+- 辨識失敗時以 console.error 保留原始錯誤，避免被通用錯誤訊息蓋掉
+- 驗證：模擬器 Chrome 以 scqa_drug_warning02.jpg 實測，PaddleOCR 辨識成功並經後端 photo-preview（200）進入確認藥單；npm test 10 個通過、vue-tsc 與 npm run build 通過
+
+[Modified Time]: 1108040045
+
+[Modified Position]: microservice/frontend/src/services/localPrescriptionOcr.ts:90-93、microservice/frontend/src/services/localPrescriptionOcr.ts:197
+
+[Modified Description]:
+- 依使用者決定拍藥袋 OCR 只用 PaddleOCR，移除 Google ML Kit：網頁不再呼叫 App 的 prescription_ocr（App 內與瀏覽器都用 PaddleOCR）；App 端移除 PrescriptionOcrMessageHandler 註冊與檔案、google_mlkit_text_recognition 套件、Android text-recognition-chinese 依賴，pubspec.lock 以 flutter pub get 重新產生（App 端檔案回到 commit 狀態）
+- 原因：同一張藥袋實測，ML Kit 讀錯醫院、藥名、天數，PaddleOCR 明顯較準；且 ML Kit 非開源授權，不符 CLAUDE.md 規定
+- 移除前已備份 ML Kit 修改（patch 與 handler 檔）於本次 job 暫存資料夾
+- 驗證：vue-tsc、npm test 10 個、npm run build 通過；flutter build apk --debug 成功並安裝到模擬器，App 內以 PaddleOCR 辨識藥袋成功進入確認藥單
+
+[Modified Time]: 1108040900
+
+[Modified Position]: microservice/frontend/src/services/localPrescriptionOcr.ts:1-3、microservice/frontend/src/services/localPrescriptionOcr.ts:11、microservice/frontend/src/services/localPrescriptionOcr.ts:118-128、lib/util/web_message_handler/tp_web_message_listener.dart、lib/util/web_message_handler/prescription_ocr_message_handler.dart（移除）、pubspec.yaml、pubspec.lock、android/app/build.gradle
+
+[Modified Description]:
+- 依規格書 EL-CRD-09／EL-PG-07／EL-PG-08（Figma E06／E06a）調整 OCR 結果的確認藥單排版：
+- 移除卡片下方「電腦不確定這一項，請照藥袋核對」紅字（規格：所有項目統一樣式，不再區分辨識信心；讀錯可由編輯修改）
+- 藥品卡「藥名＋劑量」：後端分開回傳 name／strength，toDraft 將劑量接在藥名後（與藥名搜尋選藥相同慣例，已含劑量時不重複）
+- 「功效｜服用時機」：功效沒讀到時不顯示開頭分隔線
+- 「讀錯了？點藥品就能修改」依設計稿改為粗體、靠左
+- 驗證：vue-tsc、npm test 10 個、npm run build 通過；App 內實測確認藥單頁排版符合規格
+
+[Modified Time]: 1108041610
+
+[Modified Position]: microservice/frontend/src/views/shared/PrescriptionReview.vue:68、microservice/frontend/src/views/shared/PrescriptionReview.vue:83-85、microservice/frontend/src/api/mappers.ts:80-81、microservice/frontend/src/components/cards/MedicineCheckCard.vue:22-23
+
+[Modified Description]:
+- 修正拍藥袋辨識後停在原頁、未進入確認藥單：編號表格格式的藥袋（如「1. TOPIRAMATE 100MG 2.00 粒 21 HS 42.0 睡前一次」）既有規則（給藥途徑列、藥名標籤）都對不上，解析出 0 個藥而丟出「照片中找不到可辨識的藥名」
+- medicineLines 新增第三順位規則（前兩種都沒有結果時才用）：英文藥名後第一個兩位小數為每次用量，容許 OCR 把藥名與用量黏在一起、漏讀開頭編號；已確定的用量標上「每次」交給既有用量規則
+- 新增測試：以 prescription_18_items.jpg 的 PaddleOCR 實際輸出驗證藥名、每次用量、睡前頻率與劑量
+- 驗證：npm test 11 個通過、vue-tsc 通過；App 內實測 18 個藥的藥袋讀出 15 個並進入確認藥單（後端 photo-preview 200，藥名比對回健保名稱）
+
+[Modified Time]: 1108042232
+
+[Modified Position]: microservice/frontend/src/utils/prescriptionText.ts:113-130、microservice/frontend/src/utils/prescriptionText.ts:133、microservice/frontend/tests/prescriptionText.test.mjs:27-45
+
+[Modified Description]:
+- 修正按「確認無誤，加入藥單」後沒反應：後端回 400（如 DAYS_REQUIRED「請填寫總顆數或吃幾天」）時原本被空的 catch 吞掉、畫面無提示；改為在加入按鈕上方以提醒框（role=alert）顯示原因，DAYS_REQUIRED 提示點藥品填寫「總共幾顆」；連線錯誤仍由畫面上方提示
+- 編號表格藥袋讀出天數與總量（每次用量後依序為天數、總量），整張藥單天數取超過一半藥品相同的值（OCR 偶爾把 21 讀成 71）；簡碼黏住總量（321.0）超過「每次 × 天數 × 4」時不採用
+- 新增 2 個測試；驗證：npm test 12 個通過、vue-tsc 與 npm run build 通過；App 內實測加入藥單後端回 201 並回到首頁
+
+[Modified Time]: 1108043438
+
+[Modified Position]: microservice/frontend/src/views/elder/ConfirmPrescription.vue:14-36、microservice/frontend/src/views/shared/PrescriptionReview.vue:18、microservice/frontend/src/views/shared/PrescriptionReview.vue:73、microservice/frontend/src/utils/prescriptionText.ts:127-139、microservice/frontend/src/utils/prescriptionText.ts:158-163、microservice/frontend/tests/prescriptionText.test.mjs:43-53

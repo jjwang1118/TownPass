@@ -3,6 +3,29 @@ import type { SlotKey } from '@/types'
 
 export type MealTimingApi = 'before' | 'after'
 
+/** 裝置端 OCR 整理的原始欄位；讀不到的值留空，由後端比對並標示待核對。 */
+export interface PhotoItemIn {
+  name: string | null
+  license_no?: string | null
+  strength?: string | null
+  purpose?: string | null
+  dose_qty: number | null
+  quantity: number | null
+  frequency: 'QD' | 'BID' | 'TID' | 'QID' | 'HS' | null
+  meal_timing: MealTimingApi | null
+  confidence: Record<string, number>
+}
+
+export interface PhotoRecognitionIn {
+  hospital: string | null
+  department: string | null
+  doctor: string | null
+  visit_date: string | null
+  days: number | null
+  items: PhotoItemIn[]
+  confidence: Record<string, number>
+}
+
 export interface MeOut {
   id: string
   role: 'elder' | 'family' | null

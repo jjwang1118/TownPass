@@ -7,10 +7,13 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test": "node --test"
   },
   "dependencies": {
+    "esearch-ocr": "8.5.2",
     "jsqr": "^1.4.0",
+    "onnxruntime-web": "1.31.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
