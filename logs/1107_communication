@@ -80,3 +80,20 @@
 [Modified Time]: 1107163235
 
 [Modified Position]: CLAUDE.md:69-91
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依 microservice/docs/front_specific 規格，以 Vue 3 + TypeScript + Vite + vue-router 建立前端專案（設計 token 以 CSS variables 定義）
+- 實作長者 EL-PG-01～18、EL-MD-01、CM-SH-01；家屬 FM-PG-01～06；救護人員 RE-PG-01～04
+- 元件與頁面檔名改為可辨識的英文名稱（例：PrimaryButton.vue、MedicineCard.vue），規格 ID 寫在各檔案開頭註解
+- 透過 window.flutterObject 串接 App 內建 qr_code_scan、phone_call、notify、userinfo；瀏覽器端改用模擬資料、tel: 連結、Web Speech API
+- 後端尚未建立，資料使用 src/data/mock.ts 模擬並存於 localStorage
+- 「ID 待定」的頁面（回診詳情、藥單詳情、切換長輩、藥單加入完成）不實作，對應點擊暫不設行為；EL-PG-08 加入藥單後先回首頁
+- 不含比賽展示用元素（切換身分、模擬提醒等按鈕）
+
+[Modified Time]: 1107222542
+
+[Modified Position]: microservice/frontend/（package.json、vite.config.ts、tsconfig.json、index.html、src/**）
