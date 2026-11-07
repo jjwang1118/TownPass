@@ -57,3 +57,25 @@
 [Modified Time]: 1108012127
 
 [Modified Position]: microservice/backend/app/modules/medication/（rules.py、schemas.py、service.py、repository.py、models.py）, microservice/backend/app/modules/emergency_card/, microservice/backend/app/modules/family/, microservice/backend/app/modules/speech/rules.py, microservice/backend/alembic/versions/20261108_a9dcbfe982d4_medication_quantity_and_card_special.py, microservice/backend/seed/, microservice/backend/tests/, microservice/frontend/src/api/, microservice/frontend/src/store/index.ts, microservice/frontend/src/types.ts, microservice/frontend/src/utils/（booking.ts、card.ts）, microservice/frontend/src/views/, microservice/frontend/src/components/inputs/DrugSearch.vue, microservice/frontend/src/router/index.ts, microservice/frontend/src/App.vue, microservice/docs/（backend-spec.md、qrcode_format.md、frontend.md）
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依使用者要求，將 frontend-impl worktree 現有的模擬器本機開發設定納入 frontend 分支：debug build 允許 HTTP，呷藥囉服務指向 http://localhost:5173/，搭配 adb reverse tcp:5173 tcp:5173。
+- 保留目前 QR Code 上傳與網址型藥單 OCR 串接內容，前端 npm run build（含 TypeScript 型別檢查）通過。
+
+[Modified Time]: 1108013441
+
+[Modified Position]: android/app/src/debug/AndroidManifest.xml:7、lib/page/city_service/model/my_service_model.dart:192
+
+[Modified Description]:
+- 將 frontend（529bcba）的前端更新合併至 feature/integrate-frontend，以既有 d56a27d 為整合基準，保留既有後端 API 與 TTS 內容。
+- QR 頁面保留照片上傳、縮圖與網址型 OCR 流程；辨識結果繼續送 startDraftFromQr，沿用後端預覽、健保藥品比對與同成分警示。
+- Android debug 沿用整合分支原有 network_security_config（已允許 localhost 與 10.0.2.2）；兩邊修改紀錄完整保留。
+- 驗證：前端 npm run build（vue-tsc 型別檢查與 Vite 建置）通過；6 項 QR 流程檢查通過（JSON、舊版 QR、網址 OCR、QR 錯誤、OCR 錯誤、重複事件）；後端目錄與 d56a27d 完全一致。
+
+[Modified Time]: 1108015115
+
+[Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue:1、logs/1107_communication、logs/1108_communication、microservice/docs/qrcode_format.md、microservice/frontend/.env.example、microservice/frontend/src/components/cards/QrUploadArea.vue、microservice/frontend/src/services/prescriptionOcr.ts、lib/page/city_service/model/my_service_model.dart:192
