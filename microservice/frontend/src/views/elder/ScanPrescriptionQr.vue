@@ -33,13 +33,17 @@ function fail(message: string, raw?: string) {
 }
 
 function onDetected(raw: string) {
-  const rx = parsePrescriptionQr(raw)
-  if (!rx) {
-    fail('這不是藥袋的二維碼，請重新掃描，或上傳正確的照片。', raw)
+  const result = parsePrescriptionQr(raw)
+  if (!result.ok) {
+    if (result.reason === 'missing') {
+      fail(`這個二維碼的藥單資料不完整，缺少：${result.missing.join('、')}。`, raw)
+    } else {
+      fail('這不是藥袋的二維碼，請重新掃描，或上傳正確的照片。', raw)
+    }
     return
   }
   failure.value = null
-  startDraftFromRecognition(rx)
+  startDraftFromRecognition(result.rx)
   router.replace('/elder/add/review')
 }
 

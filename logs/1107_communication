@@ -369,3 +369,12 @@
 [Modified Time]: 1108003500
 
 [Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/components/cards/QrScanCamera.vue
+
+[Modified Description]:
+- 依使用者需求，整理藥單範本所需的二維碼資料，新增 microservice/docs/qrcode_format.md（欄位、必填、預設值、頻率代碼對照、範例、與現行藥單圖片的對照、掃描失敗情況）
+- 二維碼解析：缺少必填欄位時掃描失敗提示列出缺少的欄位；支援頻率代碼（QD／BID／TID／QID／HS／Q8H…）換算時段；看診日支援民國年格式
+- 依使用者需求，刪除模擬器中其他 QR Code 照片（rx-qr.png、test-aq1w_O.png），只保留 261008003202.png；虛擬場景牆面／桌面圖片還原預設（模擬器操作，非程式修改）
+
+[Modified Time]: 1108004500
+
+[Modified Position]: microservice/docs/qrcode_format.md、microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/elder/ScanPrescriptionQr.vue
