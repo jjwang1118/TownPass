@@ -101,7 +101,16 @@
       card: '1 號藥，脈優錠，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。',
     };
     const REASONS = {
-      no_app_handler: 'App 沒有朗讀功能（tts_speak）',
+      not_in_app: '不在 App 內',
+      app_no_reply: 'App 沒有回應（App 可能是舊版，請完全停止後重新執行）',
+      no_offline_voice: 'App：找不到離線的中文語音（請到系統設定下載中文（台灣）語音資料）',
+      no_voice_list: 'App：讀不到語音清單',
+      set_voice_failed: 'App：設定語音失敗',
+      speak_failed: 'App：朗讀失敗',
+      engine_init_timeout: 'App：語音引擎初始化逾時',
+      speak_timeout: 'App：朗讀逾時',
+      voice_list_timeout: 'App：讀取語音清單逾時',
+      app_error: 'App：發生錯誤',
       no_web_speech: '瀏覽器不支援 speechSynthesis',
       no_chinese_voice: '找不到中文語音',
       web_speech_no_start: '已呼叫但沒有開始念（WebView 可能不支援）',
@@ -140,7 +149,7 @@
 
     async function renderDiag() {
       const d = await diagnose();
-      const yesNo = (v) => (v === null ? '尚未測試（按一次「念給我聽」）' : v ? '有' : '沒有');
+      const yesNo = (v) => (v === null ? '尚未測試（按一次「念給我聽」）' : v ? '有回應' : '上次沒有回應');
       const rows = [
         ['在 App 內', d.inApp ? '是（有 flutterObject）' : '否（一般瀏覽器）'],
         ['App 朗讀功能', d.inApp ? yesNo(d.appHandler) : '不適用'],

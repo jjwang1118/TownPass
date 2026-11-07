@@ -18,7 +18,7 @@ speak(text)
 ```
 
 - **全部在手機上合成**，不呼叫雲端服務，符合比賽「推論在裝置端」的規定；不需要下載模型。
-- **語音**：台灣中文優先、離線語音優先；找不到中文語音就失敗，不會用英文語音硬念。
+- **語音**：台灣中文優先、離線語音優先；不使用粵語（zh-HK）語音；找不到國語語音就失敗，不會用英文語音硬念。
 - **語速** 預設 0.85（比一般慢），可用 `speak(text, { rate })` 調整。
 - **長句**依句尾標點分段念，避免部分瀏覽器念到一半中斷。
 - **切換頁面或 App 進入背景時自動停止**，釋放資源。
@@ -26,8 +26,8 @@ speak(text)
 
 | 平台 | ① App handler | ② speechSynthesis |
 |---|---|---|
-| iOS（WKWebView） | App 加上 handler 後可用 | 一般可用；第一次要由使用者點擊觸發，靜音模式可能沒聲音 |
-| Android（WebView） | App 加上 handler 後可用 | **不一定能用**，要用測試頁實測 |
+| iOS（WKWebView） | ✅ 已實作 | 一般可用；第一次要由使用者點擊觸發，靜音模式可能沒聲音 |
+| Android（WebView） | ✅ 已實作 | ❌ 實測不支援（Android WebView 沒有 speechSynthesis），**只能靠 ①** |
 
 ## 在前端使用
 
@@ -48,13 +48,18 @@ stop();
 - **要由按鈕觸發**：WebView 通常不允許頁面一打開就自動出聲。提醒畫面請放一個大的「念給我聽」按鈕。
 - 回傳值：`{ ok, engine: 'app' | 'web', reason }`。App 引擎在**開始朗讀時**回傳，網頁引擎在**念完時**回傳。
 
-## App handler 約定（① 需要 App 配合）
+## App handler 約定（①）
 
-App 加上以下 handler 後，模組會自動改用手機內建 TTS（建議用 `flutter_tts`，MIT 授權）。沒有加的話，模組等 2 秒沒收到回覆就改用 ②，之後同一頁不會再等。
+已實作於 `lib/util/web_message_handler/tts_message_handler.dart`（`flutter_tts`，MIT 授權），註冊在 `tp_web_message_listener.dart`。
+
+- **只用離線語音**：Android 會略過需要網路的語音（`network_required`），找不到就回覆 `no_offline_voice`，不會改走雲端。
+- Android 手機裡有 Google 語音引擎時優先使用；iOS 設定為靜音模式也能播放。
+- WebView 建立時就先初始化引擎；App 每一步都有時間限制，保證回覆，過程以 `[tts]` 開頭印在 logcat。
+- 模組等 12 秒沒收到回覆就送出 `tts_stop` 並改用 ②；下次朗讀仍會再試 App（第一次失敗不會記住）。
 
 | name | 網頁送出的 data | App 回覆 |
 |---|---|---|
-| `tts_speak` | `{ text: string, lang: 'zh-TW', rate: 0.85 }` | **開始朗讀或失敗時**回覆一次：`{ ok: true }` 或 `{ ok: false, reason: string }` |
+| `tts_speak` | `{ text: string, lang: 'zh-TW', rate: 0.85 }`（rate 以 1.0 為正常語速） | **開始朗讀或失敗時**回覆一次：`{ ok: true }` 或 `{ ok: false, reason }`；reason 例如 `no_offline_voice`、`no_chinese_voice`、`engine_init_timeout`、`voice_list_timeout`、`speak_timeout`、`empty_text`、`app_error` |
 | `tts_stop` | `null` | 不用回覆 |
 
 ## 測試

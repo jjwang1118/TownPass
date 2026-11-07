@@ -9,12 +9,14 @@
 
 const DEFAULT_LANG = 'zh-TW';
 const DEFAULT_RATE = 0.85; // 長輩聽：比預設慢一點
-const APP_REPLY_TIMEOUT_MS = 2000; // App 沒有回覆 → 視為沒有 tts_speak handler
+const APP_REPLY_TIMEOUT_MS = 12000; // App 每一步都有時間限制，最慢約 10 秒內一定回覆；超過代表 App 沒有 tts_speak handler
 const VOICES_TIMEOUT_MS = 1500; // 語音清單是非同步載入的
 const START_TIMEOUT_MS = 3000; // 呼叫後一直沒開始念（Android WebView 可能靜默失敗）
 const MAX_CHUNK = 80; // 部分瀏覽器念太長的句子會中斷，所以分段
 
-let appHandlerAvailable = null; // null：還沒試過；true / false：本次頁面的結果
+// null：還沒試過；true：App 有回覆過；false：最近一次沒回覆。
+// 只用於診斷顯示，不會因為 false 就跳過 App（第一次可能只是引擎初始化太慢）。
+let appHandlerAvailable = null;
 let lifecycleBound = false;
 
 // ---------- 共用 ----------
@@ -69,12 +71,12 @@ export function splitText(text) {
 /**
  * 請 App 用手機內建 TTS 朗讀。
  * 約定：App 開始朗讀（或失敗）時回覆一次 { name: 'tts_speak', data: { ok, reason? } }。
- * App 沒有這個 handler 時不會回覆，等 APP_REPLY_TIMEOUT_MS 後視為不支援。
+ * App 沒有這個 handler 時不會回覆，等 APP_REPLY_TIMEOUT_MS 後改用下一個引擎；下次朗讀仍會再試 App。
  */
 function speakWithApp(text, { lang, rate }) {
   const bridge = flutterObject();
-  if (!bridge || appHandlerAvailable === false) {
-    return Promise.resolve({ ok: false, reason: 'no_app_handler' });
+  if (!bridge) {
+    return Promise.resolve({ ok: false, reason: 'not_in_app' });
   }
   return new Promise((resolve) => {
     const onMessage = (event) => {
@@ -93,7 +95,9 @@ function speakWithApp(text, { lang, rate }) {
     const timer = setTimeout(() => {
       cleanup();
       appHandlerAvailable = false;
-      resolve({ ok: false, reason: 'no_app_handler' });
+      // App 若只是太慢，避免它在我們改用其他引擎後才開始念
+      bridge.postMessage(JSON.stringify({ name: 'tts_stop', data: null }));
+      resolve({ ok: false, reason: 'app_no_reply' });
     }, APP_REPLY_TIMEOUT_MS);
     function cleanup() {
       clearTimeout(timer);
@@ -106,7 +110,7 @@ function speakWithApp(text, { lang, rate }) {
 
 function stopApp() {
   const bridge = flutterObject();
-  if (bridge && appHandlerAvailable) {
+  if (bridge && appHandlerAvailable !== null) {
     bridge.postMessage(JSON.stringify({ name: 'tts_stop', data: null }));
   }
 }
@@ -133,7 +137,10 @@ function normLang(lang) {
   return String(lang || '').replace('_', '-').toLowerCase();
 }
 
-/** 挑語音：台灣中文優先、離線語音優先；找不到中文就回傳 null（不用英文語音硬念）。 */
+/**
+ * 挑語音：台灣中文優先、離線語音優先；找不到國語語音就回傳 null（不用英文語音硬念）。
+ * 粵語（zh-HK、yue）不使用：念出來長輩聽不懂。
+ */
 export function pickVoice(voices, lang = DEFAULT_LANG) {
   const target = normLang(lang);
   const score = (v) => {
@@ -141,7 +148,7 @@ export function pickVoice(voices, lang = DEFAULT_LANG) {
     let s = 0;
     if (l === target) s = 100;
     else if (l === 'cmn-hant-tw' || l === 'zh-hant-tw') s = 90;
-    else if (l.startsWith('zh-hant') || l === 'zh-hk') s = 50;
+    else if (l.startsWith('zh-hk') || l.startsWith('yue')) return -1;
     else if (l.startsWith('zh') || l.startsWith('cmn')) s = 40;
     else return -1;
     if (v.localService) s += 5; // 離線語音
