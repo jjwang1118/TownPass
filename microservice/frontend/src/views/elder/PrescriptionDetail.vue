@@ -14,6 +14,8 @@ import InfoNotice from '@/components/alerts/InfoNotice.vue'
 import { daysLeft, isFinished, state } from '@/store'
 import { useTts } from '@/composables/useTts'
 import { medicineSpeech, slotSpeech } from '@/utils/speech'
+import { medicineDaysLeft, pillsLeft, prescriptionSupplyDays } from '@/utils/supply'
+import type { Medicine } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +28,15 @@ const statusText = computed(() => {
   if (!rx.value) return ''
   return finished.value ? '這張藥單已經吃完了' : `這張藥單還剩 ${daysLeft(rx.value, now)} 天`
 })
-const speechTitle = computed(() => (rx.value ? `藥單 ${rx.value.code}，${statusText.value}` : ''))
+/** 剩 26 顆，約 26 天（剩下顆數 ÷ 每天吃幾顆） */
+function supplyNote(m: Medicine): string {
+  if (!rx.value) return ''
+  const left = pillsLeft(m, rx.value.visitDate, now)
+  if (left <= 0) return `已吃完（共 ${m.quantity} 顆）`
+  return `剩 ${left} 顆，約 ${medicineDaysLeft(m, rx.value.visitDate, now)} 天`
+}
+
+const speechTitle =computed(() => (rx.value ? `藥單 ${rx.value.code}，${statusText.value}` : ''))
 
 onMounted(() => {
   if (!rx.value) router.replace('/elder/prescriptions')
@@ -41,7 +51,7 @@ onMounted(() => {
         :hospital="rx.hospital"
         :department="rx.department"
         :visit-date="rx.visitDate"
-        :days="rx.days"
+        :days="prescriptionSupplyDays(rx)"
       />
       <p class="status font-h3-semibold" :class="{ finished }">{{ statusText }}</p>
 
@@ -56,6 +66,7 @@ onMounted(() => {
         :key="m.code"
         :medicine="m"
         show-slots
+        :note="supplyNote(m)"
         :clickable="false"
         @speak="speak(medicineSpeech(m, true), state.lang)"
       />

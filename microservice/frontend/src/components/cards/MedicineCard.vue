@@ -18,6 +18,8 @@ const props = withDefaults(
     showDepartment?: boolean
     /** 顯示服用時段（藥單詳情用：早上、晚上） */
     showSlots?: boolean
+    /** 額外說明列（藥單詳情用：剩 26 顆，約 26 天） */
+    note?: string
     clickable?: boolean
   }>(),
   { showDepartment: false, showSlots: false, clickable: true },
@@ -50,6 +52,7 @@ const meta = computed(() =>
       </span>
       <span class="name font-h3-regular">{{ medicine.name }}</span>
       <span class="meta font-h3-regular">{{ meta }}</span>
+      <span v-if="note" class="note font-h3-semibold">{{ note }}</span>
     </component>
     <ReadAloudButton variant="single" :label="`朗讀 ${medicine.code} ${medicine.name}`" @click="emit('speak')" />
   </article>
@@ -87,5 +90,9 @@ const meta = computed(() =>
 }
 .meta {
   color: var(--text-second);
+}
+.note {
+  margin-top: 4px;
+  color: var(--color-primary-700);
 }
 </style>

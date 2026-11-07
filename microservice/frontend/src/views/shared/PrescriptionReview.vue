@@ -10,6 +10,7 @@ import WarningNotice from '@/components/alerts/WarningNotice.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import { state } from '@/store'
+import { prescriptionSupplyDays } from '@/utils/supply'
 import { useTts } from '@/composables/useTts'
 import { medicineSpeech } from '@/utils/speech'
 
@@ -48,7 +49,7 @@ onMounted(() => {
         :hospital="draft.hospital"
         :department="draft.department"
         :visit-date="draft.visitDate"
-        :days="draft.days"
+        :days="prescriptionSupplyDays(draft)"
       />
       <WarningNotice>{{ notice }}</WarningNotice>
 

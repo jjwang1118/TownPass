@@ -30,7 +30,8 @@ import {
   VIEW_LOGS,
 } from '@/data/mock'
 import { INVITE_VALID_MINUTES } from '@/data/constants'
-import { addDays, diffDays, parseDate, toISODate } from '@/utils/date'
+import { parseDate, toISODate } from '@/utils/date'
+import { dailyAmount, prescriptionDaysLeft } from '@/utils/supply'
 
 const STORAGE_KEY = 'yaobao-pingan-state-v1'
 
@@ -95,12 +96,28 @@ function defaults(): State {
   }
 }
 
+/** 舊版存檔以「給藥天數 days」記錄，轉成每個藥的總顆數（天數 × 每天吃幾顆） */
+function migrateQuantity<T extends { medicines: Medicine[]; days?: number }>(rx: T): T {
+  const days = rx.days ?? 28
+  rx.medicines.forEach((m) => {
+    if (typeof m.quantity !== 'number' || Number.isNaN(m.quantity)) m.quantity = days * dailyAmount(m)
+  })
+  delete rx.days
+  return rx
+}
+
 function load(): State {
   const base = defaults()
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return base
-    return { ...base, ...(JSON.parse(raw) as Partial<State>) }
+    const saved = { ...base, ...(JSON.parse(raw) as Partial<State>) }
+    saved.prescriptions.forEach(migrateQuantity)
+    if (saved.draft) migrateQuantity(saved.draft)
+    saved.manualMedicines.forEach((m) => {
+      if (typeof m.quantity !== 'number') m.quantity = 28 * dailyAmount(m)
+    })
+    return saved
   } catch {
     return base
   }
@@ -122,12 +139,9 @@ watch(
 
 /* ---------- 藥單 ---------- */
 
-export function prescriptionEndDate(rx: Prescription): Date {
-  return addDays(parseDate(rx.visitDate), rx.days)
-}
-
+/** 藥單還剩幾天 = 剩下顆數 ÷ 每天吃幾顆（取最晚吃完的藥），詳見 utils/supply.ts */
 export function daysLeft(rx: Prescription, now: Date): number {
-  return diffDays(now, prescriptionEndDate(rx))
+  return prescriptionDaysLeft(rx, now)
 }
 
 export function isFinished(rx: Prescription, now: Date): boolean {
@@ -194,7 +208,6 @@ export function startDraftFromManual(med: Omit<DraftMedicine, 'code' | 'checked'
     hospital: '手動新增',
     department: '',
     visitDate: toISODate(now),
-    days: 28,
     medicines: recode(medicines, code),
   }
 }
@@ -215,7 +228,6 @@ export function commitDraft() {
     hospital: draft.hospital,
     department: draft.department,
     visitDate: draft.visitDate,
-    days: draft.days,
     medicines: draft.medicines.map(({ checked: _checked, ...m }) => m),
   }
   state.prescriptions.push(rx)

@@ -27,11 +27,10 @@ export const PRESCRIPTIONS: Prescription[] = [
     hospital: '仁愛院區',
     department: '心臟科',
     visitDate: '2026-11-05',
-    days: 28,
     medicines: [
-      { code: 'A1', amount: 1, name: 'Amlodipine 5 毫克', effect: '降血壓', slots: ['morning'], meal: '飯後' },
-      { code: 'A2', amount: 1, name: 'Aspirin 100 毫克', effect: '預防血栓', slots: ['morning'], meal: '飯後' },
-      { code: 'A3', amount: 1, name: 'Atorvastatin 20 毫克', effect: '降血脂', slots: ['bedtime'], meal: '飯後' },
+      { code: 'A1', amount: 1, name: 'Amlodipine 5 毫克', effect: '降血壓', slots: ['morning'], meal: '飯後', quantity: 28 },
+      { code: 'A2', amount: 1, name: 'Aspirin 100 毫克', effect: '預防血栓', slots: ['morning'], meal: '飯後', quantity: 28 },
+      { code: 'A3', amount: 1, name: 'Atorvastatin 20 毫克', effect: '降血脂', slots: ['bedtime'], meal: '飯後', quantity: 28 },
     ],
   },
   {
@@ -39,10 +38,9 @@ export const PRESCRIPTIONS: Prescription[] = [
     hospital: '中興院區',
     department: '新陳代謝科',
     visitDate: '2026-10-30',
-    days: 29,
     medicines: [
-      { code: 'B1', amount: 1, name: 'Metformin 500 毫克', effect: '降血糖', slots: ['noon', 'evening'], meal: '飯後' },
-      { code: 'B2', amount: 1, name: 'Linagliptin 5 毫克', effect: '降血糖', slots: ['noon'], meal: '飯後' },
+      { code: 'B1', amount: 1, name: 'Metformin 500 毫克', effect: '降血糖', slots: ['noon', 'evening'], meal: '飯後', quantity: 58 },
+      { code: 'B2', amount: 1, name: 'Linagliptin 5 毫克', effect: '降血糖', slots: ['noon'], meal: '飯後', quantity: 29 },
     ],
   },
   {
@@ -50,9 +48,8 @@ export const PRESCRIPTIONS: Prescription[] = [
     hospital: '和平院區',
     department: '家醫科',
     visitDate: '2026-09-20',
-    days: 28,
     medicines: [
-      { code: 'C1', amount: 1, name: 'Acetaminophen 500 毫克', effect: '止痛退燒', slots: ['morning', 'evening'], meal: '飯後' },
+      { code: 'C1', amount: 1, name: 'Acetaminophen 500 毫克', effect: '止痛退燒', slots: ['morning', 'evening'], meal: '飯後', quantity: 56 },
     ],
   },
 ]
@@ -100,11 +97,10 @@ export const RECOGNIZED_PRESCRIPTION: DraftPrescription = {
   hospital: '仁愛院區',
   department: '心臟科',
   visitDate: '2026-11-05',
-  days: 28,
   medicines: [
-    { code: 'A1', amount: 1, name: 'Amlodipine 5 毫克', effect: '降血壓', slots: ['morning'], meal: '飯後', checked: false },
-    { code: 'A2', amount: 1, name: 'Aspirin 100 毫克', effect: '預防血栓', slots: ['morning'], meal: '飯後', checked: false },
-    { code: 'A3', amount: 1, name: 'Atorvastatin 20 毫克', effect: '降血脂', slots: ['bedtime'], meal: '飯後', checked: false },
+    { code: 'A1', amount: 1, name: 'Amlodipine 5 毫克', effect: '降血壓', slots: ['morning'], meal: '飯後', quantity: 28, checked: false },
+    { code: 'A2', amount: 1, name: 'Aspirin 100 毫克', effect: '預防血栓', slots: ['morning'], meal: '飯後', quantity: 28, checked: false },
+    { code: 'A3', amount: 1, name: 'Atorvastatin 20 毫克', effect: '降血脂', slots: ['bedtime'], meal: '飯後', quantity: 28, checked: false },
   ],
 }
 

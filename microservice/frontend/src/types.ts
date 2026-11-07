@@ -19,6 +19,8 @@ export interface Medicine {
   /** 服用時段（可複選） */
   slots: SlotKey[]
   meal: MealTiming
+  /** 領藥總顆數（藥袋上的數量），用來計算還剩幾天：剩下顆數 ÷ 每天吃幾顆 */
+  quantity: number
 }
 
 export interface Prescription {
@@ -26,10 +28,8 @@ export interface Prescription {
   code: string
   hospital: string
   department: string
-  /** 看診日期 YYYY-MM-DD */
+  /** 看診（領藥）日期 YYYY-MM-DD，從這天開始吃 */
   visitDate: string
-  /** 給藥天數 */
-  days: number
   medicines: Medicine[]
 }
 
@@ -118,7 +118,6 @@ export interface DraftPrescription {
   hospital: string
   department: string
   visitDate: string
-  days: number
   medicines: DraftMedicine[]
   /** 由手動新增建立（非拍照／QR Code 辨識） */
   manual?: boolean

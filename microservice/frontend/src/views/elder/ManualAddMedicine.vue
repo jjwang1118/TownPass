@@ -21,7 +21,7 @@ const REVIEW_PATH = '/elder/add/review'
 /** 是否從確認藥單頁進來（新增的藥接在原本的手動藥單後面） */
 const fromReview = window.history.state?.back === REVIEW_PATH && !!state.draft?.manual
 
-const initial: MedicineFormValue = { name: '', effect: '', amount: 1, slots: ['morning'], meal: '飯後' }
+const initial: MedicineFormValue = { name: '', effect: '', amount: 1, slots: ['morning'], meal: '飯後', quantity: 0 }
 const added = ref<MedicineFormValue | null>(null)
 /** 每次「再加一個藥」換一個 key，讓表單重設 */
 const formKey = ref(0)

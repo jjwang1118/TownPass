@@ -18,7 +18,7 @@ const titleId = useId()
 const descId = useId()
 useOverlay(toRef(props, 'open'), panel, () => emit('close'))
 
-const detail = (m: MedicineFormValue) => [amountText(m.amount), slotNames(m.slots), m.meal].join('｜')
+const detail = (m: MedicineFormValue) => [amountText(m.amount), slotNames(m.slots), m.meal, `共 ${m.quantity} 顆`].join('｜')
 </script>
 
 <template>

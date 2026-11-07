@@ -133,3 +133,13 @@
 [Modified Time]: 1107225800
 
 [Modified Position]: microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/MyPrescriptions.vue、microservice/frontend/src/components/cards/PrescriptionRow.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/router/index.ts
+
+[Modified Description]:
+- 依使用者需求，「還剩幾天」改為以藥量計算：還剩幾天 = 剩下顆數 ÷ 每天吃幾顆（每天吃幾顆 = 一次幾顆 × 時段數；剩下顆數 = 總顆數 − 每天吃幾顆 × 看診後天數，假設按時服藥）；整張藥單取最晚吃完的藥
+- 藥品資料新增「總顆數 quantity」，移除藥單的固定「給藥天數 days」，藥單標頭天數改為由總顆數推算
+- 手動新增／修改藥品新增必填欄位「總共幾顆（藥袋上的數量）」，並即時提示每天吃幾顆、大約可吃幾天
+- 藥單詳情每個藥顯示「剩 X 顆，約 N 天」；QR Code 支援 quantity 欄位；舊版存檔自動換算總顆數
+
+[Modified Time]: 1107230500
+
+[Modified Position]: microservice/frontend/src/utils/supply.ts、microservice/frontend/src/types.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/utils/qr.ts、microservice/frontend/src/views/shared/MedicineForm.vue、microservice/frontend/src/views/shared/PrescriptionReview.vue、microservice/frontend/src/views/elder/PrescriptionDetail.vue、microservice/frontend/src/views/elder/ManualAddMedicine.vue、microservice/frontend/src/components/cards/MedicineCard.vue、microservice/frontend/src/components/overlays/MedicineAddedDialog.vue
