@@ -68,5 +68,9 @@
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
+        <!-- 呷藥囉朗讀（flutter_tts）：Android 11 以上需宣告才找得到系統 TTS 引擎 -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 </manifest>
