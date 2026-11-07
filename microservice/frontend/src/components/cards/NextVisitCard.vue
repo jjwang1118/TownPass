@@ -7,11 +7,20 @@ import { computed } from 'vue'
 import type { Appointment } from '@/types'
 import { formatMonthDayWeek } from '@/utils/date'
 
-const props = withDefaults(defineProps<{ appointment: Appointment; viewer?: 'elder' | 'family' }>(), {
-  viewer: 'elder',
-})
+const props = withDefaults(
+  defineProps<{
+    appointment: Appointment
+    viewer?: 'elder' | 'family'
+    /** 不是最近的那一筆（多筆預約時，第 2 筆以後標示「之後的回診」） */
+    later?: boolean
+  }>(),
+  { viewer: 'elder', later: false },
+)
 
-const label = computed(() => (props.viewer === 'family' ? '長輩的下次回診' : '下次回診'))
+const label = computed(() => {
+  const base = props.later ? '之後的回診' : '下次回診'
+  return props.viewer === 'family' ? `長輩的${base}` : base
+})
 </script>
 
 <template>

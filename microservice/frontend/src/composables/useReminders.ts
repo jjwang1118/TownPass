@@ -1,8 +1,8 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { SLOTS } from '@/data/constants'
-import { activeMedicines, state, upcomingAppointment } from '@/store'
+import { activeMedicines, appointmentTime, state, upcomingAppointments } from '@/store'
 import { amountText, medicinesInSlot } from '@/utils/schedule'
-import { parseDate, toISODate } from '@/utils/date'
+import { toISODate } from '@/utils/date'
 import { notify } from './flutterBridge'
 
 /** 時段到後幾分鐘內仍會補發提醒 */
@@ -44,19 +44,15 @@ function check() {
     state.notified.push(key)
   })
 
-  // 回診提醒：回診前 1 小時
-  const appt = upcomingAppointment(now)
-  if (appt) {
-    const at = parseDate(appt.date)
-    const [h, m] = appt.time.split(':').map(Number)
-    at.setHours(h, m)
-    const diffMin = (at.getTime() - now.getTime()) / 60000
-    const key = `appt:${appt.date}:${appt.time}`
+  // 回診提醒：每一筆預約各自在回診前 1 小時提醒（與用藥提醒互相獨立）
+  upcomingAppointments(now).forEach((appt) => {
+    const diffMin = (appointmentTime(appt).getTime() - now.getTime()) / 60000
+    const key = `appt:${appt.date}:${appt.time}:${appt.doctor}`
     if (diffMin <= 60 && diffMin > 60 - WINDOW_MINUTES && !state.notified.includes(key)) {
       notify(`今天 ${appt.time} 要回診`, `${appt.hospital}${appt.department}${appt.doctor}，記得帶健保卡`)
       state.notified.push(key)
     }
-  }
+  })
 
   // 只保留今天的紀錄
   state.notified = state.notified.filter((k) => !k.startsWith('slot:') || k.startsWith(`slot:${today}`))

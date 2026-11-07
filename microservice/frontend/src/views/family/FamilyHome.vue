@@ -11,7 +11,7 @@ import TimeSlotCard from '@/components/cards/TimeSlotCard.vue'
 import NextVisitCard from '@/components/cards/NextVisitCard.vue'
 import FeatureEntry from '@/components/cards/FeatureEntry.vue'
 import { SLOTS } from '@/data/constants'
-import { activeMedicines, state, upcomingAppointment } from '@/store'
+import { activeMedicines, state, upcomingAppointments } from '@/store'
 import { useNow } from '@/composables/useNow'
 import { phoneCall } from '@/composables/flutterBridge'
 import { formatLongDate } from '@/utils/date'
@@ -23,7 +23,7 @@ const now = useNow()
 const elder = computed(() => state.elder)
 const meds = computed(() => activeMedicines(now.value))
 const statuses = computed(() => slotStatuses(now.value))
-const appointment = computed(() => upcomingAppointment(now.value))
+const appointments = computed(() => upcomingAppointments(now.value))
 /** 「長輩的藥單」導向目前時段（沒有「現在」時段則為早上） */
 const currentSlot = computed(() => SLOTS.find((s) => statuses.value[s.key] === 'now')?.key ?? 'morning')
 </script>
@@ -48,7 +48,13 @@ const currentSlot = computed(() => SLOTS.find((s) => statuses.value[s.key] === '
       />
     </div>
 
-    <NextVisitCard v-if="appointment" :appointment="appointment" viewer="family" />
+    <NextVisitCard
+      v-for="(a, i) in appointments"
+      :key="`${a.date}-${a.time}-${a.doctor}`"
+      :appointment="a"
+      viewer="family"
+      :later="i > 0"
+    />
 
     <FeatureEntry
       icon="phone"

@@ -151,3 +151,13 @@
 [Modified Time]: 1107231000
 
 [Modified Position]: microservice/frontend/src/data/mock.ts:24-25、microservice/frontend/src/store/index.ts
+
+[Modified Description]:
+- 依使用者需求，首頁時間改為即時時間：useNow 預設每秒更新（問候區時間、下一次吃藥、時段狀態跟著現在時間變）
+- 回診預約：日期、時段不再需要先選完前面欄位，一開始就列出全部（日期為今天起 28 天、時段全部列出）；今天已過的時段、額滿、醫師當天沒看診以灰階顯示不可選；院區 → 科別 → 醫師仍依序相依；選了日期後醫師清單會標示當天沒看診的醫師（與原規格「五欄依序鎖定」不同）
+- 回診預約可多筆：appointment 改為 appointments 列表，首頁（含無藥首頁）、家屬首頁列出所有未到的回診（第一筆「下次回診」、其後「之後的回診」），每筆各自於回診前 1 小時提醒；預約成功頁顯示剛完成的那一筆；舊存檔自動轉換
+- 預約與用藥互相獨立：無藥首頁（EL-PG-02）有預約時也顯示回診卡（與原規格「不顯示下次回診卡」不同）
+
+[Modified Time]: 1107232000
+
+[Modified Position]: microservice/frontend/src/composables/useNow.ts、microservice/frontend/src/utils/booking.ts、microservice/frontend/src/views/shared/BookingForm.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/composables/useReminders.ts、microservice/frontend/src/components/cards/NextVisitCard.vue、microservice/frontend/src/views/elder/HomeWithMedicine.vue、microservice/frontend/src/views/elder/HomeEmpty.vue、microservice/frontend/src/views/family/FamilyHome.vue、microservice/frontend/src/views/elder/BookingSuccess.vue

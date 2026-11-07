@@ -15,7 +15,7 @@ import { state } from '@/store'
 import { formatMonthDayWeek } from '@/utils/date'
 
 const router = useRouter()
-const appt = computed(() => state.appointment)
+const appt = computed(() => state.lastBooked)
 
 const rows = computed(() => {
   const a = appt.value

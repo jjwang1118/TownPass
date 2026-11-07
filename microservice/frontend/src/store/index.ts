@@ -46,7 +46,10 @@ interface FamilyUserState {
 interface State {
   elder: ElderProfile
   prescriptions: Prescription[]
-  appointment: Appointment | null
+  /** 回診預約（可多筆） */
+  appointments: Appointment[]
+  /** 剛完成的那一筆預約（EL-PG-12 預約成功頁顯示） */
+  lastBooked: Appointment | null
   card: EmergencyCard
   viewLogs: ViewLog[]
   families: FamilyMember[]
@@ -88,7 +91,8 @@ function defaults(): State {
   return {
     elder: clone(ELDER),
     prescriptions: clone(PRESCRIPTIONS),
-    appointment: clone(APPOINTMENT),
+    appointments: [clone(APPOINTMENT)],
+    lastBooked: null,
     card: clone(EMERGENCY_CARD),
     viewLogs: clone(VIEW_LOGS),
     families: clone(FAMILY_MEMBERS),
@@ -129,6 +133,10 @@ function load(): State {
       saved.manualMedicines = []
       saved.notified = saved.notified.filter((k) => !k.startsWith('slot:'))
     }
+    // 舊存檔只有單筆 appointment → 轉成列表
+    const legacy = (parsed as { appointment?: Appointment | null }).appointment
+    if (!Array.isArray(parsed.appointments)) saved.appointments = legacy ? [legacy] : []
+    delete (saved as { appointment?: unknown }).appointment
     saved.dataVersion = DATA_VERSION
     saved.prescriptions.forEach(migrateQuantity)
     if (saved.draft) migrateQuantity(saved.draft)
@@ -261,12 +269,22 @@ export function resetBooking(prefill?: Partial<BookingDraft>) {
   state.booking = { ...emptyBooking(), ...prefill }
 }
 
-/** 選擇某欄後，其後欄位清空（依序鎖定） */
+/**
+ * 欄位相依：院區 → 科別 → 醫師（換院區要重選科別與醫師，換科別要重選醫師）
+ * 日期、時段不需等前面的欄位，一開始就能選（是否能預約由 utils/booking.ts 判斷）
+ */
+const BOOKING_DEPENDENTS: Record<BookingField, BookingField[]> = {
+  hospital: ['department', 'doctor'],
+  department: ['doctor'],
+  doctor: [],
+  date: [],
+  time: [],
+}
+
 export function setBookingField(field: BookingField, value: string) {
-  const idx = BOOKING_FIELDS.indexOf(field)
   if (state.booking[field] === value) return
   state.booking[field] = value
-  BOOKING_FIELDS.slice(idx + 1).forEach((f) => {
+  BOOKING_DEPENDENTS[field].forEach((f) => {
     state.booking[f] = ''
   })
 }
@@ -286,19 +304,27 @@ export function confirmBooking(timeLabel: string): Appointment {
     timeLabel,
     number: 12 + (Number(b.date.slice(-2)) % 20),
   }
-  state.appointment = appt
-  // 新預約要重新提醒
-  state.notified = state.notified.filter((k) => !k.startsWith('appt:'))
+  // 可預約多筆：新預約加進列表（同一醫師、同一時間不重複加入）
+  const dup = state.appointments.some(
+    (a) => a.date === appt.date && a.time === appt.time && a.doctor === appt.doctor && a.hospital === appt.hospital,
+  )
+  if (!dup) state.appointments.push(appt)
+  state.lastBooked = appt
   return appt
 }
 
-export function upcomingAppointment(now: Date): Appointment | null {
-  const a = state.appointment
-  if (!a) return null
+export function appointmentTime(a: Appointment): Date {
   const at = parseDate(a.date)
   const [h, m] = a.time.split(':').map(Number)
   at.setHours(h, m)
-  return at.getTime() >= now.getTime() ? a : null
+  return at
+}
+
+/** 尚未到的所有回診預約，依時間先後排序 */
+export function upcomingAppointments(now: Date): Appointment[] {
+  return state.appointments
+    .filter((a) => appointmentTime(a).getTime() >= now.getTime())
+    .sort((a, b) => appointmentTime(a).getTime() - appointmentTime(b).getTime())
 }
 
 /* ---------- 緊急醫療卡 ---------- */

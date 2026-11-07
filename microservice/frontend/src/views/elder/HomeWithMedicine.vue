@@ -11,7 +11,7 @@ import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
 import LanguageSwitch from '@/components/segments/LanguageSwitch.vue'
 import GreetingBlock from './GreetingBlock.vue'
 import { SLOTS } from '@/data/constants'
-import { activeMedicines, state, upcomingAppointment } from '@/store'
+import { activeMedicines, state, upcomingAppointments } from '@/store'
 import { useTts } from '@/composables/useTts'
 import { medicinesInSlot, nextMedicineSlot, slotStatuses } from '@/utils/schedule'
 import { medicineSpeech, slotSpeech } from '@/utils/speech'
@@ -25,7 +25,7 @@ const meds = computed(() => activeMedicines(props.now))
 const next = computed(() => nextMedicineSlot(props.now, meds.value))
 const nextMeds = computed(() => (next.value ? medicinesInSlot(meds.value, next.value.slot.key) : []))
 const statuses = computed(() => slotStatuses(props.now))
-const appointment = computed(() => upcomingAppointment(props.now))
+const appointments = computed(() => upcomingAppointments(props.now))
 
 const nextLabel = computed(() => {
   if (!next.value) return ''
@@ -84,7 +84,12 @@ const entries: { icon: IconName; title: string; subtitle: string; to: string }[]
       />
     </div>
 
-    <NextVisitCard v-if="appointment" :appointment="appointment" />
+    <NextVisitCard
+      v-for="(a, i) in appointments"
+      :key="`${a.date}-${a.time}-${a.doctor}`"
+      :appointment="a"
+      :later="i > 0"
+    />
 
     <h2 class="section-label">功能</h2>
     <FeatureEntry
