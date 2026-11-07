@@ -29,6 +29,7 @@ enum MyServiceItemId {
   library,
   locationSearch,
   zoo,
+  elderlyCare,
   ;
 }
 
@@ -183,6 +184,13 @@ extension MyServiceIdExt on MyServiceItemId {
           category: MyServiceCategory.explore,
           destinationUrl: '',
         ),
+      MyServiceItemId.elderlyCare => MyServiceItem(
+        title: '呷藥囉',
+        description: '老人',
+        icon: Assets.svg.iconCovidMedical.svg(),
+        category: MyServiceCategory.cityLife,
+        destinationUrl: 'https://my-service.web.app/',
+      )
     };
   }
 }

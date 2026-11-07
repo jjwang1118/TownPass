@@ -67,9 +67,25 @@
 每次修改檔案後，請將紀錄附加至 `logs/{MMDD}_communication`，格式如下：
 
 ```
+---
+
 [Agent name]: {前端 / 後端 / other 工程師}
+
 [Modified Description]:
 - {調整重點，以列點敘述}
+
 [Modified Time]: {MMDDHHMMSS}
+
+[Modified Position]: {File name:Line}
+
+[Modified Description]:
+- {同一次對話的下一筆修改}
+
+[Modified Time]: {MMDDHHMMSS}
+
 [Modified Position]: {File name:Line}
 ```
+
+- 同一次對話只寫一個 `[Agent name]`，新的修改接在該對話區塊最後。
+- 每個欄位之間空一行。
+- 不同對話之間以 `---` 分隔，檔案的第一個對話不需要。
