@@ -37,6 +37,13 @@ class MedicationRepository:
         stmt = stmt.order_by(Medication.status, Medication.number, Medication.created_at)
         return list(await self.session.scalars(stmt))
 
+    async def list_all_active(self) -> list[Medication]:
+        """所有長輩進行中的藥（排程用）。"""
+        stmt = select(Medication).where(Medication.status == MedicationStatus.ACTIVE).order_by(
+            Medication.elder_id, Medication.number
+        )
+        return list(await self.session.scalars(stmt))
+
     async def latest(self, elder_id: UUID) -> Medication | None:
         """最近一次就醫開的藥（含已停用）。"""
         stmt = (

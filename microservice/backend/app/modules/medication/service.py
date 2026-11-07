@@ -190,6 +190,29 @@ class MedicationService:
         """某天某時段要吃的藥（提醒用）。"""
         return self._doses(await self.repo.list_by_elder(elder_id), slot_key, day)
 
+    async def elders_scheduled_on(self, day: dt.date) -> list[UUID]:
+        """這天有藥要吃的長輩（排程用）。"""
+        elder_ids = {
+            m.elder_id for m in await self.repo.list_all_active() if rules.is_scheduled_on(m.start_date, m.days, day)
+        }
+        return sorted(elder_ids)
+
+    async def running_out_on(self, run_out: dt.date) -> dict[UUID, list[int]]:
+        """在這天吃完的進行中藥品，依長輩分組回傳編號（回診提醒用）。"""
+        result: dict[UUID, list[int]] = {}
+        for m in await self.repo.list_all_active():
+            if rules.run_out_date(m.start_date, m.days) == run_out:
+                result.setdefault(m.elder_id, []).append(m.number)
+        return result
+
+    async def soonest_run_out(self, elder_id: UUID) -> list[int]:
+        """最快吃完的那幾號藥（Demo 回診提醒用）。"""
+        active = await self.repo.list_by_elder(elder_id)
+        if not active:
+            return []
+        soonest = min(rules.run_out_date(m.start_date, m.days) for m in active)
+        return [m.number for m in active if rules.run_out_date(m.start_date, m.days) == soonest]
+
     async def last_visit(self, elder_id: UUID) -> LastVisit | None:
         """最近一次開藥的院區、科別、醫師（回診預約帶入）。"""
         medication = await self.repo.latest(elder_id)

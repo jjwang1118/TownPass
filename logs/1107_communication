@@ -148,3 +148,16 @@
 - 更新 emergency_card、responder、fire_dept、seed、tests、modules README 與規格書 §3.1、§5.2、§5.4、§6.2、§7.2
 [Modified Time]: 1107183740
 [Modified Position]: microservice/backend/app/modules/emergency_card/, microservice/backend/app/modules/responder/, microservice/backend/app/modules/family/service.py, microservice/backend/seed/, microservice/backend/alembic/versions/20261107_e60c934e0318_responder_unit_phone_access_log_snapshot.py, microservice/backend/tests/, microservice/docs/backend-spec.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 實作 reminder 模組（功能規格 1-5、1-6、3-1）：時段到推播長輩、每 10 分鐘再提醒最多 3 次、仍沒回應通知家人並附撥給長輩的 phone_call、長輩回應（僅本人）通知開啟回應通知的家人、家人提醒長輩吃藥、每天 09:00 起藥再 7 天吃完的回診提醒
+- 提醒語音照 1-5 範例，稱呼取自救命卡、不唸英文；回應通知寫「已回應」而非「已經吃藥」
+- 排程以單一 SQL 建立與領取，重複呼叫不重複推播；延誤超過 30 分鐘不補發
+- 實作 internal /internal/tick 與 demo 觸發 API（reminder、no-response、refill）
+- 新增 migration：reminder_events.scheduled_date（以台北日期判斷重複）、refill_notices
+- medication、auth、emergency_card、family 新增供提醒使用的方法
+- 新增 tests/test_reminder.py（13 個），共 86 個測試通過
+- 更新 reminder、internal、demo、modules、tests 等 README 與規格書 §5.2、§6.1、§6.2、§7.2、§11.2
+[Modified Time]: 1107184756
+[Modified Position]: microservice/backend/app/modules/reminder/, microservice/backend/app/modules/internal/, microservice/backend/app/modules/demo/router.py, microservice/backend/alembic/versions/20261107_70c6a238747c_reminder_scheduled_date_refill_notices.py, microservice/backend/tests/, microservice/docs/backend-spec.md

@@ -19,6 +19,7 @@ from app.modules.emergency_card.models import (
     ConsentType,
     EmergencyCard,
     EmergencyContact,
+    Gender,
 )
 from app.modules.emergency_card.repository import EmergencyCardRepository
 from app.modules.emergency_card.schemas import (
@@ -208,6 +209,13 @@ class EmergencyCardService:
         await self.session.commit()
         await self._notify_family(card.elder_id, responder, now)
         return result
+
+    # ---------- 提供給其他模組（呼叫端自行檢查權限） ----------
+
+    async def elder_title(self, elder_id: UUID) -> tuple[str, Gender | None] | None:
+        """救命卡上的稱呼與性別（吃藥提醒語音用）；還沒建立救命卡時回傳 None。"""
+        card = await self.repo.get_card(elder_id)
+        return (card.title, card.gender) if card else None
 
     # ---------- 內部 ----------
 

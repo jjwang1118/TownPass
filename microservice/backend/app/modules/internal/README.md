@@ -2,24 +2,32 @@
 
 Cloud Run 沒有請求時會關機，程式內的排程器不可靠，所以由 Cloud Scheduler 每分鐘呼叫一次 `/internal/tick`。規格書 §6.1。
 
-**狀態**：待實作（會呼叫 `reminder` 的方法，目前回 501）
+**狀態**：✅ 完成（吃藥提醒、回診提醒）；預約提醒待 appointment 模組完成後加入。
 
 ## API
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/internal/tick` | 需要 `X-Internal-Secret` header；不出現在 API 文件 |
+| POST | `/internal/tick` | 需要 `X-Internal-Secret` header（值為 `INTERNAL_SECRET`）；不出現在 API 文件 |
+
+回應：`{"created": 1, "repushed": 0, "escalated": 0, "refill": 0}`，分別是新建立的提醒、重新提醒、通知家人沒有回應、回診提醒的數量。
+
+本機手動觸發：
+
+```bash
+curl -X POST http://localhost:8000/api/v1/internal/tick -H "X-Internal-Secret: dev-internal-secret"
+```
 
 ## 檔案
 
 - `router.py`：驗證呼叫者
 - `service.py`：`TickService` 依序呼叫各模組的排程工作，本身沒有業務規則
 
-## 待加入的工作
+## 待加入
 
-- 回診提醒：每天 09:00，藥再 7 天吃完
-- 預約提醒：前一天 18:00、當天 08:00
+- 預約提醒：前一天 18:00、當天 08:00（appointment 模組）
+- 正式版改為驗證 Cloud Scheduler 的 OIDC token
 
 ## 依賴
 
-- `reminder`、`appointment`
+- `reminder`

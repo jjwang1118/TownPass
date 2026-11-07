@@ -52,6 +52,8 @@
 
 **`list_family_ids(elder_id, ack_subscribers_only=False)`**：要通知的家人。`ack_subscribers_only=True` 時只回傳有開啟「長輩回應通知」的家人。
 
+**`list_family_members(elder_id)`**：家人與他們對長輩的稱呼（如「媽媽」）、是否開啟回應通知，用於組通知文字。
+
 ## 依賴
 
 - `auth`：`get_me()`、`get_profiles()` 查身分與姓名

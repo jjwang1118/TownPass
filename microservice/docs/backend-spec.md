@@ -317,21 +317,24 @@ microservice/backend/
 
 #### 提醒
 
-**`reminder_events`**：每個時段每天一筆。
+**`reminder_events`**：每位長輩、每個時段、每天最多一筆。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | id | uuid PK | |
 | elder_id | uuid FK users | |
 | slot_key | enum | |
+| scheduled_date | date | 台北日期 |
 | scheduled_at | timestamptz | 該次提醒時間 |
-| items | jsonb | 快照：`[{"number":1,"name":"…","qty":2}]` |
+| items | jsonb | 快照：`[{"number":1,"name":"…","qty":"2"}]` |
 | attempts | int | 已推播次數（1～3） |
 | last_pushed_at | timestamptz | |
 | acked_at | timestamptz NULL | 長輩按「好，我知道了」 |
 | escalated_at | timestamptz NULL | 已通知家人「沒有回應」 |
 
-唯一索引：`(elder_id, slot_key, scheduled_at)`，避免排程重複建立。
+唯一索引：`(elder_id, slot_key, scheduled_date)`，避免排程重複建立；當天改了時段時間也不會重複提醒。
+
+**`refill_notices`**：回診提醒的發送紀錄，`(elder_id, run_out_date)` 為主鍵，同一個吃完日只發一次。
 
 #### 救命卡
 
@@ -482,13 +485,15 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 工作 | 條件 | 動作 |
 |---|---|---|
-| 建立提醒 | 某長輩某時段時間已到，且該時段有藥、今天還沒建立 | 建 `reminder_events`，推播長輩（第 1 次） |
+| 建立提醒 | 某長輩某時段時間已到（延誤 30 分鐘內），該時段有藥、今天還沒建立 | 建 `reminder_events`，推播長輩（第 1 次） |
 | 重新提醒 | 未回應，距上次推播滿 10 分鐘，`attempts < 3` | 推播長輩，`attempts + 1` |
-| 通知家人沒有回應 | 未回應，第 3 次推播後滿 10 分鐘，尚未通知 | 推播所有綁定家人，附長輩電話；寫入 `escalated_at` |
-| 回診提醒 | 每天 09:00；有藥品的吃完日 = 今天 + 7 | 推播長輩與家人：「1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋」 |
-| 預約提醒 | 預約前一天 18:00、當天 08:00 | 推播長輩與家人 |
+| 通知家人沒有回應 | 未回應，第 3 次推播後滿 10 分鐘，尚未通知 | 推播所有綁定家人，`data.call` 為撥給長輩的 `phone_call` 訊息；寫入 `escalated_at` |
+| 回診提醒 | 每天 09:00 起；有藥品的吃完日 = 今天 + 7，且尚未發過（`refill_notices`） | 推播長輩與家人：「1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋」 |
+| 預約提醒（待 appointment 模組） | 預約前一天 18:00、當天 08:00 | 推播長輩與家人 |
 
 重新提醒的間隔（10 分鐘）先用預設值，Demo 時可用環境變數縮短。
+
+「建立」和「領取要重新提醒／通知家人的提醒」都用一條 SQL（`INSERT … ON CONFLICT DO NOTHING RETURNING`、`UPDATE … RETURNING`）完成，排程同時被呼叫兩次也只有一次會發出推播。
 
 ### 6.2 推播內容
 
@@ -505,11 +510,11 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 | type | 對象 | 文字範例 |
 |---|---|---|
 | `medication_reminder` | 長輩 | 阿嬤，吃藥時間到囉～飯後吃：1 號 2 顆、3 號 1 顆 |
-| `medication_acked` | 家人（`notify_on_ack`） | 媽媽 18:00 已經吃藥了 |
+| `medication_acked` | 家人（`notify_on_ack`） | 媽媽已回應 18:00 的吃藥提醒（按「好，我知道了」不代表已經吃藥，所以不寫「已經吃藥了」） |
 | `medication_no_response` | 家人 | 媽媽 18:00 的吃藥提醒沒有回應，要不要打給她？ |
-| `medication_nudge` | 長輩 | 女兒提醒你吃藥喔 |
+| `medication_nudge` | 長輩 | 陳小美提醒你吃藥喔（家人的台北通姓名） |
 | `card_accessed` | 家人 | 臺北市消防局中山分隊王大明於 15:20 查看了媽媽的救命卡（「媽媽」是各家人自己設定的稱呼；`data.call` 為撥給該分隊的 `phone_call` 訊息） |
-| `refill_reminder` | 長輩、家人 | 1 號、3 號的藥再 7 天就吃完囉 |
+| `refill_reminder` | 長輩、家人 | 1 號、3 號的藥再 7 天就吃完囉，要記得回診或領慢箋 |
 | `appointment_reminder` | 長輩、家人 | 明天上午 仁愛院區 家醫科 林醫師 |
 
 全螢幕提醒、聲音、震動、閃光、國台語朗讀由 App 與前端處理，後端只提供 `items` 與稱呼。
@@ -580,10 +585,10 @@ Cloud Scheduler 每分鐘呼叫一次，用 OIDC token 驗證呼叫者（本機�
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/reminders/{event_id}` | 提醒畫面資料：稱呼、時段、`items` |
-| POST | `/reminders/{event_id}/ack` | 長輩按「好，我知道了」 |
+| GET | `/reminders/{event_id}` | 提醒畫面資料：稱呼、時段、`items`、朗讀稿 `speech_text`、狀態 |
+| POST | `/reminders/{event_id}/ack` | 長輩按「好，我知道了」（只有長輩本人，家人不能代按） |
 | GET | `/elders/{elder_id}/reminders?date=` | 某天的提醒與回應狀態 |
-| POST | `/elders/{elder_id}/nudge` | 家人提醒長輩吃藥 |
+| POST | `/elders/{elder_id}/nudge` | 綁定的家人提醒長輩吃藥 |
 
 **emergency_card**
 
@@ -726,9 +731,9 @@ Dockerfile 啟動時讀取 Cloud Run 提供的 `PORT`。
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/demo/trigger/reminder` | 立即觸發長輩的吃藥提醒 |
-| POST | `/demo/trigger/no-response` | 立即觸發「沒有回應」通知家人 |
-| POST | `/demo/trigger/refill` | 立即觸發回診提醒 |
+| POST | `/demo/trigger/reminder?elder_id=` | 立即提醒今天第一個有藥的時段（已提醒過就重新開始） |
+| POST | `/demo/trigger/no-response?elder_id=` | 把最近一筆未回應的提醒當作 3 次沒回應，立即通知家人 |
+| POST | `/demo/trigger/refill?elder_id=` | 立即發回診提醒（最快吃完的那幾號藥） |
 
 **Demo 順序**：路人掃 QR 只看到「請撥 119」→ 救護人員登入後掃同一張卡看到完整資料 → 女兒手機收到「救護人員查看了媽媽的救命卡」。
 

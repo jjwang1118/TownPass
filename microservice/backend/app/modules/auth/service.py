@@ -51,6 +51,10 @@ class AuthService:
     async def get_me(self, user_id: UUID) -> MeOut:
         return self._me(await self._get(user_id))
 
+    async def get_phone(self, user_id: UUID) -> str:
+        """台北通登記的電話（加密儲存），給家人一鍵撥號用。"""
+        return (await self._get(user_id)).phone
+
     async def get_profiles(self, user_ids: list[UUID]) -> dict[UUID, MeOut]:
         """給其他模組查詢多位使用者的姓名、身分。"""
         users = await self.users.list_by_ids(list(set(user_ids)))

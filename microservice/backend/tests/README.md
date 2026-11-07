@@ -11,6 +11,7 @@
 | `test_family.py` | 邀請碼、綁定、權限檢查 | 是 |
 | `test_medication.py` | 掃藥袋 QR、編號、同成分警示、藥卡、停用、時段、下一次吃藥、家人權限 | 是 |
 | `test_emergency_card.py` | 救命卡、同意、卡號、救護人員登入與查詢、通知家人、完整 Demo 流程 | 是 |
+| `test_reminder.py` | 時段提醒、再提醒 3 次、通知家人、回應、提醒家人、回診提醒、Demo 觸發 | 是 |
 
 ## 資料庫
 

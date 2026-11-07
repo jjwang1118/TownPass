@@ -76,6 +76,9 @@ App qr_code_scan ─▶ POST qr-preview ─▶ 確認畫面（核對藥名、劑
 | `doses_for_slot(elder_id, slot_key, day)` | 提醒 | 某天某時段要吃的藥 |
 | `slot_times(elder_id)` | 提醒 | 7 個時段的時間 |
 | `last_visit(elder_id)` | 回診預約 | 最近一次開藥的院區、科別、醫師 |
+| `elders_scheduled_on(day)` | 提醒排程 | 這天有藥要吃的長輩 |
+| `running_out_on(day)` | 回診提醒 | 在這天吃完的藥，依長輩分組 |
+| `soonest_run_out(elder_id)` | Demo | 最快吃完的那幾號藥 |
 
 ## 依賴
 

@@ -49,4 +49,4 @@ def test_schema_compiles_for_postgresql() -> None:
         str(CreateTable(table).compile(dialect=dialect))
         for index in table.indexes:
             str(CreateIndex(index).compile(dialect=dialect))
-    assert len(metadata.tables) == 19
+    assert len(metadata.tables) == 20

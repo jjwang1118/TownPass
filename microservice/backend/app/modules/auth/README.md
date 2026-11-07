@@ -20,6 +20,7 @@
 
 - `get_me(user_id)`：身分與姓名
 - `get_profiles(user_ids)`：一次查多位使用者，回傳 `{user_id: MeOut}`
+- `get_phone(user_id)`：台北通電話（家人一鍵撥號給長輩）
 
 ## 依賴
 
