@@ -27,6 +27,7 @@ export interface MedicationOut {
   meal_timing: MealTimingApi
   days_left: number
   status: 'active' | 'stopped'
+  speech_text_en: string
 }
 
 export interface PrescriptionOut {

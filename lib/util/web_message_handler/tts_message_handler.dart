@@ -64,16 +64,24 @@ class _Tts {
 
   static String _norm(Object? lang) => '$lang'.replaceAll('_', '-').toLowerCase();
 
-  /// 中文（國語）語音的優先順序；粵語（zh-HK、yue）不使用。
+  static String _base(String locale) => locale.split('-').first;
+
+  static bool _isChinese(String locale) => _base(locale) == 'zh' || _base(locale) == 'cmn';
+
+  /// 語音的優先順序：語言完全相同最優先。
+  /// 中文：台灣中文優先，粵語（zh-HK、yue）不使用；其他語言（例如 en-US）：其次是同語系（en-GB…）。
   static int _rank(String locale, String target) {
     if (locale == target) return 3;
-    if (locale == 'cmn-hant-tw' || locale == 'zh-hant-tw') return 2;
-    if (locale.startsWith('zh-hk') || locale.startsWith('yue')) return -1;
-    if (locale.startsWith('zh') || locale.startsWith('cmn')) return 1;
-    return -1;
+    if (_isChinese(target)) {
+      if (locale == 'cmn-hant-tw' || locale == 'zh-hant-tw') return 2;
+      if (locale.startsWith('zh-hk') || locale.startsWith('yue')) return -1;
+      if (_isChinese(locale)) return 1;
+      return -1;
+    }
+    return _base(locale) == _base(target) ? 1 : -1;
   }
 
-  /// 挑離線的中文語音並設定；回傳失敗原因，成功回傳 null。
+  /// 挑該語言的離線語音並設定；回傳失敗原因，成功回傳 null。
   static Future<String?> _selectVoice(String lang) async {
     if (_voiceLang == lang) return null;
     final target = _norm(lang);
@@ -83,12 +91,12 @@ class _Tts {
 
     Map? best;
     var bestRank = -1;
-    var hasChinese = false;
+    var hasLanguage = false;
     for (final v in voices) {
       if (v is! Map) continue;
       final rank = _rank(_norm(v['locale']), target);
       if (rank < 0) continue;
-      hasChinese = true;
+      hasLanguage = true;
       // Android 才有 network_required；iOS 的語音都在裝置上合成
       if (v['network_required'] == '1') continue;
       if (rank > bestRank) {
@@ -96,8 +104,11 @@ class _Tts {
         bestRank = rank;
       }
     }
-    _log('voices=${voices.length} chinese=$hasChinese chosen=${best?['name']} (${best?['locale']})');
-    if (best == null) return hasChinese ? 'no_offline_voice' : 'no_chinese_voice';
+    _log('voices=${voices.length} lang=$target found=$hasLanguage chosen=${best?['name']} (${best?['locale']})');
+    if (best == null) {
+      if (hasLanguage) return 'no_offline_voice';
+      return _isChinese(target) ? 'no_chinese_voice' : 'no_voice_for_language';
+    }
 
     final ok = await _tts
         .setVoice({'name': '${best['name']}', 'locale': '${best['locale']}'})

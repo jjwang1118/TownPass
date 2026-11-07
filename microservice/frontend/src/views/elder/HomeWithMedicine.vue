@@ -14,7 +14,7 @@ import { SLOTS } from '@/data/constants'
 import { activeMedicines, state, upcomingAppointments } from '@/store'
 import { useTts } from '@/composables/useTts'
 import { medicinesInSlot, nextMedicineSlot, slotStatuses } from '@/utils/schedule'
-import { medicineSpeech, slotSpeech } from '@/utils/speech'
+import { medicineSpeech, slotNameEn, slotSpeech } from '@/utils/speech'
 import type { IconName } from '@/components/AppIcon.vue'
 
 const props = defineProps<{ now: Date }>()
@@ -35,7 +35,12 @@ const nextLabel = computed(() => {
 
 function speakNext() {
   if (!next.value) return
-  speak(slotSpeech(`下一次吃藥，${nextLabel.value}`, nextMeds.value), state.lang)
+  const { slot, tomorrow } = next.value
+  const title =
+    state.lang === 'en'
+      ? `Next medicine: ${tomorrow ? 'tomorrow ' : ''}${slotNameEn(slot.key)}`
+      : `下一次吃藥，${nextLabel.value}`
+  speak(slotSpeech(title, nextMeds.value, state.lang), state.lang)
 }
 
 const entries: { icon: IconName; title: string; subtitle: string; to: string }[] = [
@@ -63,7 +68,7 @@ const entries: { icon: IconName; title: string; subtitle: string; to: string }[]
         :department="m.rx.department"
         show-department
         @click="router.push(`/elder/slot/${next.slot.key}`)"
-        @speak="speak(medicineSpeech(m), state.lang)"
+        @speak="speak(medicineSpeech(m, false, state.lang), state.lang)"
       />
       <div class="read-row">
         <ReadAloudButton @click="speakNext" />

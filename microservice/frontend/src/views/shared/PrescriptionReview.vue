@@ -60,7 +60,7 @@ onMounted(() => {
           :id="`med-${m.code}`"
           :medicine="m"
           @edit="router.push(`/elder/add/medicine/${i}`)"
-          @speak="speak(medicineSpeech(m, true), state.lang)"
+          @speak="speak(medicineSpeech(m, true, state.lang), state.lang)"
         />
         <p v-if="m.uncertain" class="uncertain font-h3-regular">電腦不確定這一項，請照藥袋核對</p>
         <CheckRow v-model="m.checked" :described-by="`med-${m.code}`">核對無誤</CheckRow>

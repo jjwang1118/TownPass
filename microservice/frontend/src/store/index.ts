@@ -160,6 +160,7 @@ function load(): State {
     PERSISTED.forEach((key) => {
       if (saved[key] !== undefined) (base as unknown as Record<string, unknown>)[key] = saved[key]
     })
+    if (base.lang !== 'en') base.lang = 'zh' // 舊版存過的「台語」（nan）改回國語
   } catch {
     /* 讀取失敗時用預設值 */
   }
