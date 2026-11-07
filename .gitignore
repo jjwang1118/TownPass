@@ -91,3 +91,14 @@ app.*.map.json
 .fvm/
 
 # develop document
+Note.md
+
+#resent docs 開發過程產物
+/resent_docs/
+
+# microservice 建置產物
+microservice/**/node_modules/
+microservice/**/dist/
+microservice/**/target/
+microservice/**/.env
+microservice/**/.firebase/

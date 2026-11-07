@@ -13,3 +13,10 @@
 [Modified Time]: 1107142543
 [Modified Position]: Claude.md:65-75
 
+
+[Agent name]: other 工程師
+[Modified Description]:
+- 新增 microservice/ 目錄，底下建立 frontend/、backend/、docs/（各放 .gitkeep 讓 git 追蹤空資料夾）
+- .gitignore 新增微服務建置產物：node_modules、dist、target、.env、.firebase
+[Modified Time]: 1107160741
+[Modified Position]: microservice/, .gitignore:99-104
