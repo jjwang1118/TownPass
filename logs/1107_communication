@@ -80,3 +80,47 @@
 [Modified Time]: 1107163235
 
 [Modified Position]: CLAUDE.md:69-91
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 新增後端開發規格書：規格決議、角色權限、三層架構、資料表、排程推播、API、格式、部署、Demo
+- 移除 microservice/docs/.gitkeep（資料夾已有檔案）
+[Modified Time]: 1107164837
+[Modified Position]: microservice/docs/backend-spec.md:1-721
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 建立後端骨架 microservice/backend/：FastAPI 三層架構（router/service/repository）、9 個模組、19 張資料表、Alembic、Dockerfile、compose.yaml、測試
+- 完整實作：台北通登入（userinfo）、身分選擇、推播 token 登記、時段分配與卡號等純計算規則；其餘 service 先回 501
+- 新增 app/integrations/townpass/messages.py：依入門指引第 03 章與 App 原始碼定義 { name, data } 訊息格式，App 的回覆由前端原封不動轉給後端
+- 規格書新增 §2.3 與城市通 App 的溝通，並更新相關 API 說明
+[Modified Time]: 1107170537
+[Modified Position]: microservice/backend/, microservice/docs/backend-spec.md:76-104
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 產生並套用第一版 migration（19 張資料表），已在本機 PostgreSQL 驗證
+- alembic/env.py 新增 render_item：加密欄位等自訂型別在 migration 中寫成底層型別（sa.Text），避免缺少 import
+- JWT_SECRET 預設值加長到 32 字元以上，.env.example 補上產生方式
+- README 更新第一次啟動與新增 migration 的步驟
+[Modified Time]: 1107172152
+[Modified Position]: microservice/backend/alembic/env.py, microservice/backend/alembic/versions/, microservice/backend/app/core/config.py:13, microservice/backend/.env.example:3-4, microservice/backend/README.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- backend 每個目錄新增 README.md（共 23 個），說明該層的檔案、API、資料表、依賴與實作狀態
+- backend/README.md 新增完整目錄樹與「不用前端也能開發與測試」說明
+- 移除 alembic/versions、seed 的 .gitkeep（已有 README）
+[Modified Time]: 1107173005
+[Modified Position]: microservice/backend/**/README.md
+
+[Agent name]: 後端工程師
+[Modified Description]:
+- 實作 family 模組：邀請碼（6 位數、10 分鐘、只能用一次、新碼使舊碼失效）、綁定、修改、完成初始設定、解除
+- 實作權限檢查 ensure_access（READ/WRITE）與 list_family_ids，供其他模組使用
+- 綁定 API 可接收 App 的 qr_code_scan 回覆或手動輸入的邀請碼；邀請碼回應新增 qr_url
+- auth 新增 get_profiles 批次查詢使用者
+- 新增測試資料庫環境 tests/conftest.py 與 tests/test_family.py（18 個測試），共 39 個測試通過
+- 更新 family、modules、auth、tests 的 README 與規格書 §2.3、§7.2
+[Modified Time]: 1107173841
+[Modified Position]: microservice/backend/app/modules/family/, microservice/backend/app/modules/auth/repository.py, microservice/backend/app/modules/auth/service.py, microservice/backend/tests/, microservice/docs/backend-spec.md:94,554-555
