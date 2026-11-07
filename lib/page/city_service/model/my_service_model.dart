@@ -189,7 +189,9 @@ extension MyServiceIdExt on MyServiceItemId {
         description: '老人',
         icon: Assets.svg.iconCovidMedical.svg(),
         category: MyServiceCategory.cityLife,
-        destinationUrl: 'https://my-service.web.app/',
+        // 開發用：先執行 `adb reverse tcp:5173 tcp:5173`，模擬器的 localhost:5173 即連到本機 Vite 開發伺服器
+        // （localhost 屬於安全來源，網頁才能使用相機）；正式部署後改回正式 https 網址
+        destinationUrl: 'http://localhost:5173/',
       )
     };
   }

@@ -1,0 +1,9 @@
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依使用者要求，將 frontend-impl worktree 現有的模擬器本機開發設定納入 frontend 分支：debug build 允許 HTTP，呷藥囉服務指向 http://localhost:5173/，搭配 adb reverse tcp:5173 tcp:5173。
+- 保留目前 QR Code 上傳與網址型藥單 OCR 串接內容，前端 npm run build（含 TypeScript 型別檢查）通過。
+
+[Modified Time]: 1108013441
+
+[Modified Position]: android/app/src/debug/AndroidManifest.xml:7、lib/page/city_service/model/my_service_model.dart:192
