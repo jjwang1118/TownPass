@@ -33,8 +33,10 @@ def test_builtin_names_match_app_source() -> None:
 
     names = set(re.findall(r"String get name => '([^']+)';", HANDLERS.read_text(encoding="utf-8")))
     assert names == {m.value for m in BuiltinMessageName}
+    # 自訂 handler（例如朗讀的 tts_message_handler.dart）可放在同目錄的其他檔案
+    all_handlers = "".join(p.read_text(encoding="utf-8") for p in HANDLERS.parent.glob("*.dart"))
     for cls in re.findall(r"(\w+)\(\),", LISTENER.read_text(encoding="utf-8")):
-        assert cls in HANDLERS.read_text(encoding="utf-8")
+        assert f"class {cls} " in all_handlers
 
 
 def test_userinfo_reply_parses_app_mock_account() -> None:
