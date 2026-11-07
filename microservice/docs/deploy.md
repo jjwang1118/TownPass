@@ -66,7 +66,7 @@ docker compose --profile app up -d --build
 | 給誰用 | 網址 |
 |---|---|
 | 模擬器裡的 App、前端呼叫後端 | `http://10.0.2.2:8000/api/v1` |
-| 模擬器裡的服務網址（`my_service_model.dart` 的 `destinationUrl`） | `http://10.0.2.2:5173/` |
+| 模擬器裡的服務網址（`my_service_model.dart` 的 `destinationUrl`） | `http://10.0.2.2:5173/`（電腦上要有網頁伺服器開在 port 5173，目前用法見 §6「測試朗讀」） |
 | 電腦瀏覽器開前端 | `http://localhost:5173`（已在 `EXTRA_CORS_ORIGINS` 允許） |
 
 **App 已經設定好允許 http**：Android 9 以上預設只允許 https，所以在 `android/app/src/debug/` 加了 `network_security_config.xml`，**只在 debug 版**允許連 `10.0.2.2`、`localhost`。用 Android Studio 或 `fvm flutter run` 跑的就是 debug 版；release 版不受影響。
@@ -136,7 +136,7 @@ adb shell dumpsys package com.example.townpass | findstr lastUpdateTime   # Mac 
 
 前端還沒接上時，可以用朗讀測試頁：
 
-1. 在 `microservice/frontend` 執行 `python -m http.server 5173`。
+1. **另外開一個終端機**，在 `microservice/frontend` 執行 `python -m http.server 5173`，**測試期間不要關**。電腦瀏覽器打開 <http://localhost:5173/tts/> 看得到測試頁才算成功。
 2. **暫時**把 `lib/page/city_service/model/my_service_model.dart` 中「呷藥囉」的 `destinationUrl` 改成 `http://10.0.2.2:5173/tts/`，重新安裝 App（**這個改動不要 commit**）。
 3. 開「服務 → 呷藥囉」，按「念給我聽」，應顯示「完成（使用：App 內建 TTS）」。第一次按可能要等 1–2 秒（引擎初始化）。
 4. 開**飛航模式**再按一次，確認離線也能念。
@@ -177,6 +177,8 @@ uv run uvicorn app.main:app --reload       # 啟動後端（內建排程也會�
 | port 5432 或 8000 被佔用 | 是否同時開了 uv 跑的後端、或電腦上另外裝了 PostgreSQL |
 | 沒有收到提醒 | log 是否有 `[排程] 已啟動`；時段時間到了沒（或用 Demo 觸發）；推播內容是否出現在 log |
 | 建置 App 出現 NDK 授權錯誤 | Android Studio → SDK Manager 同意授權 |
+| App 裡打開「呷藥囉」是空白或顯示無法連線 | port 5173 的網頁伺服器有沒有開；電腦瀏覽器開 <http://localhost:5173/tts/> 是否正常；網址要用 `10.0.2.2` |
+| 啟動網頁伺服器時顯示 port 5173 已被使用 | 是否已經開了另一個伺服器（例如前端的開發伺服器），同一時間只能開一個 |
 | 朗讀顯示「App 沒有回應」 | App 是舊版：完整重新安裝並確認 `lastUpdateTime` 有更新（見 §6）；Logcat 按下時沒有 `[tts]` 紀錄也是同一個原因 |
 | 朗讀顯示「找不到離線的中文語音」 | 模擬器沒下載中文（台灣）語音資料（見 §6） |
 | 環境檢查顯示「speechSynthesis 不支援」「語音數量 0」 | Android WebView 本來就不支援，正常；朗讀靠 App |
@@ -186,6 +188,7 @@ uv run uvicorn app.main:app --reload       # 啟動後端（內建排程也會�
 
 - [ ] `docker compose --profile app up -d --build`，log 有 `[排程] 已啟動`
 - [ ] <http://localhost:8000/health> 正常
+- [ ] 前端網頁已開在 port 5173，電腦瀏覽器開得到（前端完成前用 §6 的 `python -m http.server 5173`）
 - [ ] `DEMO_MODE=true`
 - [ ] 兩台模擬器都裝好 debug 版 App、登入不同帳號
 - [ ] 拉下最新程式後 App 有**完整重新安裝**（`lastUpdateTime` 已更新）

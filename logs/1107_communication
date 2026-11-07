@@ -274,3 +274,15 @@
 [Modified Time]: 1107230539
 
 [Modified Position]: microservice/docs/deploy.md:30, microservice/docs/deploy.md:95, microservice/docs/deploy.md:疑難排解, microservice/docs/deploy.md:Demo 前檢查清單
+
+[Modified Description]:
+- 操作手冊（deploy.md）補 port 5173：§6 第 1 步註明另開終端機、測試期間不要關、用電腦瀏覽器確認；§3 網址表註明 5173 要有網頁伺服器；疑難排解新增「呷藥囉空白／無法連線」「5173 已被使用」；Demo 檢查清單新增前端伺服器一項
+- 英文朗讀稿（只改後端）：speech 模組新增 Lang.EN 與英文模板（藥卡、提醒、時間、顆數），新增 glossary.py 中英對照表（科別、用途、稱呼、姓氏、飯前飯後），查不到就不念；英文藥名用藥袋英文名或許可證英文品名，只有中文就不念
+- API：MedicationOut、ReminderOut 新增 speech_text_en；提醒快照新增 speech_name_en；MedicationRepository.zh_names_by_license 改為 names_by_license（中英文品名）
+- 修正 test_townpass_messages：自訂 handler 可放在同目錄其他檔案（前一個 commit 加 TTS handler 後此測試失敗）
+- 新增英文稿單元測試與整合測試預期；43 個測試通過；Docker 未啟動，72 個需資料庫的測試仍未實跑
+- 尚待前端與 App：speak(text, { lang: 'en-US' }) 目前只挑中文語音，需補英文離線語音選擇
+
+[Modified Time]: 1107232324
+
+[Modified Position]: microservice/docs/deploy.md, microservice/backend/app/modules/speech/rules.py, microservice/backend/app/modules/speech/glossary.py, microservice/backend/app/modules/speech/README.md, microservice/backend/app/modules/medication/repository.py:83, microservice/backend/app/modules/medication/service.py, microservice/backend/app/modules/medication/schemas.py:110, microservice/backend/app/modules/medication/README.md, microservice/backend/app/modules/reminder/service.py, microservice/backend/app/modules/reminder/schemas.py:28, microservice/backend/app/modules/reminder/README.md, microservice/backend/tests/, microservice/docs/backend-spec.md
