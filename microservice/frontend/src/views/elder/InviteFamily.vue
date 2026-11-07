@@ -2,23 +2,19 @@
 /**
  * EL-PG-17 長者：邀請家屬
  * - 邀請碼 6 碼數字，10 分鐘後失效；「換一組數字」立即重新產生並重新計時
- * - 朗讀固定使用國語
  * - 取消綁定 → EL-MD-01 確認彈窗
  */
 import { computed, onMounted, ref } from 'vue'
 import PageLayout from '@/components/PageLayout.vue'
 import InviteCodeCard from '@/components/cards/InviteCodeCard.vue'
 import FamilyMemberCard from '@/components/cards/FamilyMemberCard.vue'
-import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'
 import SecondaryButton from '@/components/buttons/SecondaryButton.vue'
 import UnbindDialog from '@/components/overlays/UnbindDialog.vue'
 import { ensureInviteValid, regenerateInvite, state, unbindFamily } from '@/store'
 import { useNow } from '@/composables/useNow'
-import { useTts } from '@/composables/useTts'
 import type { FamilyMember } from '@/types'
 
 const now = useNow(5_000)
-const { speak } = useTts()
 
 onMounted(ensureInviteValid)
 
@@ -26,10 +22,6 @@ const remainingMin = computed(() => Math.ceil((state.invite.expiresAt - now.valu
 const validText = computed(() =>
   remainingMin.value > 0 ? `${remainingMin.value} 分鐘內有效` : '這組數字已失效，請按「換一組數字」',
 )
-
-function readCode() {
-  speak(`邀請碼是：${state.invite.code.split('').join('，')}`, 'zh')
-}
 
 const pending = ref<FamilyMember | null>(null)
 
@@ -44,10 +36,7 @@ function confirmUnbind() {
     <h2 class="page-heading">請家屬輸入這組數字</h2>
     <p class="page-desc">家屬在自己手機的「呷藥囉」輸入後，就會收到您的用藥和回診提醒。</p>
     <InviteCodeCard :code="state.invite.code" :valid-text="validText" />
-    <div class="actions">
-      <ReadAloudButton flex label="唸出邀請碼" @click="readCode" />
-      <SecondaryButton size="narrow" @click="regenerateInvite">換一組數字</SecondaryButton>
-    </div>
+    <SecondaryButton @click="regenerateInvite">換一組數字</SecondaryButton>
 
     <h2 class="section-label">已綁定的家屬</h2>
     <FamilyMemberCard
@@ -67,11 +56,3 @@ function confirmUnbind() {
     />
   </PageLayout>
 </template>
-
-<style scoped>
-.actions {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-}
-</style>

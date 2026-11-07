@@ -3,7 +3,7 @@
  * CM-CRD-01 藥品卡
  * - showDepartment：EL-PG-01 顯示「科別｜功效｜時機」；EL-PG-03／FM-PG-04 只顯示「功效｜時機」
  * - clickable：長者可點整列；家屬視角不可點
- * - 單顆朗讀不冒泡至整列；speakable=false 時不顯示喇叭（時段詳情改由「全部唸給我聽」一次念完）
+ * - 單顆朗讀不冒泡至整列；speakable=false 時不顯示喇叭（時段詳情改由「語音總覽」一次念完）
  */
 import { computed } from 'vue'
 import ReadAloudButton from '@/components/buttons/ReadAloudButton.vue'

@@ -37,7 +37,7 @@ const speechHeading = computed(() =>
   <PageLayout title="用藥詳情" :fallback="fallback">
     <h2 class="page-heading">{{ heading }}</h2>
     <div class="read-row">
-      <ReadAloudButton label="全部唸給我聽" @click="speak(slotSpeech(speechHeading, meds, state.lang), state.lang)" />
+      <ReadAloudButton label="語音總覽" @click="speak(slotSpeech(speechHeading, meds, state.lang), state.lang)" />
       <LanguageSwitch v-model="state.lang" />
     </div>
 

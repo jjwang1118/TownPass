@@ -283,3 +283,29 @@
 [Modified Time]: 1108062843
 
 [Modified Position]: microservice/frontend/src/components/buttons/ReadAloudButton.vue:24, microservice/frontend/src/components/cards/MedicineCard.vue:24, microservice/frontend/src/views/elder/HomeWithMedicine.vue:63, microservice/frontend/src/views/elder/PrescriptionDetail.vue:55, microservice/frontend/src/views/shared/SlotDetail.vue:40, microservice/frontend/src/views/elder/InviteFamily.vue:48, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
+
+[Modified Description]:
+- 藥名對齊健保資料：拍照辨識（含 OCR）比對成功、或藥袋 QR 帶健保碼時，藥名改用健保資料的名稱，格式和手動藥名搜尋相同（英文名稱＋劑量，例如脈優錠、Amlodipine 5 毫克 → Norvasc 5 毫克）；比對不到保留原文；手動與修改後的再看一次不改名
+- 測試：QR 範例的學名改為官方名稱的預期（Norvasc、Bokey）；新增 test_ocr_preview_official_name（拍藥袋與藥名搜尋名稱一致、比對不到保留原文）；後端 193 個測試通過
+- 更新規格書 §8.3 與 medication README
+- 吃藥推播：查明前端本機通知只在 App 開著呷藥囉時會跳；後端推播未設定 Firebase、App 無 push_token handler，未修改（使用者表示長輩與家屬推播另有人在做）
+
+[Modified Time]: 1108064825
+
+[Modified Position]: microservice/backend/app/modules/medication/service.py:535, microservice/backend/tests/test_medication.py:107, microservice/backend/tests/test_medication.py:366, microservice/backend/tests/test_emergency_card.py:110, microservice/docs/backend-spec.md:711, microservice/backend/app/modules/medication/README.md:38
+
+[Modified Description]:
+- 邀請家屬頁移除「唸出邀請碼」朗讀按鈕（使用者覺得用不到）；「換一組數字」改為標準版按鈕獨佔一行
+- 更新介面規格 EL-PG-17、元件規格 CM-BTN-01（標註原稿有朗讀按鈕、實作已移除）
+- 驗證：vue-tsc、npm run build 通過
+
+[Modified Time]: 1108065140
+
+[Modified Position]: microservice/frontend/src/views/elder/InviteFamily.vue:41, microservice/docs/front_specific/interfaces/EL-PG-17.md:11, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:10
+
+[Modified Description]:
+- 時段詳情的整區朗讀按鈕文字「全部唸給我聽」改為「語音總覽」（使用者建議用總覽類的名詞）
+
+[Modified Time]: 1108065405
+
+[Modified Position]: microservice/frontend/src/views/shared/SlotDetail.vue:40, microservice/frontend/src/components/cards/MedicineCard.vue:6, microservice/docs/front_specific/components/BTN/CM-BTN-01.md:13
