@@ -1,10 +1,12 @@
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
@@ -98,10 +100,35 @@ class TPWebView extends StatelessWidget {
           // should be deal individually (ask for user agreement)
           return GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true);
         },
+        // 微服務網頁（如藥報平安拍藥袋／掃 QR Code）透過 getUserMedia 使用相機
+        initialSettings: InAppWebViewSettings(
+          mediaPlaybackRequiresUserGesture: false,
+          allowsInlineMediaPlayback: true,
+        ),
+        onPermissionRequest: _onPermissionRequest,
         onCloseWindow: (_) => Get.back(),
       ),
     );
   }
+}
+
+/// 網頁要求使用相機／麥克風時：
+/// - Android：先向使用者請求 App 的系統權限，同意後才授權給網頁
+/// - iOS：WKWebView 會自行跳出系統權限詢問，這裡直接授權
+Future<PermissionResponse> _onPermissionRequest(
+  InAppWebViewController controller,
+  PermissionRequest request,
+) async {
+  if (Platform.isAndroid) {
+    final needCamera = request.resources.contains(PermissionResourceType.CAMERA);
+    final needMic = request.resources.contains(PermissionResourceType.MICROPHONE);
+    final cameraOk = !needCamera || await Permission.camera.request().isGranted;
+    final micOk = !needMic || await Permission.microphone.request().isGranted;
+    if (!cameraOk || !micOk) {
+      return PermissionResponse(resources: request.resources, action: PermissionResponseAction.DENY);
+    }
+  }
+  return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
 }
 
 class TPInAppWebView extends StatelessWidget {

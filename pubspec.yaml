@@ -49,6 +49,8 @@ dependencies:
   json_annotation: ^4.12.0
   mobile_scanner: ^7.4.2
   package_info_plus: ^10.2.2
+  # 微服務網頁（藥報平安）在 WebView 內使用相機時，向使用者請求相機權限（MIT）
+  permission_handler: ^11.3.1
   shared_preferences: ^2.5.6
   shimmer: ^4.0.0
   url_launcher: ^6.3.3

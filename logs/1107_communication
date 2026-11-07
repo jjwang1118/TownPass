@@ -180,3 +180,14 @@
 [Modified Time]: 1107233600
 
 [Modified Position]: microservice/frontend/src/utils/card.ts、microservice/frontend/src/data/mock.ts、microservice/frontend/src/store/index.ts、microservice/frontend/src/components/cards/EmergencyCardBody.vue、microservice/frontend/src/views/shared/EmergencyCardView.vue、microservice/frontend/src/views/elder/MyEmergencyCard.vue、microservice/frontend/src/views/rescue/RescueEmergencyCard.vue、microservice/frontend/src/views/family/RescueViewNotice.vue
+
+[Modified Description]:
+- 依使用者需求，讓拍藥袋／掃 QR Code 兩個相機頁一進入就能開啟相機鏡頭
+- 原因：網頁以 http://10.0.2.2 載入不是安全來源，瀏覽器不提供 getUserMedia；城市通 WebView 也未處理網頁的相機權限請求，App 未向使用者請求相機權限
+- TPWebView 新增 onPermissionRequest：Android 先以 permission_handler 請求系統相機／麥克風權限，同意後授權給網頁；iOS 交由 WKWebView 自行詢問；並開啟 allowsInlineMediaPlayback、關閉 mediaPlaybackRequiresUserGesture
+- pubspec 新增 permission_handler（MIT）
+- 開發用：elderlyCare destinationUrl 改為 http://localhost:5173/，搭配 adb reverse tcp:5173 tcp:5173（localhost 為安全來源，未 commit）
+
+[Modified Time]: 1107235000
+
+[Modified Position]: lib/util/tp_web_view.dart、pubspec.yaml、pubspec.lock、lib/page/city_service/model/my_service_model.dart:192
