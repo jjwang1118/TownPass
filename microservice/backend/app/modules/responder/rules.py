@@ -1,4 +1,6 @@
-"""救護人員的固定資料。"""
+"""救護人員的固定資料與規則。"""
+
+import re
 
 AGENCY = "臺北市政府消防局"
 
@@ -17,3 +19,11 @@ UNITS = [
     "南港分隊",
     "文山分隊",
 ]
+
+
+# 身分證字號（含新式居留證）：英文字母＋1、2、8、9 開頭的 9 位數字。只檢查格式，不驗檢查碼（Demo 帳號為範例號碼）
+_ID_NO = re.compile(r"[A-Z][1289]\d{8}")
+
+
+def is_id_no(raw: str) -> bool:
+    return _ID_NO.fullmatch(raw.strip().upper()) is not None

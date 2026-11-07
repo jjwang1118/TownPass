@@ -10,6 +10,7 @@ import EmptyStateCard from '@/components/cards/EmptyStateCard.vue'
 import NextVisitCard from '@/components/cards/NextVisitCard.vue'
 import PrimaryButton from '@/components/buttons/PrimaryButton.vue'
 import FeatureEntry from '@/components/cards/FeatureEntry.vue'
+import StaffEntryButton from '@/components/buttons/StaffEntryButton.vue'
 import GreetingBlock from './GreetingBlock.vue'
 import { upcomingAppointments } from '@/store'
 import type { IconName } from '@/components/AppIcon.vue'
@@ -46,5 +47,7 @@ const entries: { icon: IconName; title: string; subtitle: string; to: string }[]
       :subtitle="e.subtitle"
       @click="router.push(e.to)"
     />
+
+    <StaffEntryButton />
   </PageLayout>
 </template>

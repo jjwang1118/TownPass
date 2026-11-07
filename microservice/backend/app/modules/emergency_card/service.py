@@ -159,6 +159,17 @@ class EmergencyCardService:
 
     # ---------- 救護人員查詢（由 responder 模組呼叫） ----------
 
+    async def code_for_id_no(self, id_no: str) -> str | None:
+        """救護人員以身分證字號查詢：找出該長輩目前有效的救命卡卡號；沒有長輩、沒有建卡或已撤回同意時回 None。"""
+        for elder_id in await self.auth.elder_ids_by_id_no(id_no):
+            card = await self.repo.get_card(elder_id)
+            if card is None:
+                continue
+            code = await self.repo.active_code(card.id)
+            if code is not None:
+                return code.code
+        return None
+
     async def lookup_for_responder(
         self,
         responder: ResponderInfo,

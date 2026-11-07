@@ -21,3 +21,5 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     real_name: Mapped[str] = mapped_column(String(64))
     phone: Mapped[str] = mapped_column(EncryptedText)
     birth_year: Mapped[int | None]
+    # 身分證字號的 HMAC（不存明碼），救護人員以身分證字號查詢救命卡用；舊資料在下次登入時補上
+    id_no_hash: Mapped[str | None] = mapped_column(String(64), index=True)

@@ -90,7 +90,7 @@ class TownPassAccount(_CamelModel):
     account: str
     username: str
     real_name: str
-    id_no: str  # App 一定會帶；本服務用不到，不儲存
+    id_no: str  # App 一定會帶；不存明碼，只存 HMAC（救護人員以身分證字號查詢救命卡）
     email: str
     phone_no: str
     birthday: str  # 格式 "YYYY/MM/DD"

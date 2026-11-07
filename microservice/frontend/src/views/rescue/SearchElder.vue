@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * RE-PG-02 救護人員：查詢長者的緊急醫療卡（查無資料時顯示錯誤狀態 R02b）
- * 不使用身分證字號：輸入長者敬老卡背面貼紙或手機桌布上的卡號（TPE-XXXX-XXXX），
- * 或在台北通 App 內掃卡片上的 QR Code。
+ * RE-PG-02 救護人員：輸入長者的身分證字號查詢緊急醫療卡（查無資料時顯示錯誤狀態 R02b）
+ * App 內另可掃長者卡片上的 QR Code
  */
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -15,21 +14,22 @@ import { rescueSearch } from '@/store'
 import { isInApp, scanQrCode } from '@/composables/flutterBridge'
 
 const router = useRouter()
-const code = ref('')
+const idNo = ref('')
 const error = ref('')
 const searching = ref(false)
 const inApp = isInApp()
 
-const NOT_FOUND = '查無此卡號的緊急醫療卡，請確認後重新輸入。'
+const NOT_FOUND = '查無此身分證字號的緊急醫療卡，請確認後重新輸入。'
+const INVALID = '身分證字號格式不正確（1 個英文字母＋9 個數字），請確認後重新輸入。'
 
-watch(code, (v) => {
-  // 只保留英數與連字號，自動轉大寫
-  const upper = v.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 13)
-  if (upper !== v) code.value = upper
+watch(idNo, (v) => {
+  // 只保留英數，自動轉大寫
+  const upper = v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+  if (upper !== v) idNo.value = upper
   error.value = ''
 })
 
-async function run(input: { code?: string; qr?: string }) {
+async function run(input: { idNo?: string; qr?: string }) {
   if (searching.value) return
   searching.value = true
   try {
@@ -44,11 +44,11 @@ async function run(input: { code?: string; qr?: string }) {
 }
 
 function search() {
-  if (code.value.replace(/-/g, '').length < 8) {
-    error.value = NOT_FOUND
+  if (!/^[A-Z][1289]\d{8}$/.test(idNo.value)) {
+    error.value = INVALID
     return
   }
-  run({ code: code.value })
+  run({ idNo: idNo.value })
 }
 
 async function scan() {
@@ -59,14 +59,14 @@ async function scan() {
 
 <template>
   <PageLayout title="查詢緊急醫療卡" fallback="/rescue">
-    <h2 class="page-heading">輸入緊急醫療卡卡號</h2>
+    <h2 class="page-heading">輸入長者的身分證字號</h2>
     <TextField
-      v-model="code"
-      label="卡號"
+      v-model="idNo"
+      label="身分證字號"
       required
-      placeholder="例如：TPE-7K3Q-9X2M"
-      :maxlength="13"
-      help-text="在長者敬老卡背面的貼紙或手機桌布上"
+      placeholder="例如：A123456789"
+      autocomplete="off"
+      :maxlength="10"
       :error-text="error"
     />
     <SecondaryButton v-if="inApp" @click="scan">掃描卡片上的 QR Code</SecondaryButton>

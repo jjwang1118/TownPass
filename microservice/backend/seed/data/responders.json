@@ -1,5 +1,15 @@
 [
   {
+    "account": "000000",
+    "password": "000000",
+    "name": "測試人員",
+    "unit": "大安分隊",
+    "unit_phone": "0200000001",
+    "title": "隊員",
+    "employment_status": "active",
+    "has_ems_permission": true
+  },
+  {
     "account": "A12345",
     "password": "demo-a12345",
     "name": "王大明",

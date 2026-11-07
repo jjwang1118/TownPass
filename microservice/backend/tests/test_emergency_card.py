@@ -10,12 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.modules.responder.rate_limit import lookup_limiter
 from seed.load import load_licenses, load_responders, sample_drug_codes
-from tests.conftest import FakePusher, LoginFn
+from tests.conftest import MOCK_ACCOUNT, FakePusher, LoginFn
 
 API = "/api/v1"
 SEED = Path(__file__).resolve().parents[1] / "seed" / "data"
 RX_A = json.loads((SEED / "rx_samples.json").read_text(encoding="utf-8"))[0]["payload"]
 ELDER_PHONE = "0932166777"  # assets/mock_data/account.json 的 phoneNo
+MOCK_ID_NO = MOCK_ACCOUNT["idNo"]
 
 CARD = {
     "name": "王美玉",
@@ -240,6 +241,30 @@ async def test_lookup_input_formats(api: httpx.AsyncClient, ctx: dict) -> None:
     # qr 與 code 擇一
     assert (await lookup(api, emt)).status_code == 400
     assert (await lookup(api, emt, qr=qr_reply(None))).status_code == 400
+
+
+async def test_lookup_by_id_no(
+    api: httpx.AsyncClient, ctx: dict, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    id_no = MOCK_ID_NO.lower()  # 忽略大小寫；家人、路人帳號用同一個身分證字號，但只找身分為長輩的人
+    emt = await responder_login(api)
+    # 還沒建卡
+    resp = await lookup(api, emt, id_no=id_no)
+    assert (resp.status_code, resp.json()["error"]["code"]) == (404, "CARD_NOT_FOUND")
+
+    await setup_card(api, ctx)
+    resp = await lookup(api, emt, id_no=id_no)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["name"] == "王美玉"
+    # 不存身分證明碼
+    async with sessionmaker() as session:
+        stored = (await session.execute(text("SELECT id_no_hash FROM users WHERE townpass_id = 'elder-1'"))).scalar_one()
+    assert stored and MOCK_ID_NO not in stored and len(stored) == 64
+
+    assert (await lookup(api, emt, id_no="A2234")).json()["error"]["code"] == "ID_NO_INVALID"
+    assert (await lookup(api, emt, id_no="B223456789")).status_code == 404
+    # id_no、qr、code 三擇一
+    assert (await lookup(api, emt, id_no=id_no, code="TPE-2222-2222")).status_code == 400
 
 
 async def test_rate_limit(api: httpx.AsyncClient, ctx: dict) -> None:

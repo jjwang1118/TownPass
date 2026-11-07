@@ -255,7 +255,8 @@ export async function ensureElder(force = false): Promise<void> {
   if (state.loaded.elder && !force) return
   try {
     await call(async () => {
-      const user = await me('elder')
+      // 每次開啟都用台北通 userinfo 重新登入：更新姓名、電話與身分證字號雜湊（救護人員以身分證字號查詢）
+      const user = await loginTownpass('elder')
       state.elderId = user.id
       state.elder = { name: user.real_name, phone: '' }
       await refreshElder()
@@ -685,9 +686,10 @@ export async function rescueLogin(unit: string, staffId: string, password: strin
  * RE-PG-02 查詢：輸入救命卡卡號或在 App 內掃卡片 QR Code（不使用身分證字號）。
  * 成功時後端會記錄查看紀錄並通知家屬；查無資料回傳 false。
  */
-export async function rescueSearch(input: { code?: string; qr?: string }): Promise<boolean> {
+/** RE-PG-02 查詢：長者身分證字號（主要），或在 App 內掃救命卡 QR */
+export async function rescueSearch(input: { idNo?: string; qr?: string }): Promise<boolean> {
   if (!state.rescue) return false
-  const body = input.qr ? { qr: { name: 'qr_code_scan', data: input.qr } } : { code: input.code }
+  const body = input.qr ? { qr: { name: 'qr_code_scan', data: input.qr } } : { id_no: input.idNo }
   try {
     const result = await call(() => post<ResponderCardOut>('/responder/cards/lookup', body, { role: 'rescue' }))
     state.rescueCard = {
@@ -697,7 +699,8 @@ export async function rescueSearch(input: { code?: string; qr?: string }): Promi
     state.rescue.openedAt = Date.now()
     return true
   } catch (e) {
-    if (e instanceof ApiError && ['CARD_NOT_FOUND', 'CARD_CODE_INVALID', 'VALIDATION_ERROR'].includes(e.code)) return false
+    if (e instanceof ApiError && ['CARD_NOT_FOUND', 'CARD_CODE_INVALID', 'ID_NO_INVALID', 'VALIDATION_ERROR'].includes(e.code))
+      return false
     if (e instanceof ApiError && e.status === 401) state.rescue = null
     throw e
   }

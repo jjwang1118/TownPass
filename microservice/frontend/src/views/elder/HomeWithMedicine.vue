@@ -7,6 +7,7 @@ import MedicineCard from '@/components/cards/MedicineCard.vue'
 import TimeSlotCard from '@/components/cards/TimeSlotCard.vue'
 import NextVisitCard from '@/components/cards/NextVisitCard.vue'
 import FeatureEntry from '@/components/cards/FeatureEntry.vue'
+import StaffEntryButton from '@/components/buttons/StaffEntryButton.vue'
 import LanguageSwitch from '@/components/segments/LanguageSwitch.vue'
 import GreetingBlock from './GreetingBlock.vue'
 import { SLOTS } from '@/data/constants'
@@ -94,6 +95,8 @@ const entries: { icon: IconName; title: string; subtitle: string; to: string }[]
       :subtitle="e.subtitle"
       @click="router.push(e.to)"
     />
+
+    <StaffEntryButton />
   </PageLayout>
 </template>
 

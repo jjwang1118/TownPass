@@ -1,5 +1,7 @@
-"""JWT、密碼雜湊、欄位加密。"""
+"""JWT、密碼雜湊、身分證字號雜湊、欄位加密。"""
 
+import hashlib
+import hmac
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -73,6 +75,15 @@ def verify_password(password_hash: str, password: str) -> bool:
         return _hasher.verify(password_hash, password)
     except VerifyMismatchError:
         return False
+
+
+# ---------- 身分證字號（只存雜湊）----------
+
+
+def hash_id_no(id_no: str) -> str:
+    """身分證字號不存明碼，只存以 JWT_SECRET 為金鑰的 HMAC-SHA256；救護人員以身分證字號查詢時比對。"""
+    normalized = id_no.strip().upper()
+    return hmac.new(get_settings().jwt_secret.encode(), normalized.encode(), hashlib.sha256).hexdigest()
 
 
 # ---------- 欄位加密（個資法第 6 條特種個資、電話）----------

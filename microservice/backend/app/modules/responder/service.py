@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import Forbidden, TooManyRequests, Unauthorized, ValidationFailed
+from app.core.errors import Forbidden, NotFound, TooManyRequests, Unauthorized, ValidationFailed
 from app.core.security import TokenKind, issue_token, verify_password
 from app.modules.emergency_card import rules as card_rules
 from app.modules.emergency_card.models import AccessMethod
@@ -61,7 +61,16 @@ class ResponderService:
         if not lookup_limiter.allow(responder.id):
             raise TooManyRequests("查詢太頻繁，請稍後再試", code="RATE_LIMITED")
 
-        if body.qr is not None and body.qr.data is not None:
+        cards = EmergencyCardService(self.session)
+        if body.id_no is not None:
+            # UI R02：輸入長者的身分證字號（只比對雜湊）
+            if not rules.is_id_no(body.id_no):
+                raise ValidationFailed("身分證字號格式不正確", code="ID_NO_INVALID")
+            code = await cards.code_for_id_no(body.id_no)
+            if code is None:
+                raise NotFound("查無此身分證字號的緊急醫療卡", code="CARD_NOT_FOUND")
+            method = AccessMethod.MANUAL
+        elif body.qr is not None and body.qr.data is not None:
             # 救命卡 QR 是網址；也接受 QR 裡直接是卡號
             code = card_rules.code_from_qr(body.qr.data) or card_rules.normalize_code(body.qr.data)
             method = AccessMethod.QR
@@ -72,7 +81,7 @@ class ResponderService:
             raise ValidationFailed("這不是救命卡的 QR Code 或卡號", code="CARD_CODE_INVALID")
 
         position = body.location.data if body.location is not None else None
-        return await EmergencyCardService(self.session).lookup_for_responder(
+        return await cards.lookup_for_responder(
             ResponderInfo(
                 id=responder.id,
                 name=responder.name,

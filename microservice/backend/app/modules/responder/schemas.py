@@ -30,20 +30,22 @@ class ResponderTokenOut(BaseModel):
 
 
 class LookupIn(BaseModel):
-    """qr 與 code 擇一：
+    """id_no、qr、code 三擇一：
 
+    - id_no：長者的身分證字號（UI R02，主要方式）
     - qr：App 對 { name: 'qr_code_scan' } 的回覆，原封不動送來
-    - code：QR 掃不到時手動輸入的卡號
+    - code：救命卡卡號
     - location：App 對 { name: 'location' } 的回覆，原封不動送來（取不到時可省略）
     """
 
+    id_no: str | None = Field(default=None, examples=["A223456789"])
     qr: QRCodeScanReply | None = None
     code: str | None = Field(default=None, examples=["TPE-7K3Q-9X2M"])
     location: LocationReply | None = None
 
     @model_validator(mode="after")
-    def _one_of_qr_or_code(self) -> Self:
+    def _one_of_id_no_qr_or_code(self) -> Self:
         has_qr = self.qr is not None and self.qr.data is not None
-        if has_qr == (self.code is not None):
-            raise ValueError("qr 與 code 必須擇一提供")
+        if [self.id_no is not None, has_qr, self.code is not None].count(True) != 1:
+            raise ValueError("id_no、qr、code 必須三擇一提供")
         return self

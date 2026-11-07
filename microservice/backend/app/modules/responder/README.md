@@ -10,7 +10,7 @@ UI R01～R04：救護人員選所屬分隊、輸入人員編號與密碼登入�
 |---|---|---|
 | GET | `/responder/units` | 所屬單位下拉選單（臺北市政府消防局各分隊，名稱為範例）；不需登入 |
 | POST | `/responder/login` | body `{"unit": "大安分隊", "staff_no": "A12345", "password": "…"}`；比對消防局名冊，在職且有救護權限才發 token（12 小時，一個勤務班） |
-| POST | `/responder/cards/lookup` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上 `location`（App 的 `location` 回覆，可省略） |
+| POST | `/responder/cards/lookup` | body：`id_no`（長者身分證字號，只比對雜湊）、`qr`（App 的 `qr_code_scan` 回覆）、`code`（卡號）三擇一，加上 `location`（App 的 `location` 回覆，可省略） |
 
 查詢範例：
 
@@ -37,6 +37,7 @@ UI R01～R04：救護人員選所屬分隊、輸入人員編號與密碼登入�
 | `INVALID_CREDENTIALS` | 401 | 單位、人員編號或密碼錯誤 |
 | `RESPONDER_NOT_AUTHORIZED` | 403 | 「無權限」：已離職或沒有救護權限 |
 | `CARD_CODE_INVALID` | 400 | 不是救命卡 QR，或卡號格式不對 |
+| `ID_NO_INVALID` | 400 | 身分證字號格式不對（1 個英文字母＋1、2、8、9 開頭的 9 位數字） |
 | `CARD_NOT_FOUND` | 404 | 卡號無效或已重新產生 |
 | `RATE_LIMITED` | 429 | 查詢太頻繁 |
 

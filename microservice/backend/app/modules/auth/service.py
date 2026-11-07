@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import Conflict, NotFound
-from app.core.security import TokenKind, issue_token
+from app.core.security import TokenKind, hash_id_no, issue_token
 from app.integrations.townpass.messages import TownPassAccount
 from app.modules.auth.models import User, UserRole
 from app.modules.auth.repository import UserRepository
@@ -29,12 +29,14 @@ class AuthService:
                     real_name=account.real_name,
                     phone=account.phone_no,
                     birth_year=account.birth_year,
+                    id_no_hash=hash_id_no(account.id_no),
                 )
             )
         else:
             user.real_name = account.real_name
             user.phone = account.phone_no
             user.birth_year = account.birth_year
+            user.id_no_hash = hash_id_no(account.id_no)
         await self.session.commit()
 
         token, expires_at = issue_token(user.id, TokenKind.USER)
@@ -47,6 +49,11 @@ class AuthService:
         user.role = role
         await self.session.commit()
         return self._me(user)
+
+    async def elder_ids_by_id_no(self, id_no: str) -> list[UUID]:
+        """救護人員以身分證字號查詢：比對雜湊，回符合的長輩（新的在前）。"""
+        users = await self.users.list_by_id_no_hash(hash_id_no(id_no))
+        return [u.id for u in users if u.role is UserRole.ELDER]
 
     async def get_me(self, user_id: UUID) -> MeOut:
         return self._me(await self._get(user_id))

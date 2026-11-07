@@ -339,3 +339,16 @@
 [Modified Time]: 1108071320
 
 [Modified Position]: microservice/backend/app/modules/family/service.py:95, microservice/backend/tests/test_family.py:126, microservice/frontend/src/store/index.ts, microservice/frontend/src/views/shared/BindElderForm.vue, microservice/frontend/src/views/elder/InviteFamily.vue, microservice/frontend/src/components/cards/FamilyMemberCard.vue:2, microservice/frontend/src/views/family/FamilyHome.vue:33, microservice/docs/backend-spec.md:130, microservice/docs/backend-spec.md:573, microservice/backend/app/modules/family/README.md:12, microservice/docs/front_specific/interfaces/EL-PG-17.md:14
+
+[Modified Description]:
+- 長者首頁（有藥、無藥兩版）最下方新增「員工專區」入口（灰底虛線框，與長輩用的主色按鈕區分），點擊進入救護人員登入（確認工作人員身分）
+- 救護人員查詢改為輸入長者身分證字號（依 UI R02，使用者決定，取代規格書 §1.2 第 2 項「隨機卡號」）；App 內保留掃救命卡 QR
+- 後端：users 新增 id_no_hash（HMAC-SHA256，不存明碼，migration b7c3e1d2a4f5，已套用到 5433 開發資料庫）；台北通登入時寫入；/responder/cards/lookup 新增 id_no（與 qr、code 三擇一），格式錯誤 400 ID_NO_INVALID、查無 404 CARD_NOT_FOUND；查看紀錄、30 分鐘關閉、通知家屬沿用原流程
+- 前端：長者端每次開啟改用台北通 userinfo 重新登入，讓舊帳號也補上身分證雜湊
+- 救護人員測試帳密 000000／000000（大安分隊），已匯入開發資料庫（只匯名冊）
+- 30 分鐘倒數（RE-PG-03）與自動關閉頁（RE-PG-04）原本就已實作，與設計圖一致
+- 驗證：後端 195 個測試通過、alembic check 無差異；npm run build、npm test 13 個通過；API 端到端（正確身分證 200、格式錯 400、查無 404、000000 登入成功）；首頁截圖確認員工專區按鈕
+
+[Modified Time]: 1108074730
+
+[Modified Position]: microservice/frontend/src/components/buttons/StaffEntryButton.vue:1, microservice/frontend/src/views/elder/HomeWithMedicine.vue, microservice/frontend/src/views/elder/HomeEmpty.vue, microservice/frontend/src/views/rescue/SearchElder.vue:1, microservice/frontend/src/store/index.ts:258, microservice/frontend/src/store/index.ts:688, microservice/backend/app/core/security.py:80, microservice/backend/app/modules/auth/models.py:24, microservice/backend/app/modules/auth/service.py:30, microservice/backend/app/modules/auth/repository.py:25, microservice/backend/alembic/versions/20261108_b7c3e1d2a4f5_user_id_no_hash.py:1, microservice/backend/app/modules/responder/schemas.py:32, microservice/backend/app/modules/responder/service.py:64, microservice/backend/app/modules/responder/rules.py, microservice/backend/app/modules/emergency_card/service.py:162, microservice/backend/tests/test_emergency_card.py:254, microservice/backend/seed/data/responders.json:2, microservice/backend/seed/README.md:47, microservice/docs/backend-spec.md:28, microservice/backend/app/modules/responder/README.md:13

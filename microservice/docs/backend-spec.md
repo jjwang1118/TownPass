@@ -25,7 +25,7 @@
 | # | 項目 | 決議 |
 |---|---|---|
 | 1 | 名稱 | **呷藥囉**（UI 設計稿的「藥報平安」不採用） |
-| 2 | 救護人員查詢方式 | **隨機卡號**（`TPE-XXXX-XXXX`），**不用身分證字號**（UI R02 的身分證字號欄位由前端改為卡號） |
+| 2 | 救護人員查詢方式 | **長者身分證字號**（依 UI R02，2026-11-08 改回）；後端只存身分證字號的 HMAC，不存明碼。台北通內仍可掃救命卡 QR，API 也接受卡號 |
 | 3 | 提醒時段 | **固定四個**：早上 09:00、中午 12:00、晚上 18:00、睡前 22:00，不能修改；飯前、飯後只是標示，見 [§5.3](#53-吃藥時段與規則) |
 | 4 | 藥品標示 | **藥單字母＋序號**（A1、A2…）：一個藥袋一張藥單，長輩在實體藥袋寫上大大的字母 |
 | 5 | 緊急聯絡人 | **1 位**，必填 |
@@ -239,9 +239,10 @@ microservice/backend/
 | real_name | text | userinfo `realName` |
 | phone | text 🔒 | userinfo `phoneNo`，家人「一鍵撥號」用 |
 | birth_year | int | 由 userinfo `birthday` 取年份 |
+| id_no_hash | char(64) NULL，index | userinfo `idNo` 的 HMAC-SHA256（金鑰 `JWT_SECRET`），救護人員以身分證字號查詢用；每次登入更新 |
 | created_at | timestamptz | |
 
-不儲存身分證字號（userinfo 的 `idNo`），本服務用不到。
+不儲存身分證字號明碼（userinfo 的 `idNo`），只存雜湊 `id_no_hash`。
 
 **`family_invites`**
 
@@ -625,7 +626,7 @@ microservice/backend/
 |---|---|---|
 | GET | `/responder/units` | 所屬單位下拉選單（臺北市政府消防局各分隊，名稱為範例）；不需登入 |
 | POST | `/responder/login` | body `{unit, staff_no, password}`，比對名冊；單位、編號或密碼錯誤都回 `401 INVALID_CREDENTIALS`（不透露帳號是否存在），離職或無救護權限回 `403 RESPONDER_NOT_AUTHORIZED`「無權限」 |
-| POST | `/responder/cards/lookup` | body：`qr`（App 的 `qr_code_scan` 回覆）或 `code`（手動輸入）擇一，加上 `location`（App 的 `location` 回覆）；回救命卡內容；寫查看紀錄並推播家人 |
+| POST | `/responder/cards/lookup` | body：`id_no`（長者身分證字號，UI R02）、`qr`（App 的 `qr_code_scan` 回覆）、`code`（卡號）三擇一，加上 `location`（App 的 `location` 回覆）；回救命卡內容；寫查看紀錄並推播家人 |
 
 查詢回應只有必要欄位（UI R03）：姓名、年齡、性別、血型、一位緊急聯絡人（撥號）、慢性病、過敏、目前用藥，不含常去醫院與病歷號；並附免責文字與 `close_at`（查詢後 30 分鐘，前端到時自動關閉並清除畫面資料）。每位救護人員每分鐘最多查詢 10 次（超過回 `429 RATE_LIMITED`），避免猜卡號；次數記在後端記憶體，重新啟動後歸零。
 
