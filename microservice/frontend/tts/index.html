@@ -74,14 +74,17 @@
 
   <section aria-labelledby="speak-title">
     <h2 id="speak-title">念給我聽</h2>
-    <label for="text">要朗讀的文字</label>
-    <textarea id="text">陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 半顆</textarea>
     <div class="row">
       <button type="button" data-sample="reminder">範例：吃藥提醒</button>
       <button type="button" data-sample="card">範例：藥卡</button>
     </div>
+    <label for="text" style="margin-top:12px">中文（speech_text）</label>
+    <textarea id="text">陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 半顆</textarea>
+    <label for="text-en" style="margin-top:12px">English（speech_text_en）</label>
+    <textarea id="text-en" lang="en">Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; number 3, Metformin 500mg, half a tablet.</textarea>
     <div class="row">
       <button type="button" class="primary" id="speak">念給我聽</button>
+      <button type="button" class="primary" id="speak-en" lang="en">Read in English</button>
       <button type="button" id="stop">停止</button>
     </div>
     <p id="status" role="status" aria-live="polite"></p>
@@ -97,13 +100,20 @@
     import { speak, stop, diagnose } from './tts.js';
 
     const SAMPLES = {
-      reminder: '陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 半顆',
-      card: '1 號藥，脈優錠，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。',
+      reminder: {
+        zh: '陳阿嬤，吃藥時間到囉～飯後吃：1 號 脈優錠 2 顆、3 號 Metformin 500mg 半顆',
+        en: "Grandma Chen, it's time for your medicine. After meals: number 1, Amlodipine 5mg, 2 tablets; number 3, Metformin 500mg, half a tablet.",
+      },
+      card: {
+        zh: '1 號藥，脈優錠，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。',
+        en: 'Medicine number 1, Amlodipine 5mg, from Family Medicine, for blood pressure. Take 1 tablet after meals, at 8 AM. 19 days left.',
+      },
     };
     const REASONS = {
       not_in_app: '不在 App 內',
       app_no_reply: 'App 沒有回應（App 可能是舊版，請完全停止後重新執行）',
-      no_offline_voice: 'App：找不到離線的中文語音（請到系統設定下載中文（台灣）語音資料）',
+      no_offline_voice: 'App：找不到這個語言的離線語音（請到系統設定下載該語言的語音資料）',
+      no_voice_for_language: '找不到這個語言的語音',
       no_voice_list: 'App：讀不到語音清單',
       set_voice_failed: 'App：設定語音失敗',
       speak_failed: 'App：朗讀失敗',
@@ -131,18 +141,24 @@
     }
 
     document.querySelectorAll('[data-sample]').forEach((btn) => {
-      btn.addEventListener('click', () => { $('text').value = SAMPLES[btn.dataset.sample]; });
+      btn.addEventListener('click', () => {
+        $('text').value = SAMPLES[btn.dataset.sample].zh;
+        $('text-en').value = SAMPLES[btn.dataset.sample].en;
+      });
     });
 
-    $('speak').addEventListener('click', async () => {
-      setStatus('朗讀中…');
-      const result = await speak($('text').value);
+    async function read(text, lang, label) {
+      setStatus(`${label}朗讀中…`);
+      const result = await speak(text, { lang });
       setStatus(
-        result.ok ? `完成（使用：${ENGINES[result.engine]}）` : `無法朗讀：${explain(result.reason)}`,
+        result.ok ? `${label}完成（使用：${ENGINES[result.engine]}）` : `${label}無法朗讀：${explain(result.reason)}`,
         result.ok ? 'ok' : 'error',
       );
       renderDiag();
-    });
+    }
+
+    $('speak').addEventListener('click', () => read($('text').value, 'zh-TW', '中文'));
+    $('speak-en').addEventListener('click', () => read($('text-en').value, 'en-US', '英文'));
 
     $('stop').addEventListener('click', () => { stop(); setStatus('已停止'); });
     $('refresh').addEventListener('click', renderDiag);
