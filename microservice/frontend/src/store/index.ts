@@ -20,7 +20,7 @@ import type {
   ViewLog,
 } from '@/types'
 import {
-  APPOINTMENT,
+  APPOINTMENTS,
   ELDER,
   EMERGENCY_CARD,
   FAMILY_MEMBERS,
@@ -72,9 +72,9 @@ interface State {
 
 /**
  * 目前存檔資料版本
- * - 4：清空先前存下的測試藥單
+ * - 5：清空先前存下的藥單與回診測試資料
  */
-const DATA_VERSION = 4
+const DATA_VERSION = 5
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
@@ -91,7 +91,7 @@ function defaults(): State {
   return {
     elder: clone(ELDER),
     prescriptions: clone(PRESCRIPTIONS),
-    appointments: [clone(APPOINTMENT)],
+    appointments: clone(APPOINTMENTS),
     lastBooked: null,
     card: clone(EMERGENCY_CARD),
     viewLogs: clone(VIEW_LOGS),
@@ -126,17 +126,20 @@ function load(): State {
     if (!raw) return base
     const parsed = JSON.parse(raw) as Partial<State>
     const saved = { ...base, ...parsed }
-    // v4：清空舊存檔裡的測試藥單（含未完成的新增草稿與暫存的手動藥品）
-    if ((parsed.dataVersion ?? 1) < DATA_VERSION) {
-      saved.prescriptions = []
-      saved.draft = null
-      saved.manualMedicines = []
-      saved.notified = saved.notified.filter((k) => !k.startsWith('slot:'))
-    }
     // 舊存檔只有單筆 appointment → 轉成列表
     const legacy = (parsed as { appointment?: Appointment | null }).appointment
     if (!Array.isArray(parsed.appointments)) saved.appointments = legacy ? [legacy] : []
     delete (saved as { appointment?: unknown }).appointment
+    // 版本較舊的存檔：清空藥單與回診測試資料（含新增藥單草稿、暫存手動藥品、填到一半的預約）
+    if ((parsed.dataVersion ?? 1) < DATA_VERSION) {
+      saved.prescriptions = []
+      saved.draft = null
+      saved.manualMedicines = []
+      saved.appointments = []
+      saved.lastBooked = null
+      saved.booking = emptyBooking()
+      saved.notified = []
+    }
     saved.dataVersion = DATA_VERSION
     saved.prescriptions.forEach(migrateQuantity)
     if (saved.draft) migrateQuantity(saved.draft)

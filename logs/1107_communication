@@ -161,3 +161,12 @@
 [Modified Time]: 1107232000
 
 [Modified Position]: microservice/frontend/src/composables/useNow.ts、microservice/frontend/src/utils/booking.ts、microservice/frontend/src/views/shared/BookingForm.vue、microservice/frontend/src/store/index.ts、microservice/frontend/src/composables/useReminders.ts、microservice/frontend/src/components/cards/NextVisitCard.vue、microservice/frontend/src/views/elder/HomeWithMedicine.vue、microservice/frontend/src/views/elder/HomeEmpty.vue、microservice/frontend/src/views/family/FamilyHome.vue、microservice/frontend/src/views/elder/BookingSuccess.vue
+
+[Modified Description]:
+- 依使用者需求，清除藥單與回診測試資料：預設回診改為空列表（移除 11/14 仁愛院區心臟科林醫師範例）
+- 存檔資料版本升為 5，舊存檔載入時清空藥單、新增草稿、暫存手動藥品、回診預約、填到一半的預約與已發送提醒；醫療卡、家屬等資料保留
+- 另：模擬器時區原為 GMT 導致時間慢 8 小時，已用 adb 改為 Asia/Taipei（僅模擬器設定，非程式修改）
+
+[Modified Time]: 1107232200
+
+[Modified Position]: microservice/frontend/src/data/mock.ts:27-28、microservice/frontend/src/store/index.ts

@@ -24,15 +24,8 @@ export const ELDER: ElderProfile = {
 /** 預設藥單：測試資料已清空，藥單一律由使用者透過新增藥單流程建立 */
 export const PRESCRIPTIONS: Prescription[] = []
 
-export const APPOINTMENT: Appointment = {
-  hospital: '仁愛院區',
-  department: '心臟科',
-  doctor: '林醫師',
-  date: '2026-11-14',
-  time: '09:30',
-  timeLabel: '上午 09:30',
-  number: 12,
-}
+/** 預設回診預約：測試資料已清空，回診一律由使用者透過回診預約建立 */
+export const APPOINTMENTS: Appointment[] = []
 
 export const EMERGENCY_CARD: EmergencyCard = {
   name: '王美玉',
