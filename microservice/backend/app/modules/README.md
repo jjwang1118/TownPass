@@ -29,6 +29,7 @@
 | [notification/](notification/) | 推播 token、發送推播 | 2 | ✅ 完成 |
 | [internal/](internal/) | 排程入口 `/internal/tick` | 1 | ✅ 完成 |
 | [demo/](demo/) | 展示用觸發（只在 `DEMO_MODE`） | 3 | ✅ 完成 |
+| [speech/](speech/) | 朗讀稿模板（只有 `rules.py`，被 medication、reminder 使用） | 0 | 🚧 只有國語 |
 
 ## 模組之間
 

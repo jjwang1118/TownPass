@@ -2,7 +2,6 @@
 
 import datetime as dt
 import json
-import re
 import uuid
 from pathlib import Path
 
@@ -145,10 +144,12 @@ async def test_medication_card(api: httpx.AsyncClient, ctx: dict, monkeypatch: p
     assert card["run_out_date"] == "2026-11-28"
     assert card["days_left"] == 19  # 11/10～11/28
 
-    # 念給我聽：不唸英文字母
-    assert card["speech_text"] == "1 號藥，家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。"
+    # 念給我聽：藥名念食藥署許可證的中文品名（範例資料的中文品名本身含英文）
+    assert card["speech_text"] == (
+        "1 號藥，Amlodipine 5 毫克錠（範例），家醫科開的，降血壓。一次 1 顆，飯後吃，早上 8 點。還剩 19 天。"
+    )
+    assert "Amlodipine 10 毫克錠（範例）" in cards[1]["speech_text"]
     assert "半顆" in cards[1]["speech_text"]
-    assert not any(re.search(r"[A-Za-z]", c["speech_text"]) for c in cards)
 
 
 # ---------- 1-3 藥品詳細頁：編輯、停用 ----------

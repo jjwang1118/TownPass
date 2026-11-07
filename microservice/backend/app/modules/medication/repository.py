@@ -79,3 +79,11 @@ class MedicationRepository:
         )
         rows = await self.session.execute(stmt)
         return {license_no: list(ingredients) for license_no, ingredients in rows}
+
+    async def zh_names_by_license(self, license_nos: list[str]) -> dict[str, str]:
+        """許可證字號 → 中文品名（朗讀藥名用）。"""
+        if not license_nos:
+            return {}
+        stmt = select(DrugLicense.license_no, DrugLicense.name_zh).where(DrugLicense.license_no.in_(license_nos))
+        rows = await self.session.execute(stmt)
+        return {license_no: name_zh for license_no, name_zh in rows}

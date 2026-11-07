@@ -77,7 +77,7 @@ async def test_remind_at_slot_time(
     freeze(monkeypatch, "2026-11-05 08:00")
     assert (await tick(api))["created"] == 1
     [message] = sent_to(pushes, "elder-phone")
-    assert message.body == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 1 顆、2 號 1 顆"
+    assert message.body == "陳阿嬤，吃藥時間到囉～飯後吃：1 號 Amlodipine 5mg 1 顆、2 號 Metformin 500mg 1 顆"
     assert message.data["type"] == "medication_reminder"
     assert message.data["deeplink"].endswith(f"/reminder/{message.data['event_id']}")
     assert sent_to(pushes, "daughter-phone") == []  # 家人不會每個時段都收到
@@ -93,7 +93,7 @@ async def test_remind_at_slot_time(
     assert screen["status"] == "pending"
 
 
-async def test_speech_uses_card_title_and_skips_latin(
+async def test_speech_uses_card_title_and_drug_name(
     api: httpx.AsyncClient, ctx: dict, pushes: FakePusher, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await add(api, ctx, AMLODIPINE_10)  # 半顆
@@ -102,7 +102,8 @@ async def test_speech_uses_card_title_and_skips_latin(
 
     freeze(monkeypatch, "2026-11-05 08:00")
     await tick(api)
-    assert sent_to(pushes, "elder-phone")[0].body == "阿嬤，吃藥時間到囉～飯後吃：1 號 半顆"
+    # 這裡沒有匯入食藥署資料，查不到中文品名，所以照藥袋上的英文念
+    assert sent_to(pushes, "elder-phone")[0].body == "阿嬤，吃藥時間到囉～飯後吃：1 號 Amlodipine 10mg 半顆"
 
 
 async def test_no_late_reminder_after_30_minutes(api: httpx.AsyncClient, ctx: dict, monkeypatch: pytest.MonkeyPatch) -> None:

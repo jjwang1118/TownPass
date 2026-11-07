@@ -1,18 +1,15 @@
 """吃藥提醒的純規則與文字（功能規格 1-5、1-6、3-1）。"""
 
 import datetime as dt
-import re
-from decimal import Decimal
 
 from app.modules.medication.models import SlotKey
-from app.modules.medication.rules import qty_text
 
 MAX_ATTEMPTS = 3  # 推播長輩幾次後，通知家人沒有回應
 LATE_WINDOW = dt.timedelta(minutes=30)  # 排程延誤時，超過時段多久就不再補發
 REFILL_DAYS_BEFORE = 7  # 藥吃完前幾天提醒回診
 REFILL_SEND_AT = dt.time(9, 0)  # 每天幾點發回診提醒
 
-_MEAL_WORD: dict[SlotKey, str] = {
+MEAL_WORD: dict[SlotKey, str] = {  # 朗讀稿用
     SlotKey.BREAKFAST_BEFORE: "飯前",
     SlotKey.LUNCH_BEFORE: "飯前",
     SlotKey.DINNER_BEFORE: "飯前",
@@ -21,17 +18,6 @@ _MEAL_WORD: dict[SlotKey, str] = {
     SlotKey.DINNER_AFTER: "飯後",
     SlotKey.BEDTIME: "睡前",
 }
-
-
-def _without_latin(text: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"[A-Za-z]+", "", text)).strip()
-
-
-def reminder_speech(title: str, slot_key: SlotKey, items: list[tuple[int, Decimal]]) -> str:
-    """功能規格 1-5：「阿嬤，吃藥時間到囉～飯後吃：1 號 2 顆、3 號 1 顆」。不唸英文字母，所以不含藥名。"""
-    doses = "、".join(f"{number} 號 {qty_text(qty)}" for number, qty in items)
-    head = f"{_without_latin(title)}，" if _without_latin(title) else ""
-    return f"{head}吃藥時間到囉～{_MEAL_WORD[slot_key]}吃：{doses}"
 
 
 def hhmm(at: dt.datetime, tz: dt.tzinfo) -> str:

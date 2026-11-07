@@ -22,6 +22,7 @@ from app.modules.reminder import rules
 from app.modules.reminder.models import ReminderEvent
 from app.modules.reminder.repository import ReminderRepository
 from app.modules.reminder.schemas import ReminderOut, ReminderStatus
+from app.modules.speech import rules as speech
 
 logger = logging.getLogger(__name__)
 
@@ -110,12 +111,16 @@ class ReminderService:
         doses = await self.medication.doses_for_slot(elder_id, slot_key, day)
         if not doses:
             return None
+        names = await self.medication.speech_names(elder_id)
         event = await self.repo.create_event(
             elder_id=elder_id,
             slot_key=slot_key,
             scheduled_date=day,
             scheduled_at=at,
-            items=[{"number": d.number, "name": d.name, "qty": str(d.qty)} for d in doses],
+            items=[
+                {"number": d.number, "name": d.name, "speech_name": names.get(d.number, d.name), "qty": str(d.qty)}
+                for d in doses
+            ],
             now=now,
         )
         if event is not None:
@@ -241,7 +246,7 @@ class ReminderService:
             [event.elder_id],
             PushType.MEDICATION_REMINDER,
             "吃藥時間到囉",
-            rules.reminder_speech(title, event.slot_key, self._item_pairs(event)),
+            self._speech(title, event),
             event,
         )
 
@@ -265,8 +270,12 @@ class ReminderService:
             logger.exception("推播失敗 type=%s users=%s", type, user_ids)
 
     @staticmethod
-    def _item_pairs(event: ReminderEvent) -> list[tuple[int, Decimal]]:
-        return [(i["number"], Decimal(i["qty"])) for i in event.items]
+    def _speech(title: str, event: ReminderEvent) -> str:
+        """朗讀藥名用建立提醒時的快照（編號停用後會被重用）；舊資料沒有 speech_name 時由藥名推得。"""
+        items = [
+            (i["number"], i.get("speech_name") or speech.drug_name(i["name"]), Decimal(i["qty"])) for i in event.items
+        ]
+        return speech.reminder(title=title, meal_word=rules.MEAL_WORD[event.slot_key], items=items)
 
     async def _to_out(self, event: ReminderEvent) -> ReminderOut:
         title, _ = await self._elder_title(event.elder_id)
@@ -284,7 +293,7 @@ class ReminderService:
             label=med_rules.SLOT_LABELS[event.slot_key],
             scheduled_at=event.scheduled_at,
             items=[DoseItem(number=i["number"], name=i["name"], qty=Decimal(i["qty"])) for i in event.items],
-            speech_text=rules.reminder_speech(title, event.slot_key, self._item_pairs(event)),
+            speech_text=self._speech(title, event),
             status=status,
             attempts=event.attempts,
             acked_at=event.acked_at,
