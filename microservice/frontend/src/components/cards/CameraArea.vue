@@ -3,7 +3,10 @@
 import { ref } from 'vue'
 import { useCamera } from '@/composables/useCamera'
 
-withDefaults(defineProps<{ hint: string; frameHeight?: number }>(), { frameHeight: 300 })
+withDefaults(defineProps<{ hint: string; frameWidth?: number; frameHeight?: number }>(), {
+  frameWidth: 260,
+  frameHeight: 300,
+})
 
 const video = ref<HTMLVideoElement | null>(null)
 const { error, ready } = useCamera(video)
@@ -16,7 +19,11 @@ defineExpose({ video, ready })
     <video ref="video" class="video" :class="{ on: ready }" playsinline muted aria-hidden="true" />
     <div class="overlay">
       <div class="center">
-        <div class="frame" :style="{ height: `${frameHeight}px` }" aria-hidden="true" />
+        <div
+          class="frame"
+          :style="{ width: `${frameWidth}px`, aspectRatio: `${frameWidth} / ${frameHeight}` }"
+          aria-hidden="true"
+        />
         <p class="hint font-h3-semibold">{{ error || hint }}</p>
         <slot />
       </div>
@@ -76,8 +83,9 @@ defineExpose({ video, ready })
   justify-content: center;
 }
 .frame {
-  width: 260px;
+  /* 窄螢幕時等比例縮小，維持框框形狀 */
   max-width: 100%;
+  height: auto;
   border-radius: 12px;
   border: 3px solid var(--color-primary-300);
 }

@@ -344,3 +344,12 @@
 [Modified Time]: 1108000800
 
 [Modified Position]: microservice/frontend/src/components/cards/CameraArea.vue、microservice/frontend/src/components/cards/PhotoCamera.vue
+
+[Modified Description]:
+- 依使用者需求，掃描 QR Code 頁對準框放大為 300×300（窄螢幕時等比例縮小，維持正方形）
+- 新增「上傳 QR Code 照片」：從手機選照片辨識 QR Code，成功後同掃描流程進入確認藥單；找不到時提示換一張清楚的照片
+- 照片辨識優先使用瀏覽器 BarcodeDetector，不支援時改用 jsQR（Apache-2.0，新增套件）
+
+[Modified Time]: 1108001200
+
+[Modified Position]: microservice/frontend/src/views/elder/ScanPrescriptionQr.vue、microservice/frontend/src/utils/qrImage.ts、microservice/frontend/src/components/cards/CameraArea.vue、microservice/frontend/src/components/cards/QrScanCamera.vue、microservice/frontend/package.json、microservice/frontend/package-lock.json

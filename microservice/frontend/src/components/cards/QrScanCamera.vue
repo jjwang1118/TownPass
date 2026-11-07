@@ -46,5 +46,5 @@ onBeforeUnmount(() => window.clearInterval(timer))
 </script>
 
 <template>
-  <CameraArea ref="area" hint="把 QR Code 對準框框" :frame-height="260" />
+  <CameraArea ref="area" hint="把 QR Code 對準框框" :frame-width="300" :frame-height="300" />
 </template>
