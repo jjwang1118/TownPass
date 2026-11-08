@@ -186,7 +186,7 @@ extension MyServiceIdExt on MyServiceItemId {
         ),
       MyServiceItemId.elderlyCare => MyServiceItem(
         title: '呷藥囉',
-        description: '老人',
+        description: "長輩的用藥、急救、回診，一次顧好",
         icon: Assets.svg.iconCovidMedical.svg(),
         category: MyServiceCategory.cityLife,
         // 開發用：先執行 `adb reverse tcp:5173 tcp:5173`，模擬器的 localhost:5173 即連到本機 Vite 開發伺服器
