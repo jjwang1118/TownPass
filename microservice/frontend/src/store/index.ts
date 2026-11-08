@@ -365,17 +365,6 @@ export async function startDraftFromQr(raw: string): Promise<void> {
   setDraftFromPreview(preview)
 }
 
-/**
- * EL-PG-05 拍藥袋：手機上用 Tesseract 辨識出的每一行文字（services/bagOcr.ts）送後端整理成藥單欄位、
- * 比對健保藥品資料並打信心分數（規格書 §8.3），失敗時丟出 ApiError（OCR_EMPTY、OCR_UNREADABLE）
- */
-export async function startDraftFromOcr(lines: string[]): Promise<void> {
-  const preview = await call(() =>
-    post<PreviewOut>(elderPath('/prescriptions/ocr-preview'), { name: 'ocr_scan', data: { lines } }, { role: 'elder' }),
-  )
-  setDraftFromPreview(preview)
-}
-
 /** 拍照或相簿 OCR 整理的欄位送後端比對；預覽不儲存，核對後才加入藥單。 */
 export async function startDraftFromRecognition(recognized: PhotoRecognitionIn, signal?: AbortSignal) {
   const preview = await call(() => post<PreviewOut>(elderPath('/prescriptions/photo-preview'), recognized, { role: 'elder', signal }))

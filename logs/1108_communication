@@ -352,3 +352,19 @@
 [Modified Time]: 1108074730
 
 [Modified Position]: microservice/frontend/src/components/buttons/StaffEntryButton.vue:1, microservice/frontend/src/views/elder/HomeWithMedicine.vue, microservice/frontend/src/views/elder/HomeEmpty.vue, microservice/frontend/src/views/rescue/SearchElder.vue:1, microservice/frontend/src/store/index.ts:258, microservice/frontend/src/store/index.ts:688, microservice/backend/app/core/security.py:80, microservice/backend/app/modules/auth/models.py:24, microservice/backend/app/modules/auth/service.py:30, microservice/backend/app/modules/auth/repository.py:25, microservice/backend/alembic/versions/20261108_b7c3e1d2a4f5_user_id_no_hash.py:1, microservice/backend/app/modules/responder/schemas.py:32, microservice/backend/app/modules/responder/service.py:64, microservice/backend/app/modules/responder/rules.py, microservice/backend/app/modules/emergency_card/service.py:162, microservice/backend/tests/test_emergency_card.py:254, microservice/backend/seed/data/responders.json:2, microservice/backend/seed/README.md:47, microservice/docs/backend-spec.md:28, microservice/backend/app/modules/responder/README.md:13
+
+---
+
+[Agent name]: 前端工程師
+
+[Modified Description]:
+- 依使用者決定，拍藥袋 OCR 由 Tesseract 換回 PaddleOCR（PP-OCRv5 手機版＋esearch-ocr＋onnxruntime-web），只動 OCR 相關檔案，main 其他部分不變
+- 拍藥袋頁 PhotoPrescription.vue 還原為 PaddleOCR 版本（c2c2aa3），走 startDraftFromRecognition → 後端 photo-preview（健保正式藥名也適用）
+- 移除 Tesseract：services/bagOcr.ts、scripts/copy-tesseract.mjs、package.json 的 predev／prebuild 與 tesseract.js、@tesseract.js-data/chi_tra、@tesseract.js-data/eng，.gitignore 的 public/tesseract/，store 的 startDraftFromOcr；後端 ocr-preview 保留
+- 更新 frontend.md 拍藥袋 OCR 流程與模型揭露（量化格式待確認）
+- 注意：本紀錄 225、259 行曾記錄「PaddleOCR 屬百度（大陸廠牌），競賽禁用」，已提醒使用者，使用者確認仍改用 PaddleOCR
+- 驗證：npm run build（含 vue-tsc）通過，PaddleOCR 模型有打包；npm test 13 個通過；尚未在 App 內實測辨識
+
+[Modified Time]: 1108093028
+
+[Modified Position]: microservice/frontend/src/views/elder/PhotoPrescription.vue:1, microservice/frontend/src/store/index.ts:368, microservice/frontend/package.json:6, microservice/frontend/package-lock.json, microservice/frontend/.gitignore:5, microservice/frontend/src/services/bagOcr.ts（刪除）, microservice/frontend/scripts/copy-tesseract.mjs（刪除）, microservice/docs/frontend.md:148
